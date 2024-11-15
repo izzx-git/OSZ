@@ -1,0 +1,700 @@
+;Процедуры  Keyboard Driver
+;файл DrvKey.asm.a80
+;
+;DriverKeyboard		вызов драйвера клавиатуры
+;FunctDrvKeyboard	вызов функции драйвера клавиатуры
+;GetCodesPressKey	получение кодов нажатой клавиши
+;GetRepeatDelays	получение периодов задержки и автоповтора
+;SetRepeatDelays	установка периодов задержки и автоповтора
+;SetFlagsDriver		установка/получение флагов драйвера
+;ScanKeyboardDelay	опрос клавиатуры с учетом временных задержек
+;ScanKeyboard		опрос всех клавиш клавиатуры
+;ScanAllKeys		опрос всех клавиш клавиатуры
+;
+;------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+;вызов драйвера клавиатуры
+;вых: 6,(FlgScanKeys) =1 - ни одна клавиша не нажата
+;     hl=FlgScanKeys
+;     d - сканкод нажатой клавиши
+;     a,e - печатный код нажатой клавиши в текущей раскладке клавиатуры
+;       (Grf\Rus\Lat) с учетом режима CapsLock
+;     bc - не определен
+;
+@DriverKeyboard		jp	ScanKeyboardDelay
+
+;------------------------------------------------------------------------------
+	IFNDEF	NoFuncDrvKey
+;вызов функции драйвера клавиатуры
+;вх:  c - номер функции [#00..#04]
+;     hl,de,b,a - параметры функции
+;вых: регистры установлены в сответствии с вызываемой функцией
+;
+@FunctDrvKeyboard
+;
+	IFDEF	NoCtlDrvKey
+	 push	hl
+	 push	af
+	 ld	a,b
+	 ld	b,#00
+	 ld	hl,TableAdrFunct
+	 add	hl,bc
+	 add	hl,bc
+	 ld	b,a
+	 ld	a,(hl)
+	 inc	hl
+	 ld	h,(hl)
+	 ld	l,a
+	 pop	af
+	 ex	(sp),hl
+	 ret
+	ELSE
+	 push	hl
+	 push	af
+	 ld	a,c
+	 cp	#05
+	 jr	nc,goto017		;несущетсвущий номер функции
+	 ld	a,b
+	 ld	hl,TableAdrFunct
+	 ld	b,#00
+	 add	hl,bc 
+	 add	hl,bc
+	 ld	b,a
+	 ld	a,(hl)
+	 inc	hl
+	 ld	h,(hl)
+	 ld	l,a
+	 and	h
+	 inc	a
+	 jr	z,goto017		;функция не задана
+	 pop	af 
+	 ex	(sp),hl
+	 ret
+goto017	 pop	af 
+	 pop	hl
+	 ret
+	ENDIF
+
+	ENDIF
+
+;------------------------------------------------------------------------------
+TableAdrFunct	ifused
+;таблица адресов функций драйвера
+;TableAdrFunct
+;
+		  dw ScanKeyboard
+		  dw GetCodesPressKey
+ IFDEF DrvKey_02: dw SetFlagsDriver:  ELSE: dw #FFFF:ENDIF 
+ IFDEF DrvKey_03: dw SetRepeatDelays: ELSE: dw #FFFF:ENDIF 
+ IFDEF DrvKey_04: dw GetRepeatDelays: ELSE: dw #FFFF:ENDIF 
+		endif
+
+;------------------------------------------------------------------------------
+GetCodesPressKey	ifused
+;получение кодов нажатой клавиши
+;вх:  ----
+;вых: d - сканкод нажатой клавиши
+;     a,e - печатный код нажатой клавиши в текущей раскладке клавиатуры
+;       (Grf\Rus\Lat) с учетом режима CapsLock
+;
+;GetCodesPressKey
+;
+	ld	de,(PrintCodePresKey)
+	ld	a,e
+	ret
+
+	endif 
+
+;------------------------------------------------------------------------------
+GetRepeatDelays	ifused
+;получение периодов задержки и автоповтора
+;вх:  ----
+;вых: d - период автоповтора
+;     e - задержка перед автоповтором
+;
+;GetRepeatDelays
+;
+	ld      de,(KeyRepeatDelay)
+	ret
+
+	endif 
+
+;------------------------------------------------------------------------------
+SetRepeatDelays	ifused
+;установка периодов задержки и автоповтора
+;вх:  d - период автоповтора
+;     e - задержка перед автоповтором
+;вых: регистры не изменяются
+;
+;SetRepeatDelays
+;
+	ld	(KeyRepeatDelay),de
+	ret
+
+	endif 
+
+;------------------------------------------------------------------------------
+SetFlagsDriver	ifused
+;eстановка/получение флагов драйвера
+;вх:  d - маска флагов
+;     e - изменяемые флаги
+;вых: a - флаги драйвера
+;
+;SetFlagsDriver
+;
+	ld	a,(FlgScanKeys)
+	and	d 
+	or	e 
+	ld	(FlgScanKeys),a 
+	ret
+
+	endif 
+
+;------------------------------------------------------------------------------
+;опрос клавиатуры с учетом временных задержек
+;вх:  (PrintCodePresKey) - печатный код нажатой клавиши
+;вых: 6,(FlgScanKeys) =1 - ни одна клавиша не нажата
+;     hl=FlgScanKeys
+;     d - сканкод нажатой клавиши
+;     a,e - печатный код нажатой клавиши в текущей раскладке клавиатуры
+;       (Grf\Rus\Lat) с учетом режима CapsLock
+;     bc - не определен
+;
+ScanKeyboardDelay
+;
+	call	ScanKeyboard		;a=(PrintCodePresKey)
+	ld	hl,FlgScanKeys
+	set	6,(hl)
+;	ld	a,(PrintCodePresKey)
+	cp	#FF
+	jr	z,goto012		;клавиша не нажата
+cng_01	cp	#00
+	jr	nz,goto013		;нажата другая клавиша
+	ld	bc,(KeyRepeatDelay)
+cng_02	ld	de,#0000
+	inc	e
+	jr	nz,goto014
+	dec	e
+goto014	ld	a,e
+	cp	c 
+	jr	nz,goto015		;задержка до автоповтора
+	dec	e
+	inc	d
+	jr	nz,goto016
+	dec	d
+goto016	ld	a,d
+	cp	b
+	jr	c,goto015
+	ld	d,#00
+	res	6,(hl) 
+	jr	goto015
+goto013 res     6,(hl)
+goto012	ld	(cng_01+1),a
+	ld	de,#0000
+goto015	ld	(cng_02+1),de
+	jr	GetCodesPressKey
+
+;------------------------------------------------------------------------------
+;опрос всех клавиш клавиатуры с генерацией печатного кода
+;вх:  (FlgScanKeys) - флаги
+;вых: (ScanCodePresKey) - сканкод нажатой клавиши
+;     a - печатный код нажатой клавиши
+;     (PrintCodePresKey) - печатный код нажатой клавиши в текущей раскладке
+;       клавиатуры (Grf\Rus\Lat) с учетом режима CapsLock
+;     7,(FlgScanKeys) =1 недопустимая комбинация
+;     hl,de,bc,a - не определены
+;
+ScanKeyboard
+;
+;опрос клавиатуры
+	IFDEF	Used_ROM
+	 call	#028E
+	ELSE
+	 call	ScanAllKeys
+	ENDIF
+	ld	hl,FlgScanKeys
+	res	5,(hl)
+	res	7,(hl)
+	jr	z,goto006		;возможно что-то нажато
+goto021	ld	e,#FF
+	set	7,(hl)			;недопустимая комбинация
+
+;выход, если не нажата ни одна клавиша
+goto006	ld	a,e
+	ld	(ScanCodePresKey),a
+	inc	a
+	jr	z,goto011
+
+;для командного режима только коды cs+ss
+	push	hl
+	ld	c,(hl)			;c=(FlgScanKeys)
+	IFDEF	CommandMode
+	 bit	0,c
+	 jr	z,goto018		;выключен Command Mode
+	 IFDEF	Used_ROM
+	  ld	a,d
+	  cp	#18
+	  jr	z,goto019		;без SS
+	 ELSE
+	  res	1,d			;без SS
+	 ENDIF
+	ENDIF
+
+;вычисляем печатный код в латинской раскладке по сканкоду клавиши
+goto018	ld	a,d
+	IFDEF	Used_ROM
+	 ld	hl,tableSSkeys
+	 cp	#18
+	 jr	z,goto007		;с нажатой ss
+	 ld	hl,tableCSkeys
+	 cp	#27
+	 jr	z,goto007		;с нажатой cs
+goto019	 ld	hl,tablePrnKeys
+	ELSE
+	 ld	hl,tableSSkeys
+	 cp	#02
+	 jr	z,goto007		;с нажатой ss
+	 IFDEF	UseEXTkeys
+	  ld	hl,tableEXTKeys
+	  set	5,c			;ввод с cs+ss
+	  jr	nc,goto007		;с нажатой cs+ss
+	  res	5,c
+	 ENDIF
+	 ld	hl,tableCSkeys
+	 or	a
+	 jr	nz,goto007		;с нажатой cs
+	 ld	hl,tablePrnKeys
+	ENDIF
+goto007	ld	d,#00
+	add	hl,de
+	ld	e,(hl)			;печатный код
+	pop	hl
+	ld	(hl),c
+	ld	a,e
+	inc	a
+	jr	z,goto021
+;de - печатный код нажатой клавиши в латинской раскладке без учета режима Caps
+
+;если включен коммандный режим установка символа в верхний регистр
+	IFDEF	CommandMode
+	 ld	a,c
+	 and	%00100001
+	 jr	nz,goto020		;включен Command Mode
+	ENDIF
+
+;коррекция печатного кода с учетом режима CapsLock
+	ld	a,e
+	bit	1,c
+	jr	z,goto008		;caps выключен
+	cp	"A"
+	jr	c,goto008
+	cp	"Z"+1
+	jr	c,goto009
+	IFDEF	CommandMode
+goto020	 ld	a,e
+	ENDIF
+	cp	"a"
+	jr	c,goto008
+	cp	"z"+1
+	jr	nc,goto008
+goto009	xor	%00100000
+goto008	ld	e,a
+;de,a - печатный код нажатой клавиши в латинской раскладке
+
+;без преобразования, если включен коммандный режим
+	IFDEF	CommandMode
+	 ld	a,c
+	 and	%00100001
+	 ld	a,e
+	 jr	nz,goto011		;включен Command Mode
+	ENDIF
+
+;установка печатного кода в соответствии с включенной раскладкой: Grf\Rus\Lat
+;  grf раскладка
+	IFDEF	GrfMode
+	 IFDEF	InsideGrfTable
+	  cp	#20
+	  jr	c,goto011
+	 ENDIF
+	 ld	hl,TblKeyGrf
+	 bit	2,c
+	 jr	nz,goto010		;включен Grf
+	ENDIF
+;  rus раскладка
+	IFDEF	RusMode
+	 bit	3,c
+	 jr	z,goto011		;раскладка rus выключена
+	 IFDEF	InsideRusTable
+	  cp	#20
+	  jr	c,goto011
+	 ENDIF
+	 IFDEF	Rus_jcuken
+	  ld	hl,TblKeyRus_jcuken
+	  IFDEF	Rus_qwerty
+	   bit	4,c
+	   jr	nz,goto010		;включена раскладка Rus йцукен
+	  ENDIF
+	 ENDIF
+	 IFDEF	Rus_qwerty
+	  ld	hl,TblKeyRus_qwerty
+	 ENDIF
+	 jr	goto010
+	ENDIF
+	jr	goto011
+goto010	add	hl,de
+	ld	e,(hl)
+;e - печатный код нажатой клавиши в текущей раскладке клавиатуры (Grf\Rus\Lat)
+;    с учетом режима CapsLock
+
+goto011 ld      a,e 
+        ld      (PrintCodePresKey),a 
+        ret
+
+;------------------------------------------------------------------------------
+ScanAllKeys	ifused
+;опрос всех клавиш клавиатуры (аналог п/п ПЗУ 48k #028E)
+;примечание: таблица ScanCode
+;┌───┬───┬───┬───┬───╥───┬───┬───┬───┬───┐
+;│ 1 │ 2 │ 3 │ 4 │ 5 ║ 6 │ 7 │ 8 │ 9 │ 0 │
+;│#24│#1C│#14│#0C│#04║#03│#0B│#13│#1B│#23│
+;├───┼───┼───┼───┼───╫───┼───┼───┼───┼───┤
+;│ Q │ W │ Q │ R │ T ║ Y │ U │ I │ O │ P │
+;│#25│#1D│#15│#0D│#05║#02│#0A│#12│#1A│#22│
+;├───┼───┼───┼───┼───╫───┼───┼───┼───┼───┤
+;│ A │ S │ D │ F │ G ║ h │ J │ K │ L │ent│
+;│#26│#1E│#16│#0E│#06║#01│#09│#11│#19│#21│
+;├───┼───┼───┼───┼───╫───┼───┼───┼───┼───┤
+;│сs │ Z │ X │ C │ V ║ B │ N │ M │ss │sp │
+;│#27│#1F│#17│#0F│#07║#00│#08│#10│#18│#20│
+;└───┴───┴───┴───┴───╨───┴───┴───┴───┴───┘
+;вх:  ----
+;вых: nz - недопустимая комбинация
+;       hl,de,bc,a - не определены
+;     z  - нажата клавиша или комбинация клавиши с CS/SS либо нет нажатых клавиш
+;       e =#FF - нет нажатых клавиш
+;       0,d/c=1 нажата комбинация c CS
+;       1,d/c=1 нажата комбинация c SS
+;       e - ScanCode код нажатой клавиши
+;       a=#00
+;       hl,b - не определены
+;
+;ScanAllKeys
+;
+	ld	l,#27+#08
+	ld	de,#FFFF
+	ld	bc,#FEFF
+
+;опрос и установка ктов клавиш в регисрах c,d,e
+loop003	ld	a,b
+	in	a,(#FE)
+	cpl
+	and	#1F
+	jr	z,goto001
+	ld	h,a
+	ld	a,l
+loop002	inc	c
+	ret	nz			;есть нажатая третья клавиша
+loop001	sub	#08
+	srl	h
+	jr	nc,loop001
+	ld	c,d
+	ld	d,e
+	ld	e,a			;код нажатой клавиши
+	jr	nz,loop002
+goto001	dec	l
+	rlc	b
+	jr	c,loop003
+;с=key 1, d=key 2, e=key 3
+;с=#FF, d=key 1, e=key 2
+;с=#FF, d=#FF, e=key 1
+
+;проверка комбинаций клавиш
+	ld	a,c
+	inc	a
+	jr	z,goto002		;нажато две или одна клавиши
+	sub	#27+1
+	ret	nz			;первая клавиши не cs
+	inc	a
+goto002	ld	c,a			;0,c=0/1 не нажата cs/нажата cs
+	ld	a,d
+	inc	a
+	jr	z,goto004		;нажата одна клавиша -> e - сканкод/#FF
+	cp	#27+1
+	jr	z,goto003
+	cp	#18+1
+	jr	z,goto005		;нажата ss
+	ld	a,e
+	ld	e,d
+	cp	#18
+	ret	nz			;недопустимая комбинация
+goto005	set	1,c			;нажата ss
+	dec	c
+goto003	inc	c
+goto004	ld	d,c			;0,d=0/1 cs не нажата/нажата
+	xor	a			;1,d=0/1 ss не нажата/нажата
+	ret
+
+        endif 
+
+;==============================================================================
+		ifused	tablePrnKeys
+;таблица кодов клавиш
+;cs - off
+;ss - off
+;
+tablePrnKeys	db "bhy65tgv"	;#00-#07
+		db "nju74rfc"	;#08-#0F
+		db "mki83edx"	;#10-#17
+		db keySS	;#18
+		db "lo92wsz"	;#19-#1F
+		db " "		;#20
+		db keyEnter	;#21
+		db "p01qa"	;#22-#26
+		db keyCS	;#27
+
+		endif
+
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		ifused	tableCSkeys
+;таблица кодов клавиш
+;cs - on
+;ss - off
+;
+tableCSkeys	db "BHY"	;#00-#02
+		db keyDown	;#03
+		db keyLeft	;#04
+		db "TGV"	;#05-#07
+		db "NJU"	;#08-#0A
+		db keyUp	;#0B
+		db keyPageDown	;#0C
+		db "RFC"	;#0D-#0F
+		db "MKI"	;#10-#12
+		db keyRight	;#13
+		db keyPageUp	;#14
+		db "EDX"	;#15-#17
+		db keyExtMode	;#18
+		db "LO"		;#19-#1A
+		db keyDelete	;#1B
+		db keyCaps	;#1C
+		db "WSZ"	;#1D-#1F
+		db keyBreak	;#20
+		db keyCsEnter	;#21
+		db "P"		;#22
+		db keyBackSpace	;#23
+		db keyEdit	;#24
+		db "QA"		;#25-#26
+		db keyCS	;#27
+
+		endif
+
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		ifused	tableSSkeys
+;таблица кодов клавиш
+;cs - off
+;ss - on
+;
+tableSSkeys	db "*^[&%>}/"	;#00-#07
+		db ",-]'$<{?"	;#08-#0F
+		db ".+(#"	;#10-#14
+		db keyEnd	;#15
+		db #5C,#60	;#16-#17 (\`)
+		db keySS	;#18
+		db "=;)@"	;#19-#1C
+		db keyInsert	;#1D
+		db "|:"		;#1E-#1F
+		db keySsSpace	;#20
+		db keySsEnter	;#21
+		db #22		;#22 (")
+		db "_!"		;#23-#24
+		db keyHome	;#25
+		db "~"		;#26
+		db keyExtMode	;#27
+
+		endif
+
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		ifused	tableEXTKeys
+;таблица кодов клавиш, раскладка для ZX-Word
+;cs - on
+;ss - on
+;
+tableEXTKeys	
+
+		IFDEF	TblEXTkey_Test	;тестовая раскладка
+		db "BHY"	;#00-#02
+		db keyEnd	;#03 key 6
+		db keyWordLeft	;#04 key 5
+		db "TGV"	;#05-#07
+		db "NJU"	;#08-#0A
+		db keyHome	;#0B key 7
+		db #FF		;#0C key 4
+		db "RFC"	;#0D-#0F
+		db "MKI"	;#10-#12
+		db keyWordRight	;#13 key 8
+		db #FF		;#14 key 3
+		db "EDX"	;#15-#17
+		db #FF		;#18 key SS
+		db "LO"		;#19-#1A
+		db keyDelEnd	;#1B key 9
+		db #FF		;#1C key 2
+		db "WSZ"	;#1D-#1F
+		db keyCsSsSpace	;#20
+		db keyCsSsEnter	;#21
+		db "P"		;#22
+		db keyDelBegin	;#23 key 0
+		db keyGrf	;#24 key 1
+		db "QA"		;#25-#26
+		db #FF		;#27 key CS
+		ENDIF
+
+		IFDEF	TblEXTkey_Word	;для ZX-Word
+		db "BHY"	;#00-#02
+		db keyEnd	;#03 key 6
+		db keyWordLeft	;#04 key 5
+		db "TG",#FF	;#05-#07
+		db #FF,#FF,#FF	;#08-#0A
+		db keyHome	;#0B key 7
+		db #FF		;#0C key 4
+		db "RFC"	;#0D-#0F
+		db #FF,#FF,#FF	;#10-#12
+		db keyWordRight	;#13 key 8
+		db #FF		;#14 key 3
+		db "EDX"	;#15-#17
+		db #FF		;#18 key SS
+		db #FF,"O"	;#19-#1A
+		db keyDelete	;#1B key 9
+		db keyInsert	;#1C key 2
+		db #FF,#FF,"Z"	;#1D-#1F
+		db #FF		;#20
+		db #FF		;#21
+		db "P"		;#22
+		db keyBackSpace	;#23 key 0
+		db keyEdit	;#24 key 1
+		db "Q",#FF	;#25-#26
+		db #FF		;#27 key CS
+		ENDIF
+
+		endif
+
+;------------------------------------------------------------------------------
+	IFDEF	GrfMode
+	IFDEF	TblKeyGrf_ver1
+	IFDEF	InsideGrfTable
+
+;графическая раскладка: version 01
+;
+TblKeyGrf	equ $-#20
+;
+;	db #00,#01,#02,#03,#04,#05,#06,#07
+;	db #08,#09,#0A,#0B,#0C,#0D,#0E,#0F
+;	db #10,#11,#12,#13,#14,#15,#16,#17
+;	db #18,#19,#1A,#1B,#1C,#1D,#1E,#1F
+	db " !",#22,"#$%&'"
+	db "()*+,-./"
+	db "01234567"
+	db "89:;<=>?"
+	db "@╟╘╜╢╖║╞"
+	db "╪═╡│█╛╧▌"
+	db "▐╓─╫╒╕Ё╥"
+	db "╨╤╙[",#5C,"]^_"
+	db "`├╚┘┤┐│╠"
+	db "╬═╣║░╝╩▒"
+	db "▓┌─┼╔╗√┬"
+	db "┴╦└{|}~"
+
+	ELSE
+TblKeyGrf	equ	OutsideGrfTable
+	ENDIF
+	ENDIF
+	ENDIF
+
+;------------------------------------------------------------------------------
+	IFDEF	RusMode
+	IFDEF	Rus_qwerty
+	IFDEF	InsideRusTable
+
+;русская раскладка: яверты
+;
+TblKeyRus_qwerty	equ $-#20
+;
+;	db #00,#01,#02,#03,#04,#05,#06,#07
+;	db #08,#09,#0A,#0B,#0C,#0D,#0E,#0F
+;	db #10,#11,#12,#13,#14,#15,#16,#17
+;	db #18,#19,#1A,#1B,#1C,#1D,#1E,#1F
+	db " !",#22,"#$%&'"
+	db "()*+,-./"
+	db "01234567"
+	db "89:;<=>?"
+	db "@АБЦДЕФГ"
+	db "ХИЙКЛМНО"
+	db "ПЯРСТУЖВ"
+	db "ЬЫЗ[",#5C,"]^Ъ"
+	db "Юабцдефг"
+	db "хийклмно"
+	db "пярстужв"
+	db "ьызШЭЩЧ"
+
+	ELSE
+TblKeyRus_qwerty	equ	OutsideRus_qwerty
+	ENDIF
+	ENDIF
+	ENDIF
+
+;------------------------------------------------------------------------------
+	IFDEF	RusMode
+	IFDEF	Rus_jcuken
+	IFDEF	InsideRusTable
+
+;русская раскладка: йцукен
+;
+TblKeyRus_jcuken	equ	$-#20
+;
+;	db #00,#01,#02,#03,#04,#05,#06,#07
+;	db #08,#09,#0A,#0B,#0C,#0D,#0E,#0F
+;	db #10,#11,#12,#13,#14,#15,#16,#17
+;	db #18,#19,#1A,#1B,#1C,#1D,#1E,#1F
+	db " !",#22,"#$%&'"
+	db "()*+,-./"
+	db "01234567"
+	db "89:;<=>?"
+	db "ЮФИСВУАП"
+	db "РШОЛДЬТЩ"
+	db "ЗЙКЫЕГМЦ"
+	db "ЧНЯХЭЖБЪ"
+	db "юфисвуап"
+	db "ршолдьтщ"
+	db "зйкыегмц"
+	db "чняхэжб"
+
+	ELSE
+TblKeyRus_jcuken	equ	OutsideRus_jcuken
+	ENDIF
+	ENDIF
+	ENDIF
+
+;------------------------------------------------------------------------------
+	ifused	TblKeyLat
+;стандартная латинская раскладка
+;
+TblKeyLat	equ	$-#20
+;
+;	db #00,#01,#02,#03,#04,#05,#06,#07
+;	db #08,#09,#0A,#0B,#0C,#0D,#0E,#0F
+;	db #10,#11,#12,#13,#14,#15,#16,#17
+;	db #18,#19,#1A,#1B,#1C,#1D,#1E,#1F
+	db " !",""","#$%&'"
+	db "()*+,-./"
+	db "01234567"
+	db "89:;<=>?"
+	db "@ABCDEFG"
+	db "HIJKLMNO"
+	db "PQRSTUVW"
+	db "XYZ[\]^_"
+	db "`abcdefg"
+	db "hijklmno"
+	db "pqrstuvw"
+	db "xyz{|}~"
+
+	endif 
+
+;==============================================================================

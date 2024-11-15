@@ -1,0 +1,120 @@
+;Драйвер  клавиатуры
+;Driver Keyboard v2.10
+;(c) 2002-2024 LW aka PLM
+;
+;Date Creating: 10.07.2002
+;Last   Update: 17.01.2024
+;Last  Edition: 17.01.2024
+;
+;Файлы:
+;DrvKey.main.a80	- этот файл
+;DrvKey.asm.a80		- процедуры
+;DrvKey.var.a80		- переменные
+;DrvKey.info		- информация о драйвере
+;DrvKey.lua.a80		- LUA
+;
+;------------------------------------------------------------------------------
+;ключи компиляции
+;	DEVICE 	ZXSPECTRUM128
+;	INCLUDE "DrvKey.lua.a80"
+;	PAGE	#XX
+	MODULE	DrvKey
+
+;------------------------------------------------------------------------------
+;Константы драйвера
+
+;Адрес ассемблирования:
+AdrDrvKeyboard	equ $ ;#XXXX
+
+;печатные коды курсорных клавиш
+keyLeft		equ #08
+keyRight	equ #09
+keyUp		equ #0B
+keyDown		equ #0A
+
+;страница вверх/вниз
+keyPageDown	equ #05
+keyPageUp	equ #04
+
+;конец/начало строки, insert 
+keyHome		equ #01
+keyEnd		equ #03
+keyInsert	equ #02
+
+;системные клавиши
+keyBreak	equ #18
+keyEdit		equ #07
+keyCaps		equ #06
+keyBackSpace	equ #0C
+keyDelete	equ #0F
+keyEnter	equ #0D
+
+;CapsShift/SymbolShift и некоторые комбинации
+keyCS		equ #1C
+keySS		equ #1D
+keyCsEnter	equ #19
+keySsSpace	equ #1A		;tab
+keySsEnter	equ #1B
+keyExtMode	equ #0E
+
+;клавиши в режиме EXT mode (cs+ss+key)
+keyWordLeft	equ #10
+keyWordRight	equ #11
+keyGrf		equ #12
+keyDelEnd	equ #13
+keyDelBegin	equ #16
+keyCsSsSpace	equ #14
+keyCsSsEnter	equ #15
+;free code: #00,#17,#1E,#1F
+
+;адрес внешних таблиц с раскладкой клавиатуры
+;OutsideGrfTable		equ #XXXX ;#0000
+;OutsideRus_jcuken	equ #XXXX ;#0000
+;OutsideRus_qwerty	equ #XXXX ;#0000
+
+;------------------------------------------------------------------------------
+;Условия трансляции 
+
+;можно использовать п/п ПЗУ 48k
+	;DEFINE	Used_ROM ;
+	DEFINE	UseEXTkeys	;использование комбинаций cs+ss+key
+	DEFINE	CommandMode	;использовать командный режим
+	IFDEF	Used_ROM
+	UNDEFINE UseEXTkeys
+	ENDIF
+
+;подключенные раскладки клавиатуры
+	DEFINE	GrfMode		;использовать раскладку grf
+	DEFINE	RusMode		;использовать раскладку rus
+
+;подключенные таблицы раскладок
+	DEFINE	TblKeyGrf_ver1
+	DEFINE	Rus_jcuken
+	DEFINE	Rus_qwerty
+
+;подключенные таблицы EXT+key (command mode)
+;  использовать только одну
+	IFDEF	UseEXTkeys
+	DEFINE	TblEXTkey_Test	;тестовая раскладка
+;	DEFINE	TblEXTkey_Word	;для ZX-Word
+	ENDIF
+
+;при задании используются внутренние таблицы раскладок клавиатуры
+	DEFINE	InsideGrfTable
+	DEFINE	InsideRusTable
+
+;подключенные функции драйвера
+;	DEFINE  NoFuncDrvKey	;без процедуры вызова функций драйвера
+	DEFINE	NoCtlDrvKey	;без проверки на существование функции
+	DEFINE	DrvKey_02	;установка/получение флагов драйвера
+	DEFINE	DrvKey_03	;установка периодов задержки и автоповтора
+	DEFINE	DrvKey_04	;получение периодов задержки и автоповтора
+
+;------------------------------------------------------------------------------
+
+	ORG	AdrDrvKeyboard
+Start	INCLUDE	"DrvKey.asm.a80"
+	INCLUDE	"DrvKey.var.a80"
+End	DISPLAY	"Lenght DrvKey = ",/A,End-Start
+;	SAVEBIN	"!bin/drvkeys.bin",Start,End-Start
+	ENDMODULE

@@ -1,0 +1,27 @@
+;Переменные Keyboard Driver
+;файл DrvKey.var.a80
+;
+;флаги драйвера
+;7,=1 нажато две и более клавиши
+;6,=1 не нажата ни одна клавиша
+;5,=1 символ в режиме cs+ss+key
+;4,=1/0 Rus йцукен/Rus яверты
+;3,=1/0 Rus/Lat
+;2,=1/0 Grf on/off
+;1,=1/0 CapsLock on/off
+;0,=1/0 Command on/off
+FlgScanKeys     db %00110000
+		db %00000000	;резерв
+
+;величина задержки до автоповтора
+KeyRepeatDelay    db #0F
+;период автоповтора
+KeyRepeatPeriod   db #05
+
+;печатный код нажатой клавиши в текущей раскладке клавиатуры (Grf\Rus\Lat)
+;  с учетом режима CapsLock
+PrintCodePresKey  db #00
+;сканкод нажатой клавиши
+ScanCodePresKey   db #00
+
+

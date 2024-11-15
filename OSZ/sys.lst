@@ -1,0 +1,86 @@
+# file opened: sys.asm
+ 1    0000              ;sys - системный процесс для OS
+ 2    0000                 device ZXSPECTRUM128
+ 3    0000              	include "os_defs.asm"
+# file opened: os_defs.asm
+ 1+   0000              ;Список всех вызовов (функций) ОС GMX
+ 2+   0000
+ 3+   0000              ;Включить в свой код (в начале файла):
+ 4+   0000              	; include os_defs.asm
+ 5+   0000
+ 6+   0000              ;Использовать только имена функций, коды могут поменяться
+ 7+   0000
+ 8+   0000              ;В регистре C - имя кода функции
+ 9+   0000              ;Вызвать макрос rst_os
+10+   0000              ;например:
+11+   0000              	; ld hl,text
+12+   0000              	; rst_os con_printZ ;печать	до кода 0
+13+   0000
+14+   0000              prog_start equ #8000 ;адрес старта приложений
+15+   0000
+16+   0000              ;rst_os - точка входа (адрес вызова всех функций)
+17+   0000              	MACRO RST_OS nFunc
+18+   0000 ~            	ld	c,nFunc
+19+   0000 ~            	rst #20
+20+   0000              	ENDM
+21+   0000
+22+   0000              ;rst_os_put_c - печать символа в консоль
+23+   0000              	MACRO RST_OS_PUT_C
+24+   0000 ~            	rst #10
+25+   0000              	ENDM
+26+   0000
+27+   0000              con_put_c equ #02 ;(2 dec) - вывод символа на консоль;
+28+   0000              con_print_z equ #09 ; #09 (9 dec) - вывод строки символов до кода 0;
+29+   0000              get_c equ #10 ;#10 (16 dec) - получить код нажатой клавиши;
+30+   0000              con_cls equ #29 ;(41 dec) - очистка консоли;
+# file closed: os_defs.asm
+ 4    0000              	org prog_start
+ 5    8000              start_sys
+ 6    8000
+ 7    8000 21 24 80     	ld hl,msg_ver_os
+ 8    8003              	;печать приветствия
+ 9    8003              	RST_OS con_print_z
+ 9    8003 0E 09       >	ld	c,con_print_z
+ 9    8005 E7          >	rst #20
+10    8006
+11    8006
+12    8006              ;инициализация устройств
+13    8006              ;uart #EF (wifi)
+sys.asm(14): error: Label not found: msg_init_uart_found
+14    8006 21 00 00     	ld hl,msg_init_uart_found
+sys.asm(15): error: Label not found: Uart.chek
+15    8009 CD 00 00     	call Uart.chek
+16    800C FE FF        	cp 255
+17    800E 20 03        	jr nz,init_uart_yes
+sys.asm(18): error: Label not found: msg_init_uart_not_found
+18    8010 21 00 00     	ld hl,msg_init_uart_not_found
+19    8013              init_uart_yes
+20    8013              	;печать
+sys.asm(21): error: Label not found: drvgmx.printZ
+21    8013 CD 00 00     	call drvgmx.printZ
+22    8016
+sys.asm(23): error: Label not found: Dos.init_fs_fat
+23    8016 CD 00 00     	call Dos.init_fs_fat ;выбор раздела (буквы диска)
+24    8019
+25    8019              sys_loop
+26    8019 76           	halt
+27    801A              	RST_OS get_c ;получить нажатую клавишу
+27    801A 0E 10       >	ld	c,get_c
+27    801C E7          >	rst #20
+28    801D FE 20        	cp " "
+29    801F 38 F8        	jr c,sys_loop
+30    8021              	RST_OS_PUT_C ;печать символа
+30    8021 D7          >	rst #10
+31    8022 18 F5        	jr sys_loop
+32    8024
+33    8024
+34    8024              msg_ver_os
+35    8024 4F 53 20 76  	db "OS ver 2024.10.23",13,10,0
+35    8028 65 72 20 32
+35    802C 30 32 34 2E
+35    8030 31 30 2E 32
+35    8034 33 0D 0A 00
+36    8038              end_sys
+37    8038              	;SAVETRD "OS.TRD",|"cmd.C",start_cmd,$-start_cmd
+38    8038              	savebin "sys.com",start_sys,$-start_sys
+# file closed: sys.asm
