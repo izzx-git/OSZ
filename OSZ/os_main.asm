@@ -5,27 +5,35 @@
    device ZXSPECTRUM128
 	include "os_defs.asm"    
 	org PROGSTART
+	;bank 1
 start_sys
 	ei
 	halt ;ожидание старта после прерывания
 	halt
 	ld hl,msg_ver_os
 	;печать приветствия
-	OS_PRINTZ
+	call drvgmx.printZ
 	
 
 ;инициализация устройств
 ;uart #EF (wifi)
-	call Uart.chek
-	ld hl,msg_init_uart_not_found	
+	xor a
+	ld (uart_enable),a ;флаг порт отсутствует
+	call Uart.check
 	cp 255
 	;jr z,init_uart_no ;отключена проверка
-	call Uart.init ;нашли uart
+	;нашли uart
+	ld a,1
+	ld (uart_enable),a ;порт есть
 	ld hl,msg_init_uart_found
+	call drvgmx.printZ
+	call Wifi.init 	
+	jr init_uart_yes
 init_uart_no
 	;печать
-	OS_PRINTZ	
-
+	ld hl,msg_init_uart_not_found	
+	call drvgmx.printZ
+init_uart_yes
 	
 	call Dos.init_fs_fat ;выбор раздела (буквы диска)
 	
@@ -40,8 +48,8 @@ init_uart_no
 	ld hl,proc_name_01		;строка с именем
 	call proc_run
 	
-	; ld hl,proc_name_02		;строка с именем
-	; call proc_run
+	ld hl,proc_name_02		;строка с именем
+	call proc_run
 	
 	
 	ld a,(ix)
@@ -49,72 +57,166 @@ init_uart_no
 	
 sys_loop
 	halt
+	call print_active
 	ld a,(proc_switch_key_flag)
 	or a
 	jr z,sys_loop1
 	call proc_focus_next
 sys_loop_switch	
 	halt
-	OS_GETCHAR ;ждать пока отпустят
+	OS_GET_CHAR ;ждать пока отпустят
 	cp 255
 	jr nz,sys_loop_switch
 	xor a	
 	ld (proc_switch_key_flag),a
 sys_loop1
 	ld a,(sys_timer) ;иногда печатаем системную информацию
-	and %00011111
+	and %00011100
 	call z,sys_print_info 
-	
 	; OS_GETCHAR ;получить нажатую клавишу
 	; cp 255
 	; jr z,sys_loop
-	; OS_PRCHARF ;печать символа
+	; OS_PRINT_CHARF ;печать символа
+	
+	call esp_check_open ;проверить соединения
+	call esp_check_send ;проверить пакеты на отправку
+	call esp_check_get ;проверить пакеты на приём
+	ld a,(sys_timer) ;иногда печатаем сетевую информацию
+	and %00001110
+	call z,print_esp_link	
+	
 	jr sys_loop
 	
 	
 sys_print_info
 	;печать информации о памяти и процессах
-	ld de,#1000 ;координаты yx
-	OS_SETXY
-	ld hl,msg_processes 
-	OS_PRINTZ
-	call get_proc_total ;процессов
+	call get_proc_total ;печать и подсчёт процессов
 	ld l,a
 	ld h,0
 	call toDecimal
+	ld de,#0d00 ;координаты yx
+	OS_SET_XY
+	ld hl,msg_processes 
+	call drvgmx.printZ	
 	ld hl,decimalS+3
-	OS_PRINTZ
+	call drvgmx.printZ
 	
-	ld de,#1100 ;координаты yx
-	OS_SETXY
+	ld de,#0c00 ;координаты yx
+	OS_SET_XY
 	ld hl,msg_free_ram
-	OS_PRINTZ
+	call drvgmx.printZ
 	call get_free_ram ;памяти
 	ld l,a
 	ld h,0
 	call toDecimal
 	ld hl,decimalS+2
-	OS_PRINTZ	
-	ld a,13
-	OS_PRCHARF
-	ld a,13
-	OS_PRCHARF
+	call drvgmx.printZ	
+	ld de,#1800 ;координаты yx
+	OS_SET_XY
+	ld hl,msg_press_num_to_close
+	OS_PRINTZ
 	ret
 
 
+print_esp_link
+	ld h,#0b
+	ld a," "
+	OS_FILL_LINE ;почистить строку
+	ld ix,esp_link_id_table
+	ld a,(ix)
+	or a
+	ret z ;если нет соединений	
+	ld de,#0b00 ;координаты yx
+	OS_SET_XY
+	ld hl,msg_esp_link
+	OS_PRINTZ
+	ld a,(ix)
+	add '0'
+	OS_PRINT_CHARF ;id
+	ld a," "
+	OS_PRINT_CHARF
+
+	ld hl,msg_esp_transmit
+	OS_PRINTZ
+	ld a,(ix+4)
+	or a
+	jr z,print_esp_link2
+	ld a,(ix+5) ;при этом не начался приём
+	ld c,a
+	ld a,(ix+6)
+	or c
+	jr nz,print_esp_link2	
+	ld l,(ix+9)
+	ld h,(ix+10)
+	call toDecimal
+	ld hl,decimalS
+	OS_PRINTZ	;отправлено
+	ld a," "
+	OS_PRINT_CHARF	
+print_esp_link2	
+
+	ld hl,msg_esp_receive
+	OS_PRINTZ
+	ld a,(ix+6)
+	or a
+	jr z,print_esp_link3
+	ld l,(ix+9)
+	ld h,(ix+10)
+	call toDecimal
+	ld hl,decimalS
+	OS_PRINTZ	;принято
+	ld a," "
+	OS_PRINT_CHARF	
+print_esp_link3	
+
+	ld hl,msg_esp_address
+	OS_PRINTZ	
+	ld a,(ix+2) ;соединение установлено
+	or a
+	jr z,print_esp_link4
+	ld hl,esp_link_id_table+15 ;сервер
+	OS_PRINTZ	
+print_esp_link4	
+	ret
+
 get_proc_total
-	;поиск количества запущеных процессов
+	;поиск и печать количества запущеных процессов
 	;вых: a - количество активных
-	ld hl,proc_table
+	ld de,#0e00 ;координаты yx
+	OS_SET_XY
+	ld ix,proc_table
 	ld b,proc_max ;цикл по максимальному количеству процессов
 	ld c,0 ;счётчик
 get_proc_total_cl
-	ld a,(hl)
+	ld a,(ix)
 	or a ;свободен?
 	jr z,get_proc_total_cl1
+	
+	push bc
+	add '0' ;печать id
+	OS_PRINT_CHARF
+	ld a," "
+	OS_PRINT_CHARF	
+	ld a,(ix+1)
+	add '0' ;печать id родительского
+	OS_PRINT_CHARF
+	ld a," "
+	OS_PRINT_CHARF	
+	
+	push ix
+	pop hl
+	ld bc,16
+	add hl,bc
+	OS_PRINTZ ;печать имени
+	
+	ld a,13
+	OS_PRINT_CHARF
+
+	pop bc
+	
 	inc c ;прибавить
 get_proc_total_cl1	
-	inc h
+	inc ixh
 	djnz get_proc_total_cl
 	ld a,c
 	ret
@@ -137,11 +239,238 @@ get_free_ram_cl1
 	ld a,c
 	ret
 	
+	
+	
+print_active ;значёк активности
+	ld de,#0a00 ;координаты yx
+	OS_SET_XY	
+	ld hl,msg_active
+	OS_PRINTZ
+	ld a,(msg_active_cur)
+	inc a
+	cp 4
+	jr c,print_active1
+	xor a
+print_active1
+	ld (msg_active_cur),a
+	ld c,a
+	ld b,0
+	ld hl,msg_active1
+	add hl,bc
+	ld a,(hl)
+	OS_PRINT_CHARF
+	ret
+	
 
+
+	
+esp_check_open ;проверка очереди соединений ESP
+	ld ix,esp_link_id_table ;
+	;push bc
+	ld a,(ix+1)
+	or a ;запрос есть?
+	ret z 
+	;есть запрос
+	
+	ld a,(ix+14) ;подставить тип соединения
+	or a
+	jr nz,esp_check_open_type1
+	ld a,'T'
+	ld (Wifi.cmd_CIPSTART2+0),a
+	ld a,'C'
+	ld (Wifi.cmd_CIPSTART2+1),a	
+	ld a,'P'
+	ld (Wifi.cmd_CIPSTART2+2),a
+	jr esp_check_open_type_skip
+esp_check_open_type1	
+	cp 1
+	jr nz,esp_check_open_type2
+	ld a,'U'
+	ld (Wifi.cmd_CIPSTART2+0),a
+	ld a,'D'
+	ld (Wifi.cmd_CIPSTART2+1),a	
+	ld a,'P'
+	ld (Wifi.cmd_CIPSTART2+2),a
+	jr esp_check_open_type_skip
+esp_check_open_type2
+	cp 2
+	jr nz,esp_check_open_type_skip
+	ld a,'S'
+	ld (Wifi.cmd_CIPSTART2+0),a
+	ld a,'S'
+	ld (Wifi.cmd_CIPSTART2+1),a	
+	ld a,'L'
+	ld (Wifi.cmd_CIPSTART2+2),a
+	jr esp_check_open_type_skip
+
+esp_check_open_type_skip
+	ld de,esp_link_id_table+59 ;номер порта
+	ld hl,esp_link_id_table+15 ;;адрес сервера
+	call Wifi.openTCP
+	jr nc,esp_check_open_res
+	ld a,255 ;ошибка
+	jr esp_check_open_err
+esp_check_open_res
+	;результат запишем
+	ld a,(Wifi.closed)
+	xor 1
+esp_check_open_err
+	ld (ix+2),a ;поставить флаг результата открытия
+	ld (ix+1),0 ;сбросить флаг запроса
+	ret
+
+
+
+
+	
+esp_check_send ;проверить пакеты на отправку	
+	ld ix,esp_link_id_table ;
+	ld a,(ix+3)
+	or a ;запрос есть?
+	ret z
+	;есть запрос
+	ld e,(ix+9) ;длина данных
+	ld d,(ix+10)
+	ld hl,esp_buffer ;адрес
+	call Wifi.tcpSend
+	ld a,1 ;успех
+	jr nc,esp_check_send_res
+	ld a,255 ;ошибка
+esp_check_send_res
+	ld (ix+4),a ;поставить флаг результата отправки
+	ld (ix+3),0 ;сбросить флаг запроса
+	ret
+
+
+
+
+	
+esp_check_get ;проверить пакеты на приём
+	ld ix,esp_link_id_table ;
+	ld a,(ix+5)
+	or a ;запрос есть?
+	ret z
+	;есть запрос
+	ld hl,0
+	ld (Wifi.bytes_avail), hl ;длину сбросим
+	ld hl,esp_buffer ;адрес
+	ld (Wifi.buffer_pointer),hl ;
+	call Wifi.getPacket
+	jr nc,esp_check_get_res
+	ld a,255 ;ошибка
+	ld (ix+6),a ;поставить флаг результата приёма
+	ld (ix+5),0 ;сбросить флаг запроса
+	ret
+esp_check_get_res
+	;если что-то принято
+	ld bc,(Wifi.bytes_avail) ;длина
+	ld (ix+9),c ;длина принятых
+	ld (ix+10),b	
+	
+	ld a,b
+	or c
+	jr z,esp_check_get_skip_copy2 ;защита от нулевой длины
+
+	ld e,(ix+7) ;адрес назначения
+	ld d,(ix+8)
+	ld a,(ix) ;id назначения
+	ld hl,esp_buffer ;откуда
+	call esp_buffer_copy ;перекинем данные силами ядра
+
+esp_check_get_skip_copy2
+	ld ix,esp_link_id_table ;
+	ld a,(Wifi.closed)
+	xor 1
+	ld (ix+2),a ;поставить текущий флаг открытия
+	ld a,1 ;успех	
+	ld (ix+6),a ;поставить флаг результата приёма
+	ld (ix+5),0 ;сбросить флаг запроса
+	ret
+	
+	
+	
+	include Drv/zx-wifi.asm ;драйвер сетевой карты ESP
+	include Drv/wifi.asm ;работа с ESP
+	include Drv/utils.asm ;работа с ESP
+	
+toDecimal		;конвертирует 2 байта в 5 десятичных цифр
+				;на входе в HL число
+			ld de,10000 ;десятки тысяч
+			ld a,255
+toDecimal10k			
+			and a
+			sbc hl,de
+			inc a
+			jr nc,toDecimal10k
+			add hl,de
+			add a,48
+			ld (decimalS),a
+			ld de,1000 ;тысячи
+			ld a,255
+toDecimal1k			
+			and a
+			sbc hl,de
+			inc a
+			jr nc,toDecimal1k
+			add hl,de
+			add a,48
+			ld (decimalS+1),a
+			ld de,100 ;сотни
+			ld a,255
+toDecimal01k			
+			and a
+			sbc hl,de
+			inc a
+			jr nc,toDecimal01k
+			add hl,de
+			add a,48
+			ld (decimalS+2),a
+			ld de,10 ;десятки
+			ld a,255
+toDecimal001k			
+			and a
+			sbc hl,de
+			inc a
+			jr nc,toDecimal001k
+			add hl,de
+			add a,48
+			ld (decimalS+3),a
+			ld de,1 ;единицы
+			ld a,255
+toDecimal0001k			
+			and a
+			sbc hl,de
+			inc a
+			jr nc,toDecimal0001k
+			add hl,de
+			add a,48
+			ld (decimalS+4),a		
+			
+			ret	
+decimalS ds 6 ;здесь будет цифра	
+	
+msg_processes
+	db "Processes: ",0
+msg_free_ram
+	db "Free pages RAM: ",0
+msg_esp_link
+	db "ESP id: ",0
+msg_esp_transmit
+	db "Trn: ",0
+msg_esp_receive
+	db "Rcv: ",0
+msg_esp_address
+	db "Adr: ",0
+msg_press_num_to_close
+	db "Press number process to close.",0
+msg_active db "Active ",0	
+msg_active1 db "|/-\\",0
+msg_active_cur db 0 ;текущий значёк активности
+	
 end_sys
 	;SAVETRD "OS.TRD",|"cmd.C",start_cmd,$-start_cmd
 	savebin "sys.com",start_sys,$-start_sys
-
+;------------------------------------------------------------------------
 
 
 
@@ -154,6 +483,7 @@ end_sys
 	;include os_defs.asm ;список функций	
 	
 	org #0000	
+	;bank 0
 start_os_main
 
 x0000	jp	InitProgramm + #c000		;+#C000 после запуска меняется
@@ -835,23 +1165,37 @@ get_timer ;функция получить значение системного
 	
 	
 page_copy ;скопировать страницу в страницу
-	;вх: A - номер страницы откуда копировать, B - куда
+;скопировать данные из страницы в страницу
+;вх: hl - откуда (абсолютный адрес 0-ffff); de - куда; ix - длина; a - страница слот2; b - страница слот3; 
 	ld (page_copy_tmp),bc
 	ld (page_copy_tmp),a
+	exx
 	call page_check_owner 	;проверка разрешений
 	ret c
 	ld a,(page_copy_tmp+1)
 	call page_check_owner 	;проверка разрешений
 	ret c
+	ld a,ixh ;не больше размера страницы
+	cp #41
+	jr nc,page_copy_err
+	or ixl
+	jr z,page_copy_err ;и не 0 длина
 	ld a,(page_copy_tmp)	
 	call drvgmx.PageSlot2
 	ld a,(page_copy_tmp+1)	
 	call drvgmx.PageSlot3	
-	ld hl,#8000 ;скопировать
-	ld de,#c000
-	ld bc,#4000
+	exx ;вспомнить регистры
+	 ;скопировать
+	push ix
+	pop bc ;длина
 	ldir
-	jp page_cur_return ;вернуть страницы
+	call page_cur_return ;вернуть страницы
+	xor a
+	ret
+page_copy_err
+	scf
+	ret
+	
 
 page_copy_tmp dw 0 ;временно
 
@@ -979,6 +1323,148 @@ set_interrupt ;установка адреса обработчика преры
 
 	
 
+;вх: a - тип соединения 0-tcp, 1-udp, 2-ssl; hl - строка адрес, de - строка порт
+;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+;вых: ix - адрес в таблице соединений (ix+2 - флаг открытия =1 - открыто);
+esp_open ;установить соединение ESP (CIPSTART);
+	ld ix,esp_link_id_table
+	ex af,af'
+	ld a,(uart_enable)
+	or a
+	jr z,esp_open_err ;нет порта
+	ld a,(ix)
+	or a
+	jr nz,esp_open_err ;выйти если буфер занят
+	ex af,af'
+	ld (ix+14),a ;тип
+	push de ;сохранить порт
+	ld de,esp_link_id_table+15 ;на имя сервера
+	call copyZ ;скопировать
+	ld de,esp_link_id_table+59 ;тут адрес порта
+	pop hl
+	call copyZ
+	ld a,(proc_id_cur)
+	ld (ix),a ;флаг занято
+	ld (ix+2),0 ;флаг результат открытия
+	ld (ix+1),1 ;флаг запрос на открытие
+	xor a
+	ret
+
+esp_open_err
+	ld a,255
+	scf
+	ret
+
+
+
+;вх: 
+;вых: CY=0 - OK; CY=1 - занято другим процессом
+esp_close ;закрыть соединение ESP	
+	ld ix,esp_link_id_table
+	ld a,(proc_id_cur) ;проверить кто владелец соединения
+	cp (ix)
+	scf
+	ret nz ;выйти если чужое
+	xor a
+	ld (ix),a ;закрыть
+	ret
+
+
+
+
+;вх: hl - адрес данных, de - длина данных
+;вых: CY=0 - OK; CY=1 - занято другим процессом
+;вых: ix - адрес в таблице соединений (ix+4 - флаг =1 - отправлено)
+esp_send ;послать запрос ESP (CIPSEND);
+	ld ix,esp_link_id_table
+	ld a,(proc_id_cur) ;проверить кто владелец соединения
+	cp (ix)
+	jr nz,esp_send_err ;выйти если буфер занят другим
+	push de ; длина
+	pop bc
+	ld (ix+9),e  ;длина
+	ld (ix+10),d
+	ld de,esp_buffer ;перенести данные в буфер отправки
+	ldir
+	
+	ld (ix+4),0 ;флаг результат отправки
+	ld (ix+3),1 ;флаг запрос отправки
+	xor a
+	ret
+
+esp_send_err	
+	ld a,255
+	scf
+	ret
+
+
+
+	
+;вх: hl - адрес для данных
+;вых: CY=0 - OK; CY=1 - занято другим процессом
+;вых: ix - адрес в таблице соединений (ix+6 - флаг =1 - принято)	
+esp_get ;получить пакет ESP (+IPD);	
+	ld ix,esp_link_id_table
+	ld a,(proc_id_cur) ;проверить кто владелец соединения
+	cp (ix)
+	jr nz,esp_get_err ;выйти если буфер занят другим
+	ld (ix+7),l ;адрес данных
+	ld (ix+8),h ;адрес данных
+	ld (ix+6),0 ;флаг результат приёма
+	ld (ix+5),1 ;флаг запрос на приём
+	xor a
+	ret
+
+esp_get_err	
+	ld a,255
+	scf
+	ret
+
+
+;вх: a - id процесса куда копировать, hl - откуда, de - куда, bc - длина
+esp_buffer_copy ;скопировать принятое из буфера ESP 
+	exx
+	ld hl,proc_table-256 ;проверка активен ли заданный процесс
+	add h
+	ld h,a
+	xor a
+	or (hl)
+	ret z	
+	
+	push hl
+	pop ix ;дескриптор процесса 
+	;включить страницы целевого процесса
+	ld a,(ix+2)
+	call drvgmx.PageSlot2
+	ld a,(ix+3)
+	call drvgmx.PageSlot3	
+	exx
+
+	ldir
+	
+	;вернуть страницы
+	jp page_cur_return
+
+
+
+	
+;вх: hl - откуда de - куда
+copyZ ;копировать данные до кода 0
+	ld a,(hl)
+	or a
+	jr z,copyZ_ex
+	ld (de),a
+	inc de
+	inc hl
+	jr copyZ
+copyZ_ex
+	xor a
+	ld (de),a  ;в конце 0 
+	ret
+	
+	
+
+
 ;выбор функции (вызова)
 function
 	ex af,af'
@@ -1020,12 +1506,12 @@ function_table ;таблица функций
 	dw 0 ;#07 (7 dec) - ???????? ???? ?????????? ????????? (???);
 	dw 0 ;#08 (8 dec) - ?????????? ???? ?????????? ????????? (???);
 	dw drvgmx.printZ ; #09 (9 dec) - ????? ?????? ????????;
-	dw Uart.read ;#0A (10 dec) - прочитать байт из uart порта;
-	dw Uart.write ;#0B (11 dec) - записать байт в uart порт;
-	dw 0 ;#0C (12 dec) -	
-	dw 0 ;#0D (13 dec) - ????? ???????? ???????;
-	dw 0 ;#0E (14 dec) - ??????????? ?????;
-	dw 0 ;#0F (15 dec) - ???????? ?????;
+	dw 0 ;#0A (10 dec) - ;
+	dw 0 ;#0B (11 dec) - ;
+	dw esp_close ;#0C (12 dec) - закрыть соединение ESP
+	dw esp_open ;#0D (13 dec) - установить соединение ESP (CIPSTART);
+	dw esp_send ;#0E (14 dec) - послать запрос ESP (CIPSEND);
+	dw esp_get ;#0F (15 dec) - получить пакет ESP (+IPD);
 	dw get_c ;#10 (16 dec) - получить код нажатой клавиши;
 	dw 0 ;#11 (17 dec) - ????? ???????;
 	dw 0 ;#12 (18 dec) - ????? ??????????;
@@ -1309,63 +1795,9 @@ Interrupts_cur_page_slot3 db 0 ;временно
 
 
 	
-toDecimal		;конвертирует 2 байта в 5 десятичных цифр
-				;на входе в HL число
-			ld de,10000 ;десятки тысяч
-			ld a,255
-toDecimal10k			
-			and a
-			sbc hl,de
-			inc a
-			jr nc,toDecimal10k
-			add hl,de
-			add a,48
-			ld (decimalS),a
-			ld de,1000 ;тысячи
-			ld a,255
-toDecimal1k			
-			and a
-			sbc hl,de
-			inc a
-			jr nc,toDecimal1k
-			add hl,de
-			add a,48
-			ld (decimalS+1),a
-			ld de,100 ;сотни
-			ld a,255
-toDecimal01k			
-			and a
-			sbc hl,de
-			inc a
-			jr nc,toDecimal01k
-			add hl,de
-			add a,48
-			ld (decimalS+2),a
-			ld de,10 ;десятки
-			ld a,255
-toDecimal001k			
-			and a
-			sbc hl,de
-			inc a
-			jr nc,toDecimal001k
-			add hl,de
-			add a,48
-			ld (decimalS+3),a
-			ld de,1 ;единицы
-			ld a,255
-toDecimal0001k			
-			and a
-			sbc hl,de
-			inc a
-			jr nc,toDecimal0001k
-			add hl,de
-			add a,48
-			ld (decimalS+4),a		
-			
-			ret
+
 	
 	include Drv/zsgmx.asm ;драйвер экрана и памяти
-	include Drv/zx-wifi.asm ;драйвер сетевой карты ESP
 	include Drv/zsfat.asm ;драйвер диска
 	include Drv/DrvKey.main.a80 ;драйвер клавиатуры
 	include player.asm ;плеер AY, TS
@@ -1374,6 +1806,7 @@ font
 	incbin fontV6.chr ;шрифт
 
 ;Переменные 
+uart_enable db 0; флаг есть порт uart
 proc_play_ay db 0 ;код процесса с музыкой AY
 proc_play_ay_slot2 db 0 ;страница с музыкой AY
 proc_play_ay_slot3 db 0 ;страница с музыкой AY
@@ -1414,10 +1847,35 @@ proc_table ;данные процессов и приложений
 	;#0e-0f - адрес вызова по прерыванию
 	;#0f-1a - Имя
 
-	
+	;..#80 - верх стека
 
 proc_page_table	;таблица занятых процессами страниц
 	ds 128 ;у GMX всего 128
+
+
+esp_link_id_table;_id_table ;таблица соединений ESP
+	;0 - id процесса (одновременно флаг "соединение используется")
+	;1 - запрос соединения (=1 - активен)
+	;2 - результат соединения (=1 - успешно, =255 - ошибка)
+	;3 - запрос на отправку (=1 - активен)
+	;4 - результат отправки (=1 - успешно, =255 - ошибка)
+	;5 - запрос на приём (=1 - активен)
+	;6 - результат приёма (=1 - успешно, =255 - ошибка)
+	;7-8 - адрес назначения данных (для принятых)
+	;9-10 - длина данных
+	;11-13 -
+	;14 - тип (TCP, UDP, SSL)
+	;15-58 - адрес сервера, в конце 0
+	;59-63 - порт сервера, в конце 0
+
+	ds 1*esp_link_id_table_size_item ;1 соединение
+
+; esp_buffer_flag ;флаги управления буфером ESP
+	; ;0 - буфер занят системным процессом (=1 - идёт передача)
+	; ;1-2 - длина данных
+	; ds 1
+
+
 
 proc_name_01	db "radio.com",0
 proc_name_02	db "moonr.com",0
@@ -1441,7 +1899,9 @@ con_atr_real equ #79 ;атрибуты
 ;page_slot2_def equ 2 ;страница по умолчанию слот 2
 ;page_slot3_def equ 1 ;страница по умолчанию слот 3
 proc_switch_key equ #1b ;код перключения задач sh+Enter
-
+;esp_max_link_id equ 5 ;всего соединений ESP
+esp_buffer equ #4000-1500 ;буфер для обмена с ESP
+esp_link_id_table_size_item equ 64 ;размер элемента в таблице соединений
 	
 ;Сообщения
 msg_init_uart_found
@@ -1452,15 +1912,11 @@ msg_proc_max
 	db "Not enough processes",13,10,0
 msg_mem_max
 	db "Not enough memory",13,10,0
-msg_processes
-	db "Processes: ",0
-msg_free_ram
-	db "Free pages RAM: ",0
-decimalS ds 6 ;здесь будет цифра
+
 
 
 msg_ver_os
-	db "OS ver 2024.11.06",13,10,0
+	db "OS ver 2024.12.11",13,10,0
 	
 
 
@@ -1475,6 +1931,8 @@ start_cmd_incl
 	incbin cmd.com ;
 end_cmd_incl
 
+	;Последний перед #4000 буфер для данных от ESP!
+	
 end_os_main
 	SAVETRD "OS.TRD",|"OS.C",start_os_main,$-start_os_main ;сохранить в TRD
 	savebin "os.com",start_os_main,$-start_os_main ;сохранить для FAT

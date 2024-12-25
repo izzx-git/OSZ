@@ -20,7 +20,7 @@ PROGSTART equ #8000 ;адрес старта приложений
 ;вывод в консоль --------------------	
 
 ;печать символа в консоль (ускоренная)
-	MACRO OS_PRCHARF ;a=char
+	MACRO OS_PRINT_CHARF ;a=char
 	rst #10
 	ENDM
 	
@@ -31,25 +31,25 @@ PROGSTART equ #8000 ;адрес старта приложений
     endm
 	
 ;установить позицию курсора в консоли	
-    macro OS_SETXY ;de=yx ;SET CURSOR POSITION
+    macro OS_SET_XY ;de=yx ;SET CURSOR POSITION
     ld c,#01
     rst #20
     endm
 
 ;печать символа в консоль	
-    macro OS_PRCHAR ;a=char
+    macro OS_PRINT_CHAR ;a=char
     ld c,#02
     rst #20
     endm	
 	
 ;заполнение строки одним символом	
-    macro OS_FLINE ;; H - line ; A - char
+    macro OS_FILL_LINE ;; H - line ; A - char
     ld c,#03
     rst #20
     endm	
 	
 ;покрасить строку цветом
-    macro OS_PLINE ;a - line, b - color
+    macro OS_PAINT_LINE ;a - line, b - color
     ld c,#04
     rst #20
     endm	
@@ -84,42 +84,56 @@ PROGSTART equ #8000 ;адрес старта приложений
     rst #20
     endm	
 	
-;прочитать байт из uart порта;
-    macro OS_UART_READ ; A - byte (Out: CY=1 Not Readed)
-    ld c,#0a
-    rst #20
-    endm
+
+    ; macro OS_
+    ; ld c,#0a
+    ; rst #20
+    ; endm
 	
-;записать байт в uart порт;
-    macro OS_UART_WRITE ; A - byte (Out: CY=1 Not Writed)
-    ld c,#0b
+    ; macro OS_
+    ; ld c,#0b
+    ; rst #20
+    ; endm
+
+;закрыть соединение ESP
+;вх: 
+;вых: CY=0 - OK; CY=1 - занято другим процессом
+    macro OS_ESP_CLOSE
+    ld c,#0c
     rst #20
     endm
 
-    ; macro OS_ ;
-    ; ld c,#0c
-    ; rst #20
-    ; endm
+;установить соединение ESP (CIPSTART);
+;вх: a - тип соединения 0-tcp, 1-udp, 2-ssl; hl - строка адрес, de - строка порт
+;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+;вых: ix - адрес в таблице соединений (ix+2 - флаг открытия =1 - открыто, 255 - ошибка); 
+    macro OS_ESP_OPEN 
+    ld c,#0d
+    rst #20
+    endm
 
-    ; macro OS_ ;
-    ; ld c,#0d
-    ; rst #20
-    ; endm
+;послать запрос ESP (CIPSEND);
+;вх: hl - адрес данных, de - длина данных
+;вых: CY=0 - OK; CY=1 - занято другим процессом
+;вых: ix - адрес в таблице соединений (ix+4 - флаг =1 - отправлено, 255 - ошибка)
+    macro OS_ESP_SEND 
+    ld c,#0e
+    rst #20
+    endm
 
-    ; macro OS_ ;
-    ; ld c,#0e
-    ; rst #20
-    ; endm
-
-    ; macro OS_ ;
-    ; ld c,#0f
-    ; rst #20
-    ; endm	
+;получить пакет ESP (+IPD);
+;вх: hl - адрес для данных
+;вых: CY=0 - OK; CY=1 - занято другим процессом
+;вых: ix - адрес в таблице соединений (ix+6 - флаг =1 - принято, 255 - ошибка)
+    macro OS_ESP_GET 
+    ld c,#0f
+    rst #20
+    endm	
 	
 ;ввод с консоли ----------------------
 
 ;получить код нажатой клавиши
-    macro OS_GETCHAR ;read char from stdin (out: A=char, 255-no char)
+    macro OS_GET_CHAR ;read char from stdin (out: A=char, 255-no char)
     ld c,#10
     rst #20
     endm
@@ -180,8 +194,9 @@ PROGSTART equ #8000 ;адрес старта приложений
 ;прочие ------------------------------
 
 
-;скопировать страницу в страницу
-    macro OS_PAGE_COPY ;(A- page from, B - page to)
+;скопировать данные из страницы в страницу
+;вх: hl - откуда (абсолютный адрес 0-ffff); de - куда; ix - длина; a - страница слот2; b - страница слот3; 
+    macro OS_RAM_COPY
     ld c,#19
     rst #20
     endm
@@ -205,14 +220,16 @@ PROGSTART equ #8000 ;адрес старта приложений
     endm
 
 ;включить экран N;	
-    macro OS_SET_SCR ;(A - number screen 5, 7, 39, 3a)
+    macro OS_SET_SCREEN ;(A - number screen 5, 7, 39, 3a)
     ld c,#1d
     rst #20
     endm	
 	
 	
 ;получить номера страниц процесса;
-    macro OS_GET_MAIN_PAGES ;(b, c - pages in slot2, 3)
+;вх:
+;вых: b, c - страницы в слотах 2, 3
+    macro OS_GET_MAIN_PAGES ;
     ld c,#1e
     rst #20
     endm	
@@ -234,31 +251,31 @@ PROGSTART equ #8000 ;адрес старта приложений
 ;дисковые операции -------------------
 
 ;открыть файл для чтения или записи
-    macro OS_FOPENRW ;HL - File name (out: A - id file, bc, de - size)
+    macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size)
     ld c,#21
     rst #20
     endm	
 
 ;создать файл
-    macro OS_FOPENC ;HL - File name  (out: A - id file)
+    macro OS_FILE_CREATE ;HL - File name  (out: A - id file)
     ld c,#22
     rst #20
     endm	
 	
 ;прочитать из файла
-    macro OS_FREAD ;HL - address, A - id file, DE - length (out: bc - size readed)
+    macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
     ld c,#23
     rst #20
     endm	
 	
 ;записать в файл
-    macro OS_FWRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
+    macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
     ld c,#24
     rst #20
     endm	
 
 ;закрыть файл
-    macro OS_FCLOSE ;A - id file
+    macro OS_FILE_CLOSE ;A - id file
     ld c,#25
     rst #20
     endm	

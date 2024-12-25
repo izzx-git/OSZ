@@ -124,7 +124,7 @@ fopen_r	;открытие существующего файла на чтени�
 
 	;call format_name ;
 	
-	OS_FOPENRW
+	OS_FILE_OPEN
 	ret
 	; ld a,(#5D19) ;номер дисковода по умолчанию
 	; ld 	(prev_drive),a ;запомним
@@ -173,7 +173,7 @@ fopen_c	;создание нового файла (id=2-4,6)
 
 	;call format_name ;
 	
-	OS_FOPENC
+	OS_FILE_CREATE
 	ret
 	
 	; call select_drive
@@ -428,7 +428,7 @@ fopen_c	;создание нового файла (id=2-4,6)
 
 ; A - file stream id
 fclose:
-	OS_FCLOSE
+	OS_FILE_CLOSE
 	ret
 
     ; ;esxCall ESX_FCLOSE
@@ -614,7 +614,7 @@ fclose:
 fread: ;(id=1)
 	ld e,c ;сохранить длину
 	ld d,b
-	OS_FREAD
+	OS_FILE_READ
 	ret
 	
     ; push hl : pop ix
@@ -654,7 +654,7 @@ fread: ;(id=1)
 fwrite: ;
 	ld e,c ;сохранить длину
 	ld d,b
-	OS_FWRITE
+	OS_FILE_WRITE
 	ret
 
     ; push hl : pop ix

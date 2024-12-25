@@ -14,7 +14,7 @@ play:
 	OS_VTPL_PLAY
 .loop
     halt :; di : call VTPL.PLAY : ei
-	OS_GETCHAR
+	OS_GET_CHAR
 	cp " " ;останов по пробелу
 	jp z, .stopKey
 	call printRTC

@@ -51,7 +51,7 @@ loadBuffer:
 .loop
     call Wifi.getPacket
     ld a, (Wifi.closed) : and a : ret nz
-    call Wifi.continue
+    ;call Wifi.continue
     jr .loop
 
     ifdef GS
@@ -72,7 +72,7 @@ loadMod:
     inc hl
     jr .loadLoop
 .nextFrame
-    call Wifi.continue
+    ;call Wifi.continue
     jr .loop
 .exit
     call GeneralSound.finishLoadingModule
@@ -120,13 +120,13 @@ download:
     ld a, (.fp), hl, outputBuffer, bc, (Wifi.bytes_avail)
     call Dos.fwrite
 
-    call Wifi.continue
+    ;call Wifi.continue
     jr .loop
 .exit
     ld a, (.fp)
     call Dos.fclose
     jp History.back
-.error
+;.error
     ld a, (.fp)
     call Dos.fclose
 

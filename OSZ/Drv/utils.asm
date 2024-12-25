@@ -1,4 +1,4 @@
-; ;;; Macroses!!!!
+;;; Macroses!!!!
     ; MACRO EspSend Text
     ; ld hl, .txtB
     ; ld e, (.txtE - .txtB)

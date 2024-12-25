@@ -24,7 +24,7 @@
   20+ 0000              ;вывод в консоль --------------------
   21+ 0000
   22+ 0000              ;печать символа в консоль (ускоренная)
-  23+ 0000              	MACRO OS_PRCHARF ;a=char
+  23+ 0000              	MACRO OS_PRINT_CHARF ;a=char
   24+ 0000 ~            	rst #10
   25+ 0000              	ENDM
   26+ 0000
@@ -35,25 +35,25 @@
   31+ 0000                  endm
   32+ 0000
   33+ 0000              ;установить позицию курсора в консоли
-  34+ 0000                  macro OS_SETXY ;de=yx ;SET CURSOR POSITION
+  34+ 0000                  macro OS_SET_XY ;de=yx ;SET CURSOR POSITION
   35+ 0000 ~                ld c,#01
   36+ 0000 ~                rst #20
   37+ 0000                  endm
   38+ 0000
   39+ 0000              ;печать символа в консоль
-  40+ 0000                  macro OS_PRCHAR ;a=char
+  40+ 0000                  macro OS_PRINT_CHAR ;a=char
   41+ 0000 ~                ld c,#02
   42+ 0000 ~                rst #20
   43+ 0000                  endm
   44+ 0000
   45+ 0000              ;заполнение строки одним символом
-  46+ 0000                  macro OS_FLINE ;; H - line ; A - char
+  46+ 0000                  macro OS_FILL_LINE ;; H - line ; A - char
   47+ 0000 ~                ld c,#03
   48+ 0000 ~                rst #20
   49+ 0000                  endm
   50+ 0000
   51+ 0000              ;покрасить строку цветом
-  52+ 0000                  macro OS_PLINE ;a - line, b - color
+  52+ 0000                  macro OS_PAINT_LINE ;a - line, b - color
   53+ 0000 ~                ld c,#04
   54+ 0000 ~                rst #20
   55+ 0000                  endm
@@ -88,210 +88,227 @@
   84+ 0000 ~                rst #20
   85+ 0000                  endm
   86+ 0000
-  87+ 0000              ;прочитать байт из uart порта;
-  88+ 0000                  macro OS_UART_READ ; A - byte (Out: CY=1 Not Readed)
-  89+ 0000 ~                ld c,#0a
-  90+ 0000 ~                rst #20
-  91+ 0000                  endm
+  87+ 0000
+  88+ 0000                  ; macro OS_
+  89+ 0000                  ; ld c,#0a
+  90+ 0000                  ; rst #20
+  91+ 0000                  ; endm
   92+ 0000
-  93+ 0000              ;записать байт в uart порт;
-  94+ 0000                  macro OS_UART_WRITE ; A - byte (Out: CY=1 Not Writed)
-  95+ 0000 ~                ld c,#0b
-  96+ 0000 ~                rst #20
-  97+ 0000                  endm
-  98+ 0000
-  99+ 0000                  ; macro OS_ ;
- 100+ 0000                  ; ld c,#0c
- 101+ 0000                  ; rst #20
- 102+ 0000                  ; endm
- 103+ 0000
- 104+ 0000                  ; macro OS_ ;
- 105+ 0000                  ; ld c,#0d
- 106+ 0000                  ; rst #20
- 107+ 0000                  ; endm
- 108+ 0000
- 109+ 0000                  ; macro OS_ ;
- 110+ 0000                  ; ld c,#0e
- 111+ 0000                  ; rst #20
- 112+ 0000                  ; endm
- 113+ 0000
- 114+ 0000                  ; macro OS_ ;
- 115+ 0000                  ; ld c,#0f
- 116+ 0000                  ; rst #20
- 117+ 0000                  ; endm
- 118+ 0000
- 119+ 0000              ;ввод с консоли ----------------------
- 120+ 0000
- 121+ 0000              ;получить код нажатой клавиши
- 122+ 0000                  macro OS_GETCHAR ;read char from stdin (out: A=char, 255-no char)
- 123+ 0000 ~                ld c,#10
- 124+ 0000 ~                rst #20
- 125+ 0000                  endm
- 126+ 0000
- 127+ 0000
- 128+ 0000                  ; macro OS_ ;
- 129+ 0000                  ; ld c,#11
- 130+ 0000                  ; rst #20
- 131+ 0000                  ; endm
+  93+ 0000                  ; macro OS_
+  94+ 0000                  ; ld c,#0b
+  95+ 0000                  ; rst #20
+  96+ 0000                  ; endm
+  97+ 0000
+  98+ 0000              ;закрыть соединение ESP
+  99+ 0000              ;вх:
+ 100+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом
+ 101+ 0000                  macro OS_ESP_CLOSE
+ 102+ 0000 ~                ld c,#0c
+ 103+ 0000 ~                rst #20
+ 104+ 0000                  endm
+ 105+ 0000
+ 106+ 0000              ;установить соединение ESP (CIPSTART);
+ 107+ 0000              ;вх: a - тип соединения 0-tcp, 1-udp, 2-ssl; hl - строка адрес, de - строка порт
+ 108+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+ 109+ 0000              ;вых: ix - адрес в таблице соединений (ix+2 - флаг открытия =1 - открыто, 255 - ошибка);
+ 110+ 0000                  macro OS_ESP_OPEN
+ 111+ 0000 ~                ld c,#0d
+ 112+ 0000 ~                rst #20
+ 113+ 0000                  endm
+ 114+ 0000
+ 115+ 0000              ;послать запрос ESP (CIPSEND);
+ 116+ 0000              ;вх: hl - адрес данных, de - длина данных
+ 117+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом
+ 118+ 0000              ;вых: ix - адрес в таблице соединений (ix+4 - флаг =1 - отправлено, 255 - ошибка)
+ 119+ 0000                  macro OS_ESP_SEND
+ 120+ 0000 ~                ld c,#0e
+ 121+ 0000 ~                rst #20
+ 122+ 0000                  endm
+ 123+ 0000
+ 124+ 0000              ;получить пакет ESP (+IPD);
+ 125+ 0000              ;вх: hl - адрес для данных
+ 126+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом
+ 127+ 0000              ;вых: ix - адрес в таблице соединений (ix+6 - флаг =1 - принято, 255 - ошибка)
+ 128+ 0000                  macro OS_ESP_GET
+ 129+ 0000 ~                ld c,#0f
+ 130+ 0000 ~                rst #20
+ 131+ 0000                  endm
  132+ 0000
- 133+ 0000                  ; macro OS_ ;
- 134+ 0000                  ; ld c,#12
- 135+ 0000                  ; rst #20
- 136+ 0000                  ; endm
- 137+ 0000
- 138+ 0000                  ; macro OS_ ;
- 139+ 0000                  ; ld c,#13
- 140+ 0000                  ; rst #20
- 141+ 0000                  ; endm
- 142+ 0000
- 143+ 0000
- 144+ 0000              ;прерывания --------------------------
- 145+ 0000
- 146+ 0000              ;установка адреса обработчика прерываний процесса;
- 147+ 0000                  ; macro OS_SET_INTER ;(HL - address, A = 1 - On, A = 0 - Off)
- 148+ 0000                  ; ld c,#14
+ 133+ 0000              ;ввод с консоли ----------------------
+ 134+ 0000
+ 135+ 0000              ;получить код нажатой клавиши
+ 136+ 0000                  macro OS_GET_CHAR ;read char from stdin (out: A=char, 255-no char)
+ 137+ 0000 ~                ld c,#10
+ 138+ 0000 ~                rst #20
+ 139+ 0000                  endm
+ 140+ 0000
+ 141+ 0000
+ 142+ 0000                  ; macro OS_ ;
+ 143+ 0000                  ; ld c,#11
+ 144+ 0000                  ; rst #20
+ 145+ 0000                  ; endm
+ 146+ 0000
+ 147+ 0000                  ; macro OS_ ;
+ 148+ 0000                  ; ld c,#12
  149+ 0000                  ; rst #20
  150+ 0000                  ; endm
  151+ 0000
- 152+ 0000
- 153+ 0000              ;плеер AY ----------------------------
- 154+ 0000
- 155+ 0000              ;инициализация плеера AY;
- 156+ 0000                  macro OS_VTPL_INIT ;(HL - address music)
- 157+ 0000 ~                ld c,#15
- 158+ 0000 ~                rst #20
- 159+ 0000                  endm
- 160+ 0000
- 161+ 0000              ;запустить плеер AY (система будет сама вызывать его каждое прерывание);
- 162+ 0000                  macro OS_VTPL_PLAY ;()
- 163+ 0000 ~                ld c,#16
- 164+ 0000 ~                rst #20
- 165+ 0000                  endm
+ 152+ 0000                  ; macro OS_ ;
+ 153+ 0000                  ; ld c,#13
+ 154+ 0000                  ; rst #20
+ 155+ 0000                  ; endm
+ 156+ 0000
+ 157+ 0000
+ 158+ 0000              ;прерывания --------------------------
+ 159+ 0000
+ 160+ 0000              ;установка адреса обработчика прерываний процесса;
+ 161+ 0000                  ; macro OS_SET_INTER ;(HL - address, A = 1 - On, A = 0 - Off)
+ 162+ 0000                  ; ld c,#14
+ 163+ 0000                  ; rst #20
+ 164+ 0000                  ; endm
+ 165+ 0000
  166+ 0000
- 167+ 0000              ;заглушить плеер AY;
- 168+ 0000                  macro OS_VTPL_MUTE ;()
- 169+ 0000 ~                ld c,#17
- 170+ 0000 ~                rst #20
- 171+ 0000                  endm
- 172+ 0000
- 173+ 0000              ;получить значение переменной плеера;
- 174+ 0000                  macro OS_GET_VTPL_SETUP ;(out: HL - setup address)
- 175+ 0000 ~                ld c,#18
- 176+ 0000 ~                rst #20
- 177+ 0000                  endm
- 178+ 0000
- 179+ 0000
- 180+ 0000              ;прочие ------------------------------
- 181+ 0000
- 182+ 0000
- 183+ 0000              ;скопировать страницу в страницу
- 184+ 0000                  macro OS_PAGE_COPY ;(A- page from, B - page to)
- 185+ 0000 ~                ld c,#19
- 186+ 0000 ~                rst #20
- 187+ 0000                  endm
- 188+ 0000
- 189+ 0000              ;получить дополнительную страницу памяти;
- 190+ 0000                  macro OS_GET_PAGE ;(out A - number page)
- 191+ 0000 ~                ld c,#1a
- 192+ 0000 ~                rst #20
- 193+ 0000                  endm
- 194+ 0000
- 195+ 0000              ;включить страницу в слот 2 (#8000); предварительно зарезервировать страницу OS_GET_PAGE
- 196+ 0000                  macro OS_SET_PAGE_SLOT2 ;(A - page number)
- 197+ 0000 ~                ld c,#1b
- 198+ 0000 ~                rst #20
- 199+ 0000                  endm
- 200+ 0000
- 201+ 0000              ;включить страницу в слот 3 (#C000); предварительно зарезервировать страницу OS_GET_PAGE
- 202+ 0000                  macro OS_SET_PAGE_SLOT3 ;(A - page number)
- 203+ 0000 ~                ld c,#1c
- 204+ 0000 ~                rst #20
- 205+ 0000                  endm
- 206+ 0000
- 207+ 0000              ;включить экран N;
- 208+ 0000                  macro OS_SET_SCR ;(A - number screen 5, 7, 39, 3a)
- 209+ 0000 ~                ld c,#1d
- 210+ 0000 ~                rst #20
- 211+ 0000                  endm
- 212+ 0000
- 213+ 0000
- 214+ 0000              ;получить номера страниц процесса;
- 215+ 0000                  macro OS_GET_MAIN_PAGES ;(b, c - pages in slot2, 3)
- 216+ 0000 ~                ld c,#1e
- 217+ 0000 ~                rst #20
- 218+ 0000                  endm
- 219+ 0000
- 220+ 0000              ;получить значение системного таймера
- 221+ 0000                  macro OS_GET_TIMER ;(out: HL, DE - timer)
- 222+ 0000 ~                ld c,#1F
- 223+ 0000 ~                rst #20
- 224+ 0000                  endm
- 225+ 0000
- 226+ 0000
+ 167+ 0000              ;плеер AY ----------------------------
+ 168+ 0000
+ 169+ 0000              ;инициализация плеера AY;
+ 170+ 0000                  macro OS_VTPL_INIT ;(HL - address music)
+ 171+ 0000 ~                ld c,#15
+ 172+ 0000 ~                rst #20
+ 173+ 0000                  endm
+ 174+ 0000
+ 175+ 0000              ;запустить плеер AY (система будет сама вызывать его каждое прерывание);
+ 176+ 0000                  macro OS_VTPL_PLAY ;()
+ 177+ 0000 ~                ld c,#16
+ 178+ 0000 ~                rst #20
+ 179+ 0000                  endm
+ 180+ 0000
+ 181+ 0000              ;заглушить плеер AY;
+ 182+ 0000                  macro OS_VTPL_MUTE ;()
+ 183+ 0000 ~                ld c,#17
+ 184+ 0000 ~                rst #20
+ 185+ 0000                  endm
+ 186+ 0000
+ 187+ 0000              ;получить значение переменной плеера;
+ 188+ 0000                  macro OS_GET_VTPL_SETUP ;(out: HL - setup address)
+ 189+ 0000 ~                ld c,#18
+ 190+ 0000 ~                rst #20
+ 191+ 0000                  endm
+ 192+ 0000
+ 193+ 0000
+ 194+ 0000              ;прочие ------------------------------
+ 195+ 0000
+ 196+ 0000
+ 197+ 0000              ;скопировать данные из страницы в страницу
+ 198+ 0000              ;вх: hl - откуда (абсолютный адрес 0-ffff); de - куда; ix - длина; a - страница слот2; b - страница слот3;
+ 199+ 0000                  macro OS_RAM_COPY
+ 200+ 0000 ~                ld c,#19
+ 201+ 0000 ~                rst #20
+ 202+ 0000                  endm
+ 203+ 0000
+ 204+ 0000              ;получить дополнительную страницу памяти;
+ 205+ 0000                  macro OS_GET_PAGE ;(out A - number page)
+ 206+ 0000 ~                ld c,#1a
+ 207+ 0000 ~                rst #20
+ 208+ 0000                  endm
+ 209+ 0000
+ 210+ 0000              ;включить страницу в слот 2 (#8000); предварительно зарезервировать страницу OS_GET_PAGE
+ 211+ 0000                  macro OS_SET_PAGE_SLOT2 ;(A - page number)
+ 212+ 0000 ~                ld c,#1b
+ 213+ 0000 ~                rst #20
+ 214+ 0000                  endm
+ 215+ 0000
+ 216+ 0000              ;включить страницу в слот 3 (#C000); предварительно зарезервировать страницу OS_GET_PAGE
+ 217+ 0000                  macro OS_SET_PAGE_SLOT3 ;(A - page number)
+ 218+ 0000 ~                ld c,#1c
+ 219+ 0000 ~                rst #20
+ 220+ 0000                  endm
+ 221+ 0000
+ 222+ 0000              ;включить экран N;
+ 223+ 0000                  macro OS_SET_SCREEN ;(A - number screen 5, 7, 39, 3a)
+ 224+ 0000 ~                ld c,#1d
+ 225+ 0000 ~                rst #20
+ 226+ 0000                  endm
  227+ 0000
- 228+ 0000                  ; macro OS_ ;
- 229+ 0000                  ; ld c,#20
- 230+ 0000                  ; rst #20
- 231+ 0000                  ; endm
- 232+ 0000
- 233+ 0000
- 234+ 0000              ;дисковые операции -------------------
- 235+ 0000
- 236+ 0000              ;открыть файл для чтения или записи
- 237+ 0000                  macro OS_FOPENRW ;HL - File name (out: A - id file, bc, de - size)
- 238+ 0000 ~                ld c,#21
- 239+ 0000 ~                rst #20
- 240+ 0000                  endm
- 241+ 0000
- 242+ 0000              ;создать файл
- 243+ 0000                  macro OS_FOPENC ;HL - File name  (out: A - id file)
- 244+ 0000 ~                ld c,#22
- 245+ 0000 ~                rst #20
- 246+ 0000                  endm
- 247+ 0000
- 248+ 0000              ;прочитать из файла
- 249+ 0000                  macro OS_FREAD ;HL - address, A - id file, DE - length (out: bc - size readed)
- 250+ 0000 ~                ld c,#23
- 251+ 0000 ~                rst #20
- 252+ 0000                  endm
- 253+ 0000
- 254+ 0000              ;записать в файл
- 255+ 0000                  macro OS_FWRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
- 256+ 0000 ~                ld c,#24
- 257+ 0000 ~                rst #20
- 258+ 0000                  endm
- 259+ 0000
- 260+ 0000              ;закрыть файл
- 261+ 0000                  macro OS_FCLOSE ;A - id file
- 262+ 0000 ~                ld c,#25
- 263+ 0000 ~                rst #20
- 264+ 0000                  endm
- 265+ 0000
- 266+ 0000                  ; macro OS_ ;
- 267+ 0000                  ; ld c,#26
- 268+ 0000                  ; rst #20
- 269+ 0000                  ; endm
+ 228+ 0000
+ 229+ 0000              ;получить номера страниц процесса;
+ 230+ 0000              ;вх:
+ 231+ 0000              ;вых: b, c - страницы в слотах 2, 3
+ 232+ 0000                  macro OS_GET_MAIN_PAGES ;
+ 233+ 0000 ~                ld c,#1e
+ 234+ 0000 ~                rst #20
+ 235+ 0000                  endm
+ 236+ 0000
+ 237+ 0000              ;получить значение системного таймера
+ 238+ 0000                  macro OS_GET_TIMER ;(out: HL, DE - timer)
+ 239+ 0000 ~                ld c,#1F
+ 240+ 0000 ~                rst #20
+ 241+ 0000                  endm
+ 242+ 0000
+ 243+ 0000
+ 244+ 0000
+ 245+ 0000                  ; macro OS_ ;
+ 246+ 0000                  ; ld c,#20
+ 247+ 0000                  ; rst #20
+ 248+ 0000                  ; endm
+ 249+ 0000
+ 250+ 0000
+ 251+ 0000              ;дисковые операции -------------------
+ 252+ 0000
+ 253+ 0000              ;открыть файл для чтения или записи
+ 254+ 0000                  macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size)
+ 255+ 0000 ~                ld c,#21
+ 256+ 0000 ~                rst #20
+ 257+ 0000                  endm
+ 258+ 0000
+ 259+ 0000              ;создать файл
+ 260+ 0000                  macro OS_FILE_CREATE ;HL - File name  (out: A - id file)
+ 261+ 0000 ~                ld c,#22
+ 262+ 0000 ~                rst #20
+ 263+ 0000                  endm
+ 264+ 0000
+ 265+ 0000              ;прочитать из файла
+ 266+ 0000                  macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
+ 267+ 0000 ~                ld c,#23
+ 268+ 0000 ~                rst #20
+ 269+ 0000                  endm
  270+ 0000
- 271+ 0000                  ; macro OS_ ;
- 272+ 0000                  ; ld c,#27
- 273+ 0000                  ; rst #20
- 274+ 0000                  ; endm
- 275+ 0000
- 276+ 0000                  ; macro OS_ ;
- 277+ 0000                  ; ld c,#28
- 278+ 0000                  ; rst #20
- 279+ 0000                  ; endm
- 280+ 0000
- 281+ 0000                  ; macro OS_ ;
- 282+ 0000                  ; ld c,#29
- 283+ 0000                  ; rst #20
- 284+ 0000                  ; endm
- 285+ 0000
- 286+ 0000
+ 271+ 0000              ;записать в файл
+ 272+ 0000                  macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
+ 273+ 0000 ~                ld c,#24
+ 274+ 0000 ~                rst #20
+ 275+ 0000                  endm
+ 276+ 0000
+ 277+ 0000              ;закрыть файл
+ 278+ 0000                  macro OS_FILE_CLOSE ;A - id file
+ 279+ 0000 ~                ld c,#25
+ 280+ 0000 ~                rst #20
+ 281+ 0000                  endm
+ 282+ 0000
+ 283+ 0000                  ; macro OS_ ;
+ 284+ 0000                  ; ld c,#26
+ 285+ 0000                  ; rst #20
+ 286+ 0000                  ; endm
+ 287+ 0000
+ 288+ 0000                  ; macro OS_ ;
+ 289+ 0000                  ; ld c,#27
+ 290+ 0000                  ; rst #20
+ 291+ 0000                  ; endm
+ 292+ 0000
+ 293+ 0000                  ; macro OS_ ;
+ 294+ 0000                  ; ld c,#28
+ 295+ 0000                  ; rst #20
+ 296+ 0000                  ; endm
+ 297+ 0000
+ 298+ 0000                  ; macro OS_ ;
+ 299+ 0000                  ; ld c,#29
+ 300+ 0000                  ; rst #20
+ 301+ 0000                  ; endm
+ 302+ 0000
+ 303+ 0000
 # file closed: ../os_defs.asm
    3  0000                  org PROGSTART
    4  8000              asmOrg:
-   5  8000 C3 F1 A5         jp start
+   5  8000 C3 56 A3         jp start
    6  8003
    7  8003              ; Generate version string
    8  8003                  LUA ALLPASS
@@ -357,7 +374,7 @@
   35++8007              ; Set console coordinates
   36++8007              ; d = row(0..23), e = column (0..79)
   37++8007              gotoXY:
-  38++8007              	OS_SETXY
+  38++8007              	OS_SET_XY
   38++8007 0E 01       >    ld c,#01
   38++8009 E7          >    rst #20
   39++800A              	;rr e
@@ -374,7 +391,7 @@
   50++800C              ; H - line
   51++800C              ; A - char
   52++800C              fillLine: ;заполнение строки одним символом
-  53++800C              	OS_FLINE
+  53++800C              	OS_FILL_LINE
   53++800C 0E 03       >    ld c,#03
   53++800E E7          >    rst #20
   54++800F C9           	ret
@@ -386,7 +403,7 @@
   60++8010
   61++8010              usualLine: ;на входе в A номер строки, которую надо покрасить обычным цветом
   62++8010 06 07        	ld b,#07 ;цвет
-  63++8012              	OS_PLINE
+  63++8012              	OS_PAINT_LINE
   63++8012 0E 04       >    ld c,#04
   63++8014 E7          >    rst #20
   64++8015 C9           	ret
@@ -409,7 +426,7 @@
   81++8016
   82++8016              highlightLine: ;на входе в A номер строки, которую надо покрасить другим цветом
   83++8016 06 0C        	ld b,#0c ;цвет
-  84++8018              	OS_PLINE
+  84++8018              	OS_PAINT_LINE
   84++8018 0E 04       >    ld c,#04
   84++801A E7          >    rst #20
   85++801B C9           	ret
@@ -441,7 +458,7 @@
  111++801C              ; Print just one symbol
  112++801C              ; A - symbol
  113++801C              putC
- 114++801C              	OS_PRCHARF
+ 114++801C              	OS_PRINT_CHARF
  114++801C D7          >	rst #10
  115++801D C9           	ret
  116++801E                  ; cp 13 : jp z, mvCR
@@ -1299,7 +1316,7 @@
 # file opened: gopher/render/buffer.asm
    1++81EF              ; B - line count
    2++81EF              findLine:
-   3++81EF 21 F1 A5         ld hl, outputBuffer
+   3++81EF 21 56 A3         ld hl, outputBuffer
    4++81F2              findLine2:
    5++81F2 AF               xor a
    5++81F3 B0             or b
@@ -1551,7 +1568,7 @@
   35++83D3                  ; edup
   36++83D3              .nothing
   37++83D3 76           	halt
-  38++83D4 CD 4D A2     	call printRTC
+  38++83D4 CD 46 A2     	call printRTC
   39++83D7 CD B2 86         call Console.peekC
   40++83DA FE FF            cp 255
   40++83DC 28 F5          jr z, .nothing
@@ -1595,9 +1612,9 @@
   62++842E
   63++842E                  ifdef GS
   64++842E FE 4D            cp 'M'
-  64++8430 CC E5 A5       call z, GeneralSound.toggleModule
+  64++8430 CC 4A A3       call z, GeneralSound.toggleModule
   65++8433 FE 6D            cp 'm'
-  65++8435 CC E5 A5       call z, GeneralSound.toggleModule
+  65++8435 CC 4A A3       call z, GeneralSound.toggleModule
   66++8438                  endif
   67++8438
   68++8438 FE 53        	cp 'S'
@@ -1762,9 +1779,9 @@
   45++854D
   46++854D                  ifdef GS
   47++854D FE 4D            cp 'M'
-  47++854F CC E5 A5       call z, GeneralSound.toggleModule
+  47++854F CC 4A A3       call z, GeneralSound.toggleModule
   48++8552 FE 6D            cp 'm'
-  48++8554 CC E5 A5       call z, GeneralSound.toggleModule
+  48++8554 CC 4A A3       call z, GeneralSound.toggleModule
   49++8557                  endif
   50++8557
   51++8557 FE 53            cp 'S'
@@ -1993,10 +2010,10 @@
   88++865E 06 01            ld b, Dos.FMODE_READ
   88++8660 CD 7A 86       call Dos.fopen
   89++8663 F5               push af
-  90++8664 21 F1 A5 01          ld hl, outputBuffer, bc, #ffff - outputBuffer
-  90++8668 0E 5A
+  90++8664 21 56 A3 01          ld hl, outputBuffer, bc, #ffff - outputBuffer
+  90++8668 A9 5C
   90++866A CD 93 86       call Dos.fread
-  91++866D 21 F1 A5             ld hl, outputBuffer
+  91++866D 21 56 A3             ld hl, outputBuffer
   91++8670 09             add hl, bc
   91++8671 AF             xor a
   91++8672 77             ld (hl), a
@@ -2037,7 +2054,7 @@
  124++8685
  125++8685              	;call format_name ;
  126++8685
- 127++8685              	OS_FOPENRW
+ 127++8685              	OS_FILE_OPEN
  127++8685 0E 21       >    ld c,#21
  127++8687 E7          >    rst #20
  128++8688 C9           	ret
@@ -2088,7 +2105,7 @@
  173++868B
  174++868B              	;call format_name ;
  175++868B
- 176++868B              	OS_FOPENC
+ 176++868B              	OS_FILE_CREATE
  176++868B 0E 22       >    ld c,#22
  176++868D E7          >    rst #20
  177++868E C9           	ret
@@ -2345,7 +2362,7 @@
  428++868F
  429++868F              ; A - file stream id
  430++868F              fclose:
- 431++868F              	OS_FCLOSE
+ 431++868F              	OS_FILE_CLOSE
  431++868F 0E 25       >    ld c,#25
  431++8691 E7          >    rst #20
  432++8692 C9           	ret
@@ -2533,7 +2550,7 @@
  614++8693              fread: ;(id=1)
  615++8693 59           	ld e,c ;сохранить длину
  616++8694 50           	ld d,b
- 617++8695              	OS_FREAD
+ 617++8695              	OS_FILE_READ
  617++8695 0E 23       >    ld c,#23
  617++8697 E7          >    rst #20
  618++8698 C9           	ret
@@ -2575,7 +2592,7 @@
  654++8699              fwrite: ;
  655++8699 59           	ld e,c ;сохранить длину
  656++869A 50           	ld d,b
- 657++869B              	OS_FWRITE
+ 657++869B              	OS_FILE_WRITE
  657++869B 0E 24       >    ld c,#24
  657++869D E7          >    rst #20
  658++869E C9           	ret
@@ -3546,7 +3563,7 @@
   10++86A0
   11++86A0              waitForKeyUp:
   12++86A0 76           	halt
-  13++86A1              	OS_GETCHAR
+  13++86A1              	OS_GET_CHAR
   13++86A1 0E 10       >    ld c,#10
   13++86A3 E7          >    rst #20
   14++86A4 FE FF           cp 255
@@ -3557,7 +3574,7 @@
   19++86A9
   20++86A9              getC:
   21++86A9 76           	halt
-  22++86AA              	OS_GETCHAR
+  22++86AA              	OS_GET_CHAR
   22++86AA 0E 10       >    ld c,#10
   22++86AC E7          >    rst #20
   23++86AD                 ;ld a,(BASIC_KEY)
@@ -3570,7 +3587,7 @@
   30++86B1 C9              ret
   31++86B2
   32++86B2              peekC:
-  33++86B2              	OS_GETCHAR
+  33++86B2              	OS_GET_CHAR
   33++86B2 0E 10       >    ld c,#10
   33++86B4 E7          >    rst #20
   34++86B5                  ;xor a: ld (BASIC_KEY),a
@@ -3765,15 +3782,15 @@
    8++86CD 21 EA 86         ld hl, .msg
    8++86D0 CD 30 86       call DialogBox.msgNoWait
    9++86D3 AF               xor a
-   9++86D4 21 F1 A5 11    ld hl, outputBuffer, de, outputBuffer + 1
-   9++86D8 F2 A5
-  10++86DA 01 0D 5A         ld bc, #ffff - outputBuffer - 1
+   9++86D4 21 56 A3 11    ld hl, outputBuffer, de, outputBuffer + 1
+   9++86D8 57 A3
+  10++86DA 01 A8 5C         ld bc, #ffff - outputBuffer - 1
   11++86DD 77               ld (hl), a
   12++86DE ED B0            ldir
   13++86E0
   14++86E0 3A F0 87         ld a, (historyBlock.isFile)
   14++86E3 A7             and a
-  14++86E4 C2 B5 9D       jp nz, Fetcher.fetchFromFS
+  14++86E4 C2 B8 9D       jp nz, Fetcher.fetchFromFS
   15++86E7 C3 68 9D         jp Fetcher.fetchFromNet
   16++86EA
   17++86EA 4C 6F 61 64  .msg db "Loading resource! Please wait! It will be here soon!", 0
@@ -3887,7 +3904,7 @@
   74++87C0              1
   75++87C0 3A F1 87         ld a,(historyBlock.mediaType)
   75++87C3 FE 01          cp MIME_DOWNLOAD
-  75++87C5 CA B8 9E       jp z, Gopher.download
+  75++87C5 CA B5 9E       jp z, Gopher.download
   76++87C8
   77++87C8                  ifdef GS
   78++87C8 FE 07            cp MIME_MOD
@@ -4050,1488 +4067,1395 @@
    1+ 9D68                  MODULE Fetcher
    2+ 9D68
    3+ 9D68              fetchFromNet:
-   4+ 9D68 CD 2C 9E         call Gopher.makeRequest
+   4+ 9D68 CD 2F 9E         call Gopher.makeRequest
    4+ 9D6B 38 06          jr c, .error
-   5+ 9D6D CD 44 9E         call Gopher.loadBuffer
-   6+ 9D70 C3 C1 9D         jp MediaProcessor.processResource
+   5+ 9D6D CD 47 9E         call Gopher.loadBuffer
+   6+ 9D70 C3 C4 9D         jp MediaProcessor.processResource
    7+ 9D73              .error
-   8+ 9D73 21 7C 9D         ld hl, .err
-   8+ 9D76 CD 27 86       call DialogBox.msgBox
-   9+ 9D79 C3 B6 86         jp History.back
-  10+ 9D7C
-  11+ 9D7C 44 6F 63 75  .err db "Document fetch error! Check your connection or hostname!", 0
-  11+ 9D80 6D 65 6E 74
-  11+ 9D84 20 66 65 74
-  11+ 9D88 63 68 20 65
-  11+ 9D8C 72 72 6F 72
-  11+ 9D90 21 20 43 68
-  11+ 9D94 65 63 6B 20
-  11+ 9D98 79 6F 75 72
-  11+ 9D9C 20 63 6F 6E
-  11+ 9DA0 6E 65 63 74
-  11+ 9DA4 69 6F 6E 20
-  11+ 9DA8 6F 72 20 68
-  11+ 9DAC 6F 73 74 6E
-  11+ 9DB0 61 6D 65 21
-  11+ 9DB4 00
-  12+ 9DB5
-  13+ 9DB5
-  14+ 9DB5              fetchFromFS:
-  15+ 9DB5 CD 10 9C         call UrlEncoder.extractPath
-  16+ 9DB8              loadFile
-  17+ 9DB8 21 28 9C         ld hl, nameBuffer
-  18+ 9DBB CD 5E 86         call Dos.loadBuffer
-  19+ 9DBE C3 C1 9D         jp MediaProcessor.processResource
-  20+ 9DC1                  ENDMODULE
+   8+ 9D73              	OS_ESP_CLOSE ;закрыть соединение, если было
+   8+ 9D73 0E 0C       >    ld c,#0c
+   8+ 9D75 E7          >    rst #20
+   9+ 9D76 21 7F 9D         ld hl, .err
+   9+ 9D79 CD 27 86       call DialogBox.msgBox
+  10+ 9D7C C3 B6 86         jp History.back
+  11+ 9D7F
+  12+ 9D7F 44 6F 63 75  .err db "Document fetch error! Check your connection or hostname!", 0
+  12+ 9D83 6D 65 6E 74
+  12+ 9D87 20 66 65 74
+  12+ 9D8B 63 68 20 65
+  12+ 9D8F 72 72 6F 72
+  12+ 9D93 21 20 43 68
+  12+ 9D97 65 63 6B 20
+  12+ 9D9B 79 6F 75 72
+  12+ 9D9F 20 63 6F 6E
+  12+ 9DA3 6E 65 63 74
+  12+ 9DA7 69 6F 6E 20
+  12+ 9DAB 6F 72 20 68
+  12+ 9DAF 6F 73 74 6E
+  12+ 9DB3 61 6D 65 21
+  12+ 9DB7 00
+  13+ 9DB8
+  14+ 9DB8
+  15+ 9DB8              fetchFromFS:
+  16+ 9DB8 CD 10 9C         call UrlEncoder.extractPath
+  17+ 9DBB              loadFile
+  18+ 9DBB 21 28 9C         ld hl, nameBuffer
+  19+ 9DBE CD 5E 86         call Dos.loadBuffer
+  20+ 9DC1 C3 C4 9D         jp MediaProcessor.processResource
+  21+ 9DC4                  ENDMODULE
 # file closed: gopher/engine/fetcher.asm
-  22  9DC1                  include "gopher/engine/media-processor.asm"
+  22  9DC4                  include "gopher/engine/media-processor.asm"
 # file opened: gopher/engine/media-processor.asm
-   1+ 9DC1                  MODULE MediaProcessor
-   2+ 9DC1              processResource:
-   3+ 9DC1 CD 1C 9C         call UrlEncoder.extractHostName
-   4+ 9DC4 3A F1 87         ld a, (historyBlock.mediaType)
-   5+ 9DC7 FE 05            cp MIME_MUSIC
-   5+ 9DC9 28 17          jr z, processPT
-   6+ 9DCB FE 02            cp MIME_LINK
-   6+ 9DCD 28 1F          jr z, processPage
-   7+ 9DCF FE 04            cp MIME_INPUT
-   7+ 9DD1 28 1B          jr z, processPage
-   8+ 9DD3 FE 06            cp MIME_IMAGE
-   8+ 9DD5 CA 21 A2       jp z, ScreenViewer.display
-   9+ 9DD8              	ifdef GS
-  10+ 9DD8 FE 07            cp MIME_MOD
-  10+ 9DDA 28 0C          jr z, processMOD
-  11+ 9DDC              	endif
-  12+ 9DDC              ; Fallback to plain text
-  13+ 9DDC              processText:
-  14+ 9DDC CD E1 84         call Render.renderPlainTextScreen
-  15+ 9DDF C3 1D 85         jp   Render.plainTextLoop
-  16+ 9DE2
-  17+ 9DE2              processPT:
-  18+ 9DE2 CD 8C A1         call VortexProcessor.play
-  19+ 9DE5 C3 B6 86         jp History.back
-  20+ 9DE8
-  21+ 9DE8                  ifdef GS
-  22+ 9DE8              processMOD:
-  23+ 9DE8 CD E0 A1         call ModProcessor.play
-  24+ 9DEB C3 B6 86         jp History.back
-  25+ 9DEE              	endif
-  26+ 9DEE
-  27+ 9DEE              processPage:
-  28+ 9DEE 3A 81 85         ld a, (Render.play_next)
-  28+ 9DF1 A7             and a
-  28+ 9DF2 20 06          jr nz, .playNext
-  29+ 9DF4 CD 85 83         call Render.renderGopherScreen
-  30+ 9DF7 C3 CC 83         jp   Render.workLoop
-  31+ 9DFA              .playNext
-  32+ 9DFA 21 37 8B         ld hl, Render.cursor_position
-  33+ 9DFD 34               inc (hl)
-  34+ 9DFE C3 B6 83         jp Render.checkBorder
-  35+ 9E01
-  36+ 9E01
-  37+ 9E01                  ENDMODULE
+   1+ 9DC4                  MODULE MediaProcessor
+   2+ 9DC4              processResource:
+   3+ 9DC4 CD 1C 9C         call UrlEncoder.extractHostName
+   4+ 9DC7 3A F1 87         ld a, (historyBlock.mediaType)
+   5+ 9DCA FE 05            cp MIME_MUSIC
+   5+ 9DCC 28 17          jr z, processPT
+   6+ 9DCE FE 02            cp MIME_LINK
+   6+ 9DD0 28 1F          jr z, processPage
+   7+ 9DD2 FE 04            cp MIME_INPUT
+   7+ 9DD4 28 1B          jr z, processPage
+   8+ 9DD6 FE 06            cp MIME_IMAGE
+   8+ 9DD8 CA 1B A2       jp z, ScreenViewer.display
+   9+ 9DDB              	ifdef GS
+  10+ 9DDB FE 07            cp MIME_MOD
+  10+ 9DDD 28 0C          jr z, processMOD
+  11+ 9DDF              	endif
+  12+ 9DDF              ; Fallback to plain text
+  13+ 9DDF              processText:
+  14+ 9DDF CD E1 84         call Render.renderPlainTextScreen
+  15+ 9DE2 C3 1D 85         jp   Render.plainTextLoop
+  16+ 9DE5
+  17+ 9DE5              processPT:
+  18+ 9DE5 CD 86 A1         call VortexProcessor.play
+  19+ 9DE8 C3 B6 86         jp History.back
+  20+ 9DEB
+  21+ 9DEB                  ifdef GS
+  22+ 9DEB              processMOD:
+  23+ 9DEB CD DA A1         call ModProcessor.play
+  24+ 9DEE C3 B6 86         jp History.back
+  25+ 9DF1              	endif
+  26+ 9DF1
+  27+ 9DF1              processPage:
+  28+ 9DF1 3A 81 85         ld a, (Render.play_next)
+  28+ 9DF4 A7             and a
+  28+ 9DF5 20 06          jr nz, .playNext
+  29+ 9DF7 CD 85 83         call Render.renderGopherScreen
+  30+ 9DFA C3 CC 83         jp   Render.workLoop
+  31+ 9DFD              .playNext
+  32+ 9DFD 21 37 8B         ld hl, Render.cursor_position
+  33+ 9E00 34               inc (hl)
+  34+ 9E01 C3 B6 83         jp Render.checkBorder
+  35+ 9E04
+  36+ 9E04
+  37+ 9E04                  ENDMODULE
 # file closed: gopher/engine/media-processor.asm
-  23  9E01                  include "gopher/gopher.asm"
+  23  9E04                  include "gopher/gopher.asm"
 # file opened: gopher/gopher.asm
-   1+ 9E01                  module Gopher
-   2+ 9E01              extractRequest:
-   3+ 9E01 21 F2 87         ld hl, historyBlock.locator
-   4+ 9E04 11 8D 9F         ld de, requestbuffer
-   5+ 9E07              .loop
-   6+ 9E07 7E               ld a, (hl)
-   7+ 9E08 12               ld (de), a
-   8+ 9E09 23               inc hl
-   9+ 9E0A 13               inc de
-  10+ 9E0B FE 00            cp 0
-  11+ 9E0D 28 02            jr z, .search
-  12+ 9E0F 18 F6            jr .loop
-  13+ 9E11              .search
-  14+ 9E11 1B               dec de
-  15+ 9E12 3A F1 87         ld a, (historyBlock.mediaType)
-  16+ 9E15 FE 04            cp MIME_INPUT
-  17+ 9E17 20 10            jr nz, .exit
-  18+ 9E19 21 37 8A         ld hl, historyBlock.search
-  19+ 9E1C 3E 09            ld a, TAB
-  20+ 9E1E 12               ld (de), a
-  21+ 9E1F 13               inc de
-  22+ 9E20              .searchCopy
-  23+ 9E20 7E               ld a, (hl)
-  24+ 9E21 A7               and a
-  24+ 9E22 28 05          jr z, .exit
-  25+ 9E24 12               ld (de), a
-  26+ 9E25 23               inc hl
-  26+ 9E26 13             inc de
-  27+ 9E27 18 F7            jr .searchCopy
-  28+ 9E29              .exit
-  29+ 9E29 AF               xor a
-  30+ 9E2A 12               ld (de), a
-  31+ 9E2B C9               ret
-  32+ 9E2C
-  33+ 9E2C
-  34+ 9E2C              makeRequest:
-  35+ 9E2C CD 01 9E         call extractRequest
-  36+ 9E2F
-  37+ 9E2F 21 F1 89         ld hl, historyBlock.host
-  38+ 9E32 11 31 8A         ld de, historyBlock.port
-  39+ 9E35 CD 96 A3         call Wifi.openTCP
-  40+ 9E38 D8               ret c
-  41+ 9E39
-  42+ 9E39 21 8D 9F         ld hl, requestbuffer
-  43+ 9E3C CD 77 A4         call Wifi.tcpSendZ
-  44+ 9E3F AF               xor a
-  44+ 9E40 32 BA A2       ld (Wifi.closed), a
-  45+ 9E43 C9               ret
-  46+ 9E44
-  47+ 9E44
-  48+ 9E44              loadBuffer:
-  49+ 9E44 21 F1 A5         ld hl, outputBuffer
-  50+ 9E47 22 B8 A2         ld (Wifi.buffer_pointer), hl
-  51+ 9E4A              .loop
-  52+ 9E4A CD C5 A4         call Wifi.getPacket
-  53+ 9E4D 3A BA A2         ld a, (Wifi.closed)
-  53+ 9E50 A7             and a
-  53+ 9E51 C0             ret nz
-  54+ 9E52 CD F4 A3         call Wifi.continue
-  55+ 9E55 18 F3            jr .loop
+   1+ 9E04                  module Gopher
+   2+ 9E04              extractRequest:
+   3+ 9E04 21 F2 87         ld hl, historyBlock.locator
+   4+ 9E07 11 87 9F         ld de, requestbuffer
+   5+ 9E0A              .loop
+   6+ 9E0A 7E               ld a, (hl)
+   7+ 9E0B 12               ld (de), a
+   8+ 9E0C 23               inc hl
+   9+ 9E0D 13               inc de
+  10+ 9E0E FE 00            cp 0
+  11+ 9E10 28 02            jr z, .search
+  12+ 9E12 18 F6            jr .loop
+  13+ 9E14              .search
+  14+ 9E14 1B               dec de
+  15+ 9E15 3A F1 87         ld a, (historyBlock.mediaType)
+  16+ 9E18 FE 04            cp MIME_INPUT
+  17+ 9E1A 20 10            jr nz, .exit
+  18+ 9E1C 21 37 8A         ld hl, historyBlock.search
+  19+ 9E1F 3E 09            ld a, TAB
+  20+ 9E21 12               ld (de), a
+  21+ 9E22 13               inc de
+  22+ 9E23              .searchCopy
+  23+ 9E23 7E               ld a, (hl)
+  24+ 9E24 A7               and a
+  24+ 9E25 28 05          jr z, .exit
+  25+ 9E27 12               ld (de), a
+  26+ 9E28 23               inc hl
+  26+ 9E29 13             inc de
+  27+ 9E2A 18 F7            jr .searchCopy
+  28+ 9E2C              .exit
+  29+ 9E2C AF               xor a
+  30+ 9E2D 12               ld (de), a
+  31+ 9E2E C9               ret
+  32+ 9E2F
+  33+ 9E2F
+  34+ 9E2F              makeRequest:
+  35+ 9E2F CD 04 9E         call extractRequest
+  36+ 9E32
+  37+ 9E32 21 F1 89         ld hl, historyBlock.host
+  38+ 9E35 11 31 8A         ld de, historyBlock.port
+  39+ 9E38 CD 56 A2         call Wifi.openTCP
+  40+ 9E3B D8               ret c
+  41+ 9E3C
+  42+ 9E3C 21 87 9F         ld hl, requestbuffer
+  43+ 9E3F CD 80 A2         call Wifi.tcpSendZ
+  44+ 9E42 AF               xor a
+  44+ 9E43 32 55 A2       ld (Wifi.closed), a
+  45+ 9E46 C9               ret
+  46+ 9E47
+  47+ 9E47
+  48+ 9E47              loadBuffer:
+  49+ 9E47 21 56 A3         ld hl, outputBuffer
+  50+ 9E4A 22 53 A2         ld (Wifi.buffer_pointer), hl
+  51+ 9E4D              .loop
+  52+ 9E4D CD 9E A2         call Wifi.getPacket
+  53+ 9E50 3A 55 A2         ld a, (Wifi.closed)
+  53+ 9E53 A7             and a
+  53+ 9E54 C0             ret nz
+  54+ 9E55                  ;call Wifi.continue
+  55+ 9E55 18 F6            jr .loop
   56+ 9E57
   57+ 9E57                  ifdef GS
   58+ 9E57              loadMod:
   59+ 9E57 AF               xor a
-  59+ 9E58 CD 8E A5       call GeneralSound.init
-  60+ 9E5B 21 98 9E         ld hl, .progress
+  59+ 9E58 CD F3 A2       call GeneralSound.init
+  60+ 9E5B 21 95 9E         ld hl, .progress
   60+ 9E5E CD 30 86       call DialogBox.msgNoWait
-  61+ 9E61 CD 2C 9E         call makeRequest
+  61+ 9E61 CD 2F 9E         call makeRequest
   61+ 9E64 DA 73 9D       jp c, Fetcher.fetchFromNet.error
-  62+ 9E67 CD 9B A5         call GeneralSound.loadModule
+  62+ 9E67 CD 00 A3         call GeneralSound.loadModule
   63+ 9E6A              .loop
-  64+ 9E6A 21 F1 A5 22      ld hl, outputBuffer, (Wifi.buffer_pointer), hl
-  64+ 9E6E B8 A2
-  65+ 9E70 CD C5 A4         call Wifi.getPacket
-  66+ 9E73 3A BA A2         ld a, (Wifi.closed)
+  64+ 9E6A 21 56 A3 22      ld hl, outputBuffer, (Wifi.buffer_pointer), hl
+  64+ 9E6E 53 A2
+  65+ 9E70 CD 9E A2         call Wifi.getPacket
+  66+ 9E73 3A 55 A2         ld a, (Wifi.closed)
   66+ 9E76 A7             and a
-  66+ 9E77 20 19          jr nz, .exit
-  67+ 9E79 21 F1 A5 ED      ld hl, outputBuffer, bc, (Wifi.bytes_avail)
-  67+ 9E7D 4B B6 A2
+  66+ 9E77 20 16          jr nz, .exit
+  67+ 9E79 21 56 A3 ED      ld hl, outputBuffer, bc, (Wifi.bytes_avail)
+  67+ 9E7D 4B 51 A2
   68+ 9E80              .loadLoop
   69+ 9E80 78               ld a, b
   69+ 9E81 B1             or c
   69+ 9E82 A7             and a
   69+ 9E83 28 08          jr z, .nextFrame
   70+ 9E85 7E               ld a, (hl)
-  70+ 9E86 CD AE A5       call GeneralSound.sendByte
+  70+ 9E86 CD 13 A3       call GeneralSound.sendByte
   71+ 9E89 0B               dec bc
   72+ 9E8A 23               inc hl
   73+ 9E8B 18 F3            jr .loadLoop
   74+ 9E8D              .nextFrame
-  75+ 9E8D CD F4 A3         call Wifi.continue
-  76+ 9E90 18 D8            jr .loop
-  77+ 9E92              .exit
-  78+ 9E92 CD B6 A5         call GeneralSound.finishLoadingModule
-  79+ 9E95                  ;jp History.back
-  80+ 9E95 C3 C1 9D     	jp MediaProcessor.processResource
-  81+ 9E98 4D 4F 44 20  .progress db "MOD downloading directly to GS!", 0
-  81+ 9E9C 64 6F 77 6E
-  81+ 9EA0 6C 6F 61 64
-  81+ 9EA4 69 6E 67 20
-  81+ 9EA8 64 69 72 65
-  81+ 9EAC 63 74 6C 79
-  81+ 9EB0 20 74 6F 20
-  81+ 9EB4 47 53 21 00
-  82+ 9EB8                  endif
-  83+ 9EB8
-  84+ 9EB8
-  85+ 9EB8              download:
-  86+ 9EB8
-  87+ 9EB8 11 F2 87         ld de, historyBlock.locator
-  88+ 9EBB 62 6B            ld hl, de
-  89+ 9EBD              .findFileName
-  90+ 9EBD 1A               ld a, (de)
-  90+ 9EBE 13             inc de
-  91+ 9EBF FE 2F            cp '/'
-  91+ 9EC1 20 02          jr nz, .skip
-  92+ 9EC3 62 6B            ld hl, de
-  93+ 9EC5              .skip
-  94+ 9EC5 A7               and a
-  94+ 9EC6 20 F5          jr nz, .findFileName
-  95+ 9EC8              .copy
-  96+ 9EC8                  ;; HL - filename pointer
-  97+ 9EC8 11 D7 85         ld de, DialogBox.inputBuffer
-  98+ 9ECB              .copyFileName
-  99+ 9ECB 7E               ld a, (hl)
-  99+ 9ECC A7             and a
-  99+ 9ECD 28 05          jr z, .finishCopy
- 100+ 9ECF
- 101+ 9ECF 12               ld (de), a
- 101+ 9ED0 23 13          inc hl, de
- 102+ 9ED2 18 F7            jr .copyFileName
- 103+ 9ED4              .finishCopy
- 104+ 9ED4 12               ld (de), a
- 105+ 9ED5 CD 86 85         call DialogBox.inputBox.noclear
- 106+ 9ED8 3A D7 85         ld a, (DialogBox.inputBuffer)
- 106+ 9EDB A7             and a
- 106+ 9EDC CA B6 86       jp z, History.back
- 107+ 9EDF
- 108+ 9EDF CD 2C 9E         call makeRequest
- 108+ 9EE2 DA 73 9D       jp c, Fetcher.fetchFromNet.error
- 109+ 9EE5
- 110+ 9EE5 06 0E 21 D7      ld b, Dos.FMODE_CREATE, hl, DialogBox.inputBuffer
- 110+ 9EE9 85
- 111+ 9EEA CD 7A 86         call Dos.fopen
- 112+ 9EED 32 8B 9F         ld (.fp), a
- 113+ 9EF0
- 114+ 9EF0 21 66 9F         ld hl, .progress
- 114+ 9EF3 CD 30 86       call DialogBox.msgNoWait
- 115+ 9EF6              .loop
- 116+ 9EF6 21 F1 A5 22      ld hl, outputBuffer, (Wifi.buffer_pointer), hl
- 116+ 9EFA B8 A2
- 117+ 9EFC CD C5 A4         call Wifi.getPacket
- 118+ 9EFF 3A BA A2         ld a, (Wifi.closed)
- 118+ 9F02 A7             and a
- 118+ 9F03 20 12          jr nz, .exit
- 119+ 9F05
- 120+ 9F05 3A 8B 9F 21      ld a, (.fp), hl, outputBuffer, bc, (Wifi.bytes_avail)
- 120+ 9F09 F1 A5 ED 4B
- 120+ 9F0D B6 A2
- 121+ 9F0F CD 99 86         call Dos.fwrite
- 122+ 9F12
- 123+ 9F12 CD F4 A3         call Wifi.continue
- 124+ 9F15 18 DF            jr .loop
- 125+ 9F17              .exit
- 126+ 9F17 3A 8B 9F         ld a, (.fp)
- 127+ 9F1A CD 8F 86         call Dos.fclose
- 128+ 9F1D C3 B6 86         jp History.back
- 129+ 9F20              .error
- 130+ 9F20 3A 8B 9F         ld a, (.fp)
- 131+ 9F23 CD 8F 86         call Dos.fclose
- 132+ 9F26
- 133+ 9F26 21 2F 9F         ld hl, .err
- 134+ 9F29 CD 27 86         call DialogBox.msgBox
- 135+ 9F2C C3 B6 86         jp History.back
- 136+ 9F2F 4F 70 65 72  .err db "Operation failed! Sorry! Check filename or disk space!",0
- 136+ 9F33 61 74 69 6F
- 136+ 9F37 6E 20 66 61
- 136+ 9F3B 69 6C 65 64
- 136+ 9F3F 21 20 53 6F
- 136+ 9F43 72 72 79 21
- 136+ 9F47 20 43 68 65
- 136+ 9F4B 63 6B 20 66
- 136+ 9F4F 69 6C 65 6E
- 136+ 9F53 61 6D 65 20
- 136+ 9F57 6F 72 20 64
- 136+ 9F5B 69 73 6B 20
- 136+ 9F5F 73 70 61 63
- 136+ 9F63 65 21 00
- 137+ 9F66 44 6F 77 6E  .progress db "Downloading in progress! Wait a bit!", 0
- 137+ 9F6A 6C 6F 61 64
- 137+ 9F6E 69 6E 67 20
- 137+ 9F72 69 6E 20 70
- 137+ 9F76 72 6F 67 72
- 137+ 9F7A 65 73 73 21
- 137+ 9F7E 20 57 61 69
- 137+ 9F82 74 20 61 20
- 137+ 9F86 62 69 74 21
- 137+ 9F8A 00
- 138+ 9F8B 00           .fp db 0
- 139+ 9F8C
- 140+ 9F8C 00           socket db 0
- 141+ 9F8D
- 142+ 9F8D 00 00 00...  requestbuffer ds #1ff
- 143+ A18C                  endmodule
- 144+ A18C
+  75+ 9E8D                  ;call Wifi.continue
+  76+ 9E8D 18 DB            jr .loop
+  77+ 9E8F              .exit
+  78+ 9E8F CD 1B A3         call GeneralSound.finishLoadingModule
+  79+ 9E92                  ;jp History.back
+  80+ 9E92 C3 C4 9D     	jp MediaProcessor.processResource
+  81+ 9E95 4D 4F 44 20  .progress db "MOD downloading directly to GS!", 0
+  81+ 9E99 64 6F 77 6E
+  81+ 9E9D 6C 6F 61 64
+  81+ 9EA1 69 6E 67 20
+  81+ 9EA5 64 69 72 65
+  81+ 9EA9 63 74 6C 79
+  81+ 9EAD 20 74 6F 20
+  81+ 9EB1 47 53 21 00
+  82+ 9EB5                  endif
+  83+ 9EB5
+  84+ 9EB5
+  85+ 9EB5              download:
+  86+ 9EB5
+  87+ 9EB5 11 F2 87         ld de, historyBlock.locator
+  88+ 9EB8 62 6B            ld hl, de
+  89+ 9EBA              .findFileName
+  90+ 9EBA 1A               ld a, (de)
+  90+ 9EBB 13             inc de
+  91+ 9EBC FE 2F            cp '/'
+  91+ 9EBE 20 02          jr nz, .skip
+  92+ 9EC0 62 6B            ld hl, de
+  93+ 9EC2              .skip
+  94+ 9EC2 A7               and a
+  94+ 9EC3 20 F5          jr nz, .findFileName
+  95+ 9EC5              .copy
+  96+ 9EC5                  ;; HL - filename pointer
+  97+ 9EC5 11 D7 85         ld de, DialogBox.inputBuffer
+  98+ 9EC8              .copyFileName
+  99+ 9EC8 7E               ld a, (hl)
+  99+ 9EC9 A7             and a
+  99+ 9ECA 28 05          jr z, .finishCopy
+ 100+ 9ECC
+ 101+ 9ECC 12               ld (de), a
+ 101+ 9ECD 23 13          inc hl, de
+ 102+ 9ECF 18 F7            jr .copyFileName
+ 103+ 9ED1              .finishCopy
+ 104+ 9ED1 12               ld (de), a
+ 105+ 9ED2 CD 86 85         call DialogBox.inputBox.noclear
+ 106+ 9ED5 3A D7 85         ld a, (DialogBox.inputBuffer)
+ 106+ 9ED8 A7             and a
+ 106+ 9ED9 CA B6 86       jp z, History.back
+ 107+ 9EDC
+ 108+ 9EDC CD 2F 9E         call makeRequest
+ 108+ 9EDF DA 73 9D       jp c, Fetcher.fetchFromNet.error
+ 109+ 9EE2
+ 110+ 9EE2 06 0E 21 D7      ld b, Dos.FMODE_CREATE, hl, DialogBox.inputBuffer
+ 110+ 9EE6 85
+ 111+ 9EE7 CD 7A 86         call Dos.fopen
+ 112+ 9EEA 32 85 9F         ld (.fp), a
+ 113+ 9EED
+ 114+ 9EED 21 60 9F         ld hl, .progress
+ 114+ 9EF0 CD 30 86       call DialogBox.msgNoWait
+ 115+ 9EF3              .loop
+ 116+ 9EF3 21 56 A3 22      ld hl, outputBuffer, (Wifi.buffer_pointer), hl
+ 116+ 9EF7 53 A2
+ 117+ 9EF9 CD 9E A2         call Wifi.getPacket
+ 118+ 9EFC 3A 55 A2         ld a, (Wifi.closed)
+ 118+ 9EFF A7             and a
+ 118+ 9F00 20 0F          jr nz, .exit
+ 119+ 9F02
+ 120+ 9F02 3A 85 9F 21      ld a, (.fp), hl, outputBuffer, bc, (Wifi.bytes_avail)
+ 120+ 9F06 56 A3 ED 4B
+ 120+ 9F0A 51 A2
+ 121+ 9F0C CD 99 86         call Dos.fwrite
+ 122+ 9F0F
+ 123+ 9F0F                  ;call Wifi.continue
+ 124+ 9F0F 18 E2            jr .loop
+ 125+ 9F11              .exit
+ 126+ 9F11 3A 85 9F         ld a, (.fp)
+ 127+ 9F14 CD 8F 86         call Dos.fclose
+ 128+ 9F17 C3 B6 86         jp History.back
+ 129+ 9F1A              ;.error
+ 130+ 9F1A 3A 85 9F         ld a, (.fp)
+ 131+ 9F1D CD 8F 86         call Dos.fclose
+ 132+ 9F20
+ 133+ 9F20 21 29 9F         ld hl, .err
+ 134+ 9F23 CD 27 86         call DialogBox.msgBox
+ 135+ 9F26 C3 B6 86         jp History.back
+ 136+ 9F29 4F 70 65 72  .err db "Operation failed! Sorry! Check filename or disk space!",0
+ 136+ 9F2D 61 74 69 6F
+ 136+ 9F31 6E 20 66 61
+ 136+ 9F35 69 6C 65 64
+ 136+ 9F39 21 20 53 6F
+ 136+ 9F3D 72 72 79 21
+ 136+ 9F41 20 43 68 65
+ 136+ 9F45 63 6B 20 66
+ 136+ 9F49 69 6C 65 6E
+ 136+ 9F4D 61 6D 65 20
+ 136+ 9F51 6F 72 20 64
+ 136+ 9F55 69 73 6B 20
+ 136+ 9F59 73 70 61 63
+ 136+ 9F5D 65 21 00
+ 137+ 9F60 44 6F 77 6E  .progress db "Downloading in progress! Wait a bit!", 0
+ 137+ 9F64 6C 6F 61 64
+ 137+ 9F68 69 6E 67 20
+ 137+ 9F6C 69 6E 20 70
+ 137+ 9F70 72 6F 67 72
+ 137+ 9F74 65 73 73 21
+ 137+ 9F78 20 57 61 69
+ 137+ 9F7C 74 20 61 20
+ 137+ 9F80 62 69 74 21
+ 137+ 9F84 00
+ 138+ 9F85 00           .fp db 0
+ 139+ 9F86
+ 140+ 9F86 00           socket db 0
+ 141+ 9F87
+ 142+ 9F87 00 00 00...  requestbuffer ds #1ff
+ 143+ A186                  endmodule
+ 144+ A186
 # file closed: gopher/gopher.asm
-  24  A18C                  include "player/vortex-processor.asm"
+  24  A186                  include "player/vortex-processor.asm"
 # file opened: player/vortex-processor.asm
-   1+ A18C                  MODULE VortexProcessor
-   2+ A18C              play:
-   3+ A18C CD A0 86         call Console.waitForKeyUp
-   4+ A18F
-   5+ A18F 21 CB A1         ld hl, message
-   5+ A192 CD 30 86       call DialogBox.msgNoWait
-   6+ A195
-   7+ A195 21 F1 A5         ld hl, outputBuffer
-   7+ A198                OS_VTPL_INIT
-   7+ A198 0E 15       >    ld c,#15
-   7+ A19A E7          >    rst #20
-   8+ A19B
-   9+ A19B
-  10+ A19B 3E 01 32 81      ld a, 1, (Render.play_next), a
-  10+ A19F 85
-  11+ A1A0                  ifdef GS
-  12+ A1A0 CD D2 A5         call GeneralSound.stopModule
-  13+ A1A3                  endif
-  14+ A1A3              	OS_VTPL_PLAY
-  14+ A1A3 0E 16       >    ld c,#16
-  14+ A1A5 E7          >    rst #20
-  15+ A1A6              .loop
-  16+ A1A6 76               halt
-  16+ A1A7               ; di : call VTPL.PLAY : ei
-  17+ A1A7              	OS_GETCHAR
-  17+ A1A7 0E 10       >    ld c,#10
-  17+ A1A9 E7          >    rst #20
-  18+ A1AA FE 20        	cp " " ;останов по пробелу
-  19+ A1AC CA C5 A1     	jp z, .stopKey
-  20+ A1AF CD 4D A2     	call printRTC
-  21+ A1B2              	OS_GET_VTPL_SETUP
-  21+ A1B2 0E 18       >    ld c,#18
-  21+ A1B4 E7          >    rst #20
-  22+ A1B5 7E               ld a, (hl)
-  22+ A1B6
-  23+ A1B6 17           	rla
-  23+ A1B7 30 ED          jr nc, .loop
-  24+ A1B9 3E 01 32 81      ld a, 1, (Render.play_next), a
-  24+ A1BD 85
-  25+ A1BE              .stop
-  26+ A1BE              	OS_VTPL_MUTE
-  26+ A1BE 0E 17       >    ld c,#17
-  26+ A1C0 E7          >    rst #20
-  27+ A1C1
-  28+ A1C1                  IFDEF AY
-  29+ A1C1 ~                call restoreAyState
-  30+ A1C1                  ENDIF
-  31+ A1C1
-  32+ A1C1 CD A0 86         call Console.waitForKeyUp
-  33+ A1C4 C9               ret
-  34+ A1C5              .stopKey
-  35+ A1C5 AF               xor a
-  35+ A1C6 32 81 85       ld (Render.play_next), a
-  36+ A1C9 18 F3            jr .stop
-  37+ A1CB
-  38+ A1CB                  IFDEF AY
-  39+ A1CB ~            restoreAyState:
-  40+ A1CB ~                ld a, #07
-  41+ A1CB ~                ld bc, #fffd
-  42+ A1CB ~                out (c), a
-  43+ A1CB ~                ld a, #fc
-  44+ A1CB ~                ld b, #bf
-  45+ A1CB ~                out (c), a ; Enable read mode
-  46+ A1CB ~
-  47+ A1CB ~                ld a, #0e
-  48+ A1CB ~                ld bc, #fffd
-  49+ A1CB ~                out (c), a
-  50+ A1CB ~                ret
-  51+ A1CB                  ENDIF
-  52+ A1CB
-  53+ A1CB 50 72 65 73  message db "Press key to stop...", 0
-  53+ A1CF 73 20 6B 65
-  53+ A1D3 79 20 74 6F
-  53+ A1D7 20 73 74 6F
-  53+ A1DB 70 2E 2E 2E
-  53+ A1DF 00
-  54+ A1E0                  ENDMODULE
-  55+ A1E0                  ;include "player.asm"
-  56+ A1E0
+   1+ A186                  MODULE VortexProcessor
+   2+ A186              play:
+   3+ A186 CD A0 86         call Console.waitForKeyUp
+   4+ A189
+   5+ A189 21 C5 A1         ld hl, message
+   5+ A18C CD 30 86       call DialogBox.msgNoWait
+   6+ A18F
+   7+ A18F 21 56 A3         ld hl, outputBuffer
+   7+ A192                OS_VTPL_INIT
+   7+ A192 0E 15       >    ld c,#15
+   7+ A194 E7          >    rst #20
+   8+ A195
+   9+ A195
+  10+ A195 3E 01 32 81      ld a, 1, (Render.play_next), a
+  10+ A199 85
+  11+ A19A                  ifdef GS
+  12+ A19A CD 37 A3         call GeneralSound.stopModule
+  13+ A19D                  endif
+  14+ A19D              	OS_VTPL_PLAY
+  14+ A19D 0E 16       >    ld c,#16
+  14+ A19F E7          >    rst #20
+  15+ A1A0              .loop
+  16+ A1A0 76               halt
+  16+ A1A1               ; di : call VTPL.PLAY : ei
+  17+ A1A1              	OS_GET_CHAR
+  17+ A1A1 0E 10       >    ld c,#10
+  17+ A1A3 E7          >    rst #20
+  18+ A1A4 FE 20        	cp " " ;останов по пробелу
+  19+ A1A6 CA BF A1     	jp z, .stopKey
+  20+ A1A9 CD 46 A2     	call printRTC
+  21+ A1AC              	OS_GET_VTPL_SETUP
+  21+ A1AC 0E 18       >    ld c,#18
+  21+ A1AE E7          >    rst #20
+  22+ A1AF 7E               ld a, (hl)
+  22+ A1B0
+  23+ A1B0 17           	rla
+  23+ A1B1 30 ED          jr nc, .loop
+  24+ A1B3 3E 01 32 81      ld a, 1, (Render.play_next), a
+  24+ A1B7 85
+  25+ A1B8              .stop
+  26+ A1B8              	OS_VTPL_MUTE
+  26+ A1B8 0E 17       >    ld c,#17
+  26+ A1BA E7          >    rst #20
+  27+ A1BB
+  28+ A1BB                  IFDEF AY
+  29+ A1BB ~                call restoreAyState
+  30+ A1BB                  ENDIF
+  31+ A1BB
+  32+ A1BB CD A0 86         call Console.waitForKeyUp
+  33+ A1BE C9               ret
+  34+ A1BF              .stopKey
+  35+ A1BF AF               xor a
+  35+ A1C0 32 81 85       ld (Render.play_next), a
+  36+ A1C3 18 F3            jr .stop
+  37+ A1C5
+  38+ A1C5                  IFDEF AY
+  39+ A1C5 ~            restoreAyState:
+  40+ A1C5 ~                ld a, #07
+  41+ A1C5 ~                ld bc, #fffd
+  42+ A1C5 ~                out (c), a
+  43+ A1C5 ~                ld a, #fc
+  44+ A1C5 ~                ld b, #bf
+  45+ A1C5 ~                out (c), a ; Enable read mode
+  46+ A1C5 ~
+  47+ A1C5 ~                ld a, #0e
+  48+ A1C5 ~                ld bc, #fffd
+  49+ A1C5 ~                out (c), a
+  50+ A1C5 ~                ret
+  51+ A1C5                  ENDIF
+  52+ A1C5
+  53+ A1C5 50 72 65 73  message db "Press key to stop...", 0
+  53+ A1C9 73 20 6B 65
+  53+ A1CD 79 20 74 6F
+  53+ A1D1 20 73 74 6F
+  53+ A1D5 70 2E 2E 2E
+  53+ A1D9 00
+  54+ A1DA                  ENDMODULE
+  55+ A1DA                  ;include "player.asm"
+  56+ A1DA
 # file closed: player/vortex-processor.asm
-  25  A1E0                  include "player/mod-processor.asm"
+  25  A1DA                  include "player/mod-processor.asm"
 # file opened: player/mod-processor.asm
-   1+ A1E0                  MODULE ModProcessor
-   2+ A1E0                  ifdef GS
-   3+ A1E0
-   4+ A1E0                  macro _WaitCommand2
-   5+ A1E0 ~            .wait
-   6+ A1E0 ~                in a, (CMD)
-   7+ A1E0 ~                rrca
-   8+ A1E0 ~                jr c, .wait
-   9+ A1E0                  endm
-  10+ A1E0
-  11+ A1E0                  macro _SendCommand2 nn
-  12+ A1E0 ~                ld a, nn
-  12+ A1E0 ~              out (CMD), a
-  13+ A1E0                  endm
-  14+ A1E0
-  15+ A1E0              play:
-  16+ A1E0 CD A0 86         call Console.waitForKeyUp
-  17+ A1E3
-  18+ A1E3 21 8D 9F         ld hl, Gopher.requestbuffer
-  18+ A1E6 CD 30 86       call DialogBox.msgNoWait
-  19+ A1E9
-  20+ A1E9                  ;ld a, 1, (Render.play_next), a
-  21+ A1E9 AF           	xor a
-  22+ A1EA 32 20 A2     	ld (last_song_position),a
-  23+ A1ED
-  24+ A1ED              .loop
-  25+ A1ED 76               halt
-  25+ A1EE
-  26+ A1EE                  OS_GETCHAR
-  26+ A1EE 0E 10       >    ld c,#10
-  26+ A1F0 E7          >    rst #20
-  27+ A1F1 FE FF        	cp 255
-  28+ A1F3 C2 1A A2     	jp nz, .stopKey
-  29+ A1F6 CD 4D A2     	call printRTC
-  30+ A1F9                  ;проверка что MOD начал играть сначала
-  31+ A1F9                  _SendCommand2 CMD_GET_SONG_POSITION
-  31+ A1F9 3E 60       >    ld a, CMD_GET_SONG_POSITION
-  31+ A1FB D3 BB       >  out (CMD), a
-  32+ A1FD                  _WaitCommand2
-  32+ A1FD             >.wait
-  32+ A1FD DB BB       >    in a, (CMD)
-  32+ A1FF 0F          >    rrca
-  32+ A200 38 FB       >    jr c, .wait
-  33+ A202 3A 20 A2     	ld a,(last_song_position) ;предыдущая позиция
-  34+ A205 4F           	ld c,a
-  35+ A206 DB B3        	in a,(DATA) ;текущая позиция
-  36+ A208 32 20 A2     	ld (last_song_position),a
-  37+ A20B B9           	cp c
-  38+ A20C 30 DF        	jr nc, .loop ;если не меньше, продолжаем играть
-  39+ A20E 3E 01 32 81      ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
-  39+ A212 85
-  40+ A213              .stop
-  41+ A213 CD D2 A5         call GeneralSound.stopModule
-  42+ A216
-  43+ A216 CD A0 86         call Console.waitForKeyUp
-  44+ A219 C9               ret
-  45+ A21A              .stopKey
-  46+ A21A AF               xor a
-  46+ A21B 32 81 85       ld (Render.play_next), a ;флаг что не надо играть следующий файл
-  47+ A21E 18 F3            jr .stop
-  48+ A220
-  49+ A220
-  50+ A220              ;message db "Press key to stop...", 0
-  51+ A220
-  52+ A220
-  53+ A220              CMD_GET_SONG_POSITION     = #60
-  54+ A220 00           last_song_position db 0
-  55+ A221
-  56+ A221              ;; Control ports
-  57+ A221              CMD  = 187
-  58+ A221              DATA = 179
-  59+ A221
-  60+ A221                  endif
-  61+ A221                  ENDMODULE
-  62+ A221
-  63+ A221
+   1+ A1DA                  MODULE ModProcessor
+   2+ A1DA                  ifdef GS
+   3+ A1DA
+   4+ A1DA                  macro _WaitCommand2
+   5+ A1DA ~            .wait
+   6+ A1DA ~                in a, (CMD)
+   7+ A1DA ~                rrca
+   8+ A1DA ~                jr c, .wait
+   9+ A1DA                  endm
+  10+ A1DA
+  11+ A1DA                  macro _SendCommand2 nn
+  12+ A1DA ~                ld a, nn
+  12+ A1DA ~              out (CMD), a
+  13+ A1DA                  endm
+  14+ A1DA
+  15+ A1DA              play:
+  16+ A1DA CD A0 86         call Console.waitForKeyUp
+  17+ A1DD
+  18+ A1DD 21 87 9F         ld hl, Gopher.requestbuffer
+  18+ A1E0 CD 30 86       call DialogBox.msgNoWait
+  19+ A1E3
+  20+ A1E3                  ;ld a, 1, (Render.play_next), a
+  21+ A1E3 AF           	xor a
+  22+ A1E4 32 1A A2     	ld (last_song_position),a
+  23+ A1E7
+  24+ A1E7              .loop
+  25+ A1E7 76               halt
+  25+ A1E8
+  26+ A1E8                  OS_GET_CHAR
+  26+ A1E8 0E 10       >    ld c,#10
+  26+ A1EA E7          >    rst #20
+  27+ A1EB FE 20        	cp " " ;пробел
+  28+ A1ED CA 14 A2     	jp z, .stopKey
+  29+ A1F0 CD 46 A2     	call printRTC
+  30+ A1F3                  ;проверка что MOD начал играть сначала
+  31+ A1F3                  _SendCommand2 CMD_GET_SONG_POSITION
+  31+ A1F3 3E 60       >    ld a, CMD_GET_SONG_POSITION
+  31+ A1F5 D3 BB       >  out (CMD), a
+  32+ A1F7                  _WaitCommand2
+  32+ A1F7             >.wait
+  32+ A1F7 DB BB       >    in a, (CMD)
+  32+ A1F9 0F          >    rrca
+  32+ A1FA 38 FB       >    jr c, .wait
+  33+ A1FC 3A 1A A2     	ld a,(last_song_position) ;предыдущая позиция
+  34+ A1FF 4F           	ld c,a
+  35+ A200 DB B3        	in a,(DATA) ;текущая позиция
+  36+ A202 32 1A A2     	ld (last_song_position),a
+  37+ A205 B9           	cp c
+  38+ A206 30 DF        	jr nc, .loop ;если не меньше, продолжаем играть
+  39+ A208 3E 01 32 81      ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
+  39+ A20C 85
+  40+ A20D              .stop
+  41+ A20D CD 37 A3         call GeneralSound.stopModule
+  42+ A210
+  43+ A210 CD A0 86         call Console.waitForKeyUp
+  44+ A213 C9               ret
+  45+ A214              .stopKey
+  46+ A214 AF               xor a
+  46+ A215 32 81 85       ld (Render.play_next), a ;флаг что не надо играть следующий файл
+  47+ A218 18 F3            jr .stop
+  48+ A21A
+  49+ A21A
+  50+ A21A              ;message db "Press key to stop...", 0
+  51+ A21A
+  52+ A21A
+  53+ A21A              CMD_GET_SONG_POSITION     = #60
+  54+ A21A 00           last_song_position db 0
+  55+ A21B
+  56+ A21B              ;; Control ports
+  57+ A21B              CMD  = 187
+  58+ A21B              DATA = 179
+  59+ A21B
+  60+ A21B                  endif
+  61+ A21B                  ENDMODULE
+  62+ A21B
+  63+ A21B
 # file closed: player/mod-processor.asm
-  26  A221                  include "screen/screen.asm"
+  26  A21B                  include "screen/screen.asm"
 # file opened: screen/screen.asm
-   1+ A221                  module ScreenViewer
-   2+ A221              display:
-   3+ A221 CD A0 86         call Console.waitForKeyUp
-   4+ A224                  ;ld a, 7 : call Memory.setPage
-   5+ A224 21 F1 C0 11      ld hl, outputBuffer+6912, de, #c000+6912, bc, 6912
-   5+ A228 00 DB 01 00
-   5+ A22C 1B
-   5+ A22D ED B8          lddr
-   6+ A22F              	OS_GET_MAIN_PAGES
-   6+ A22F 0E 1E       >    ld c,#1e
-   6+ A231 E7          >    rst #20
-   7+ A232 79           	ld a,c
-   8+ A233 06 07        	ld b,7
-   9+ A235              	OS_PAGE_COPY
-   9+ A235 0E 19       >    ld c,#19
-   9+ A237 E7          >    rst #20
-  10+ A238                  ;call TextMode.disable
-  11+ A238 3E 07        	ld a,7
-  12+ A23A              	OS_SET_SCR
-  12+ A23A 0E 1D       >    ld c,#1d
-  12+ A23C E7          >    rst #20
-  13+ A23D              .wait
-  14+ A23D 76           	halt
-  15+ A23E              	OS_GETCHAR
-  15+ A23E 0E 10       >    ld c,#10
-  15+ A240 E7          >    rst #20
-  16+ A241 FE FF        	cp 255
-  17+ A243 28 F8        	jr z, .wait
-  18+ A245 3E 39        	ld a,#39
-  19+ A247              	OS_SET_SCR
-  19+ A247 0E 1D       >    ld c,#1d
-  19+ A249 E7          >    rst #20
-  20+ A24A                  ;call TextMode.cls
-  21+ A24A C3 B6 86         jp History.back
-  22+ A24D
-  23+ A24D                  endmodule
+   1+ A21B                  module ScreenViewer
+   2+ A21B              display:
+   3+ A21B CD A0 86         call Console.waitForKeyUp
+   4+ A21E                  ;ld a, 7 : call Memory.setPage
+   5+ A21E                  ;ld hl, outputBuffer+6912, de, #c000+6912, bc, 6912 : lddr
+   6+ A21E              	OS_GET_MAIN_PAGES
+   6+ A21E 0E 1E       >    ld c,#1e
+   6+ A220 E7          >    rst #20
+   7+ A221 78           	ld a,b ; страница с буфером
+   8+ A222 06 07        	ld b,7 ;страница назначения
+   9+ A224 21 56 A3     	ld hl,outputBuffer
+  10+ A227 11 00 C0     	ld de,#c000
+  11+ A22A DD 21 00 1B  	ld ix,6912
+  12+ A22E              	OS_RAM_COPY
+  12+ A22E 0E 19       >    ld c,#19
+  12+ A230 E7          >    rst #20
+  13+ A231                  ;call TextMode.disable
+  14+ A231 3E 07        	ld a,7
+  15+ A233              	OS_SET_SCREEN
+  15+ A233 0E 1D       >    ld c,#1d
+  15+ A235 E7          >    rst #20
+  16+ A236              .wait
+  17+ A236 76           	halt
+  18+ A237              	OS_GET_CHAR
+  18+ A237 0E 10       >    ld c,#10
+  18+ A239 E7          >    rst #20
+  19+ A23A FE FF        	cp 255
+  20+ A23C 28 F8        	jr z, .wait
+  21+ A23E 3E 39        	ld a,#39
+  22+ A240              	OS_SET_SCREEN
+  22+ A240 0E 1D       >    ld c,#1d
+  22+ A242 E7          >    rst #20
+  23+ A243                  ;call TextMode.cls
+  24+ A243 C3 B6 86         jp History.back
+  25+ A246
+  26+ A246                  endmodule
 # file closed: screen/screen.asm
-  27  A24D                  include "screen/rtc.asm"
+  27  A246                  include "screen/rtc.asm"
 # file opened: screen/rtc.asm
-   1+ A24D              printRTC
-   2+ A24D              	ifndef SMUCRTC
-   3+ A24D C9           	ret
-   4+ A24E              	endif
-   5+ A24E              	ifdef SMUCRTC
-   6+ A24E ~            	;печать текущего времени
-   7+ A24E ~            	call Clock.readTime
-   8+ A24E ~            	jr nc,read_time_ok
-   9+ A24E ~            	; ld hl,mes_no_RTC
-  10+ A24E ~            	; call print_mes
-  11+ A24E ~            	; scf
-  12+ A24E ~            	ret ;выход
-  13+ A24E ~            read_time_ok
-  14+ A24E ~            	push bc
-  15+ A24E ~            	ld l,e ;часы
-  16+ A24E ~            	ld h,0
-  17+ A24E ~            	call toDecimal
-  18+ A24E ~            	ld de,00 ;координаты
-  19+ A24E ~            	call TextMode.gotoXY
-  20+ A24E ~            	ld hl,decimalS+3
-  21+ A24E ~            	call TextMode.printZ
-  22+ A24E ~            	ld a,":"
-  23+ A24E ~            	call TextMode.putC
-  24+ A24E ~            	pop bc
-  25+ A24E ~            	ld l,b ;минуты
-  26+ A24E ~            	ld h,0
-  27+ A24E ~            	call toDecimal
-  28+ A24E ~            	ld hl,decimalS+3
-  29+ A24E ~            	call TextMode.printZ
-  30+ A24E ~            	; ld a,":"
-  31+ A24E ~            	; call TextMode.putC
-  32+ A24E ~            	; ld l,c ;секунды
-  33+ A24E ~            	; ld h,0
-  34+ A24E ~            	; call toDecimal
-  35+ A24E ~            	; ld hl,decimalS+3
-  36+ A24E ~            	; call TextMode.printZ
-  37+ A24E ~            	; or a ;нет ошибки
-  38+ A24E ~            	ret
-  39+ A24E ~
-  40+ A24E ~
-  41+ A24E ~            toDecimal		;конвертирует 2 байта в 5 десятичных цифр
-  42+ A24E ~            				;на входе в HL число
-  43+ A24E ~            			ld de,10000 ;десятки тысяч
-  44+ A24E ~            			ld a,255
-  45+ A24E ~            toDecimal10k
-  46+ A24E ~            			and a
-  47+ A24E ~            			sbc hl,de
-  48+ A24E ~            			inc a
-  49+ A24E ~            			jr nc,toDecimal10k
-  50+ A24E ~            			add hl,de
-  51+ A24E ~            			add a,48
-  52+ A24E ~            			ld (decimalS),a
-  53+ A24E ~            			ld de,1000 ;тысячи
-  54+ A24E ~            			ld a,255
-  55+ A24E ~            toDecimal1k
-  56+ A24E ~            			and a
-  57+ A24E ~            			sbc hl,de
-  58+ A24E ~            			inc a
-  59+ A24E ~            			jr nc,toDecimal1k
-  60+ A24E ~            			add hl,de
-  61+ A24E ~            			add a,48
-  62+ A24E ~            			ld (decimalS+1),a
-  63+ A24E ~            			ld de,100 ;сотни
-  64+ A24E ~            			ld a,255
-  65+ A24E ~            toDecimal01k
-  66+ A24E ~            			and a
-  67+ A24E ~            			sbc hl,de
-  68+ A24E ~            			inc a
-  69+ A24E ~            			jr nc,toDecimal01k
-  70+ A24E ~            			add hl,de
-  71+ A24E ~            			add a,48
-  72+ A24E ~            			ld (decimalS+2),a
-  73+ A24E ~            			ld de,10 ;десятки
-  74+ A24E ~            			ld a,255
-  75+ A24E ~            toDecimal001k
-  76+ A24E ~            			and a
-  77+ A24E ~            			sbc hl,de
-  78+ A24E ~            			inc a
-  79+ A24E ~            			jr nc,toDecimal001k
-  80+ A24E ~            			add hl,de
-  81+ A24E ~            			add a,48
-  82+ A24E ~            			ld (decimalS+3),a
-  83+ A24E ~            			ld de,1 ;единицы
-  84+ A24E ~            			ld a,255
-  85+ A24E ~            toDecimal0001k
-  86+ A24E ~            			and a
-  87+ A24E ~            			sbc hl,de
-  88+ A24E ~            			inc a
-  89+ A24E ~            			jr nc,toDecimal0001k
-  90+ A24E ~            			add hl,de
-  91+ A24E ~            			add a,48
-  92+ A24E ~            			ld (decimalS+4),a
-  93+ A24E ~
-  94+ A24E ~            			ret
-  95+ A24E ~
-  96+ A24E ~            decimalS	ds 6 ;десятичные цифры
-  97+ A24E ~
-  98+ A24E              	endif
+   1+ A246              printRTC
+   2+ A246              	ifndef SMUCRTC
+   3+ A246 C9           	ret
+   4+ A247              	endif
+   5+ A247              	ifdef SMUCRTC
+   6+ A247 ~            	;печать текущего времени
+   7+ A247 ~            	call Clock.readTime
+   8+ A247 ~            	jr nc,read_time_ok
+   9+ A247 ~            	; ld hl,mes_no_RTC
+  10+ A247 ~            	; call print_mes
+  11+ A247 ~            	; scf
+  12+ A247 ~            	ret ;выход
+  13+ A247 ~            read_time_ok
+  14+ A247 ~            	push bc
+  15+ A247 ~            	ld l,e ;часы
+  16+ A247 ~            	ld h,0
+  17+ A247 ~            	call toDecimal
+  18+ A247 ~            	ld de,00 ;координаты
+  19+ A247 ~            	call TextMode.gotoXY
+  20+ A247 ~            	ld hl,decimalS+3
+  21+ A247 ~            	call TextMode.printZ
+  22+ A247 ~            	ld a,":"
+  23+ A247 ~            	call TextMode.putC
+  24+ A247 ~            	pop bc
+  25+ A247 ~            	ld l,b ;минуты
+  26+ A247 ~            	ld h,0
+  27+ A247 ~            	call toDecimal
+  28+ A247 ~            	ld hl,decimalS+3
+  29+ A247 ~            	call TextMode.printZ
+  30+ A247 ~            	; ld a,":"
+  31+ A247 ~            	; call TextMode.putC
+  32+ A247 ~            	; ld l,c ;секунды
+  33+ A247 ~            	; ld h,0
+  34+ A247 ~            	; call toDecimal
+  35+ A247 ~            	; ld hl,decimalS+3
+  36+ A247 ~            	; call TextMode.printZ
+  37+ A247 ~            	; or a ;нет ошибки
+  38+ A247 ~            	ret
+  39+ A247 ~
+  40+ A247 ~
+  41+ A247 ~            toDecimal		;конвертирует 2 байта в 5 десятичных цифр
+  42+ A247 ~            				;на входе в HL число
+  43+ A247 ~            			ld de,10000 ;десятки тысяч
+  44+ A247 ~            			ld a,255
+  45+ A247 ~            toDecimal10k
+  46+ A247 ~            			and a
+  47+ A247 ~            			sbc hl,de
+  48+ A247 ~            			inc a
+  49+ A247 ~            			jr nc,toDecimal10k
+  50+ A247 ~            			add hl,de
+  51+ A247 ~            			add a,48
+  52+ A247 ~            			ld (decimalS),a
+  53+ A247 ~            			ld de,1000 ;тысячи
+  54+ A247 ~            			ld a,255
+  55+ A247 ~            toDecimal1k
+  56+ A247 ~            			and a
+  57+ A247 ~            			sbc hl,de
+  58+ A247 ~            			inc a
+  59+ A247 ~            			jr nc,toDecimal1k
+  60+ A247 ~            			add hl,de
+  61+ A247 ~            			add a,48
+  62+ A247 ~            			ld (decimalS+1),a
+  63+ A247 ~            			ld de,100 ;сотни
+  64+ A247 ~            			ld a,255
+  65+ A247 ~            toDecimal01k
+  66+ A247 ~            			and a
+  67+ A247 ~            			sbc hl,de
+  68+ A247 ~            			inc a
+  69+ A247 ~            			jr nc,toDecimal01k
+  70+ A247 ~            			add hl,de
+  71+ A247 ~            			add a,48
+  72+ A247 ~            			ld (decimalS+2),a
+  73+ A247 ~            			ld de,10 ;десятки
+  74+ A247 ~            			ld a,255
+  75+ A247 ~            toDecimal001k
+  76+ A247 ~            			and a
+  77+ A247 ~            			sbc hl,de
+  78+ A247 ~            			inc a
+  79+ A247 ~            			jr nc,toDecimal001k
+  80+ A247 ~            			add hl,de
+  81+ A247 ~            			add a,48
+  82+ A247 ~            			ld (decimalS+3),a
+  83+ A247 ~            			ld de,1 ;единицы
+  84+ A247 ~            			ld a,255
+  85+ A247 ~            toDecimal0001k
+  86+ A247 ~            			and a
+  87+ A247 ~            			sbc hl,de
+  88+ A247 ~            			inc a
+  89+ A247 ~            			jr nc,toDecimal0001k
+  90+ A247 ~            			add hl,de
+  91+ A247 ~            			add a,48
+  92+ A247 ~            			ld (decimalS+4),a
+  93+ A247 ~
+  94+ A247 ~            			ret
+  95+ A247 ~
+  96+ A247 ~            decimalS	ds 6 ;десятичные цифры
+  97+ A247 ~
+  98+ A247              	endif
 # file closed: screen/rtc.asm
-  28  A24E                  include "drivers/index.asm"
+  28  A247                  include "drivers/index.asm"
 # file opened: drivers/index.asm
-   1+ A24E                  IFDEF UNO
-   2+ A24E ~                include "uno-uart.asm"
-   3+ A24E                  ENDIF
-   4+ A24E
-   5+ A24E                  IFDEF MB03
-   6+ A24E ~                include "mb03-uart.asm"
-   7+ A24E                  ENDIF
-   8+ A24E
-   9+ A24E                  IFDEF AY
-  10+ A24E ~                include "ay-uart.asm"
-  11+ A24E                  ENDIF
-  12+ A24E
-  13+ A24E                  IFDEF ZW
-  14+ A24E                  include "zx-wifi.asm"
+   1+ A247                  IFDEF UNO
+   2+ A247 ~                include "uno-uart.asm"
+   3+ A247                  ENDIF
+   4+ A247
+   5+ A247                  IFDEF MB03
+   6+ A247 ~                include "mb03-uart.asm"
+   7+ A247                  ENDIF
+   8+ A247
+   9+ A247                  IFDEF AY
+  10+ A247 ~                include "ay-uart.asm"
+  11+ A247                  ENDIF
+  12+ A247
+  13+ A247                  IFDEF ZW
+  14+ A247                  include "zx-wifi.asm"
 # file opened: drivers/zx-wifi.asm
-   1++A24E              ; This driver works with 16c550 uart that's support AFE
-   2++A24E                  module Uart
-   3++A24E              ; Make init shorter and readable:-)
-   4++A24E                  macro outp port, value
-   5++A24E ~            	ld b, port
-   6++A24E ~            	ld c, #EF
-   7++A24E ~                ld a, value
-   8++A24E ~                out (c), a
-   9++A24E                  endm
-  10++A24E
-  11++A24E              ; Internal port constants
-  12++A24E              RBR_THR = #F8
-  13++A24E              IER     = RBR_THR + 1
-  14++A24E              IIR_FCR = RBR_THR + 2
-  15++A24E              LCR     = RBR_THR + 3
-  16++A24E              MCR     = RBR_THR + 4
-  17++A24E              LSR     = RBR_THR + 5
-  18++A24E              MSR     = RBR_THR + 6
-  19++A24E              SR      = RBR_THR + 7
-  20++A24E
-  21++A24E              init:
-  22++A24E                  outp MCR,     #0d  // Assert RTS
-  22++A24E 06 FC       >	ld b, MCR
-  22++A250 0E EF       >	ld c, #EF
-  22++A252 3E 0D       >    ld a, #0d
-  22++A254 ED 79       >    out (c), a
-  23++A256                  outp IIR_FCR, #87  // Enable fifo 8 level, and clear it
-  23++A256 06 FA       >	ld b, IIR_FCR
-  23++A258 0E EF       >	ld c, #EF
-  23++A25A 3E 87       >    ld a, #87
-  23++A25C ED 79       >    out (c), a
-  24++A25E                  outp LCR,     #83  // 8n1, DLAB=1
-  24++A25E 06 FB       >	ld b, LCR
-  24++A260 0E EF       >	ld c, #EF
-  24++A262 3E 83       >    ld a, #83
-  24++A264 ED 79       >    out (c), a
-  25++A266                  outp RBR_THR, #01  // 115200 (divider 1)
-  25++A266 06 F8       >	ld b, RBR_THR
-  25++A268 0E EF       >	ld c, #EF
-  25++A26A 3E 01       >    ld a, #01
-  25++A26C ED 79       >    out (c), a
-  26++A26E                  outp IER,     #00  // (divider 0). Divider is 16 bit, so we get (#0002 divider)
-  26++A26E 06 F9       >	ld b, IER
-  26++A270 0E EF       >	ld c, #EF
-  26++A272 3E 00       >    ld a, #00
-  26++A274 ED 79       >    out (c), a
-  27++A276
-  28++A276                  outp LCR,     #03 // 8n1, DLAB=0
-  28++A276 06 FB       >	ld b, LCR
-  28++A278 0E EF       >	ld c, #EF
-  28++A27A 3E 03       >    ld a, #03
-  28++A27C ED 79       >    out (c), a
-  29++A27E                  outp IER,     #00 // Disable int
-  29++A27E 06 F9       >	ld b, IER
-  29++A280 0E EF       >	ld c, #EF
-  29++A282 3E 00       >    ld a, #00
-  29++A284 ED 79       >    out (c), a
-  30++A286                  outp MCR,     #2f // Enable AFE
-  30++A286 06 FC       >	ld b, MCR
-  30++A288 0E EF       >	ld c, #EF
-  30++A28A 3E 2F       >    ld a, #2f
-  30++A28C ED 79       >    out (c), a
-  31++A28E C9               ret
-  32++A28F
-  33++A28F              ;retry_rec_count_max equ %00011111 ;ждать столько прерываний
-  34++A28F
-  35++A28F              ; Flag C <- Data available
-  36++A28F              ; isAvailable:
-  37++A28F                  ; ld a, LSR
-  38++A28F                  ; in a, (#EF)
-  39++A28F                  ; rrca
-  40++A28F                  ; ret
-  41++A28F
-  42++A28F              ; Non-blocking read
-  43++A28F              ; Flag C <- is byte was readen
-  44++A28F              ; A <- byte
-  45++A28F              ; read1:
-  46++A28F                  ; ld a, LSR
-  47++A28F                  ; in a, (#EF)
-  48++A28F                  ; rrca
-  49++A28F                  ; ret nc
-  50++A28F                  ; ld a, RBR_THR
-  51++A28F                  ; in a, (#EF)
-  52++A28F                  ; scf
-  53++A28F                  ; ret
-  54++A28F
-  55++A28F              ; Tries read byte with timeout
-  56++A28F              ; Flag C <- is byte read
-  57++A28F              ; A <- byte
-  58++A28F              read:
-  59++A28F              	;xor a ;4
-  60++A28F              	;ld (#5C78),a ;обнулить счётчик ожидания ;13
-  61++A28F              .wait
-  62++A28F 3E FD            ld a, LSR
-  63++A291 DB EF            in a, (#EF)
-  64++A293 0F               rrca
-  65++A294 30 F9        	jr nc, .wait
-  66++A296 3E F8            ld a, RBR_THR
-  67++A298 DB EF            in a, (#EF)
-  68++A29A C9           	ret
-  69++A29B              ; .readW
-  70++A29B              	; OS_GETTIMER
-  71++A29B              	; ld a,e
-  72++A29B              	; and retry_rec_count_max
-  73++A29B              	; ;ld a,(#5C78)
-  74++A29B              	; ;cp retry_rec_count_max
-  75++A29B              	; jr nz, .wait ;ещё попытка
-  76++A29B              	; xor a ;выключим флаг переноса если время вышло
-  77++A29B              	; ret
-  78++A29B
-  79++A29B
-  80++A29B
-  81++A29B
-  82++A29B              ; Blocking read
-  83++A29B              ; A <- Byte
-  84++A29B              ; readB:
-  85++A29B                  ; ld a, LSR
-  86++A29B                  ; in a, (#EF)
-  87++A29B                  ; rrca
-  88++A29B                  ; jr nc, readB
-  89++A29B              	; ld a, RBR_THR
-  90++A29B                  ; in a, (#EF)
-  91++A29B                  ; ret
-  92++A29B
-  93++A29B              ; A -> byte to send
-  94++A29B              write:
-  95++A29B F5               push af
-  96++A29C              .wait
-  97++A29C 3E FD        	ld a, LSR
-  98++A29E DB EF            in a, (#EF)
-  99++A2A0 E6 20            and #20
- 100++A2A2 28 F8            jr z, .wait
- 101++A2A4 F1               pop af
- 102++A2A5 06 F8        	ld b, RBR_THR
- 103++A2A7 0E EF        	ld c, #EF
- 104++A2A9 ED 79            out (c), a
- 105++A2AB C9               ret
- 106++A2AC
- 107++A2AC                  endmodule
+   1++A247              ; ; This driver works with 16c550 uart that's support AFE
+   2++A247                  ; module Uart
+   3++A247              ; ; Make init shorter and readable:-)
+   4++A247                  ; macro outp port, value
+   5++A247              	; ld b, port
+   6++A247              	; ld c, #EF
+   7++A247                  ; ld a, value
+   8++A247                  ; out (c), a
+   9++A247                  ; endm
+  10++A247
+  11++A247              ; ; Internal port constants
+  12++A247              ; RBR_THR = #F8
+  13++A247              ; IER     = RBR_THR + 1
+  14++A247              ; IIR_FCR = RBR_THR + 2
+  15++A247              ; LCR     = RBR_THR + 3
+  16++A247              ; MCR     = RBR_THR + 4
+  17++A247              ; LSR     = RBR_THR + 5
+  18++A247              ; MSR     = RBR_THR + 6
+  19++A247              ; SR      = RBR_THR + 7
+  20++A247
+  21++A247              ; init:
+  22++A247                  ; outp MCR,     #0d  // Assert RTS
+  23++A247                  ; outp IIR_FCR, #87  // Enable fifo 8 level, and clear it
+  24++A247                  ; outp LCR,     #83  // 8n1, DLAB=1
+  25++A247                  ; outp RBR_THR, #01  // 115200 (divider 1)
+  26++A247                  ; outp IER,     #00  // (divider 0). Divider is 16 bit, so we get (#0002 divider)
+  27++A247
+  28++A247                  ; outp LCR,     #03 // 8n1, DLAB=0
+  29++A247                  ; outp IER,     #00 // Disable int
+  30++A247                  ; outp MCR,     #2f // Enable AFE
+  31++A247                  ; ret
+  32++A247
+  33++A247              ; ;retry_rec_count_max equ %00011111 ;ждать столько прерываний
+  34++A247
+  35++A247              ; ; Flag C <- Data available
+  36++A247              ; ; isAvailable:
+  37++A247                  ; ; ld a, LSR
+  38++A247                  ; ; in a, (#EF)
+  39++A247                  ; ; rrca
+  40++A247                  ; ; ret
+  41++A247
+  42++A247              ; ; Non-blocking read
+  43++A247              ; ; Flag C <- is byte was readen
+  44++A247              ; ; A <- byte
+  45++A247              ; ; read1:
+  46++A247                  ; ; ld a, LSR
+  47++A247                  ; ; in a, (#EF)
+  48++A247                  ; ; rrca
+  49++A247                  ; ; ret nc
+  50++A247                  ; ; ld a, RBR_THR
+  51++A247                  ; ; in a, (#EF)
+  52++A247                  ; ; scf
+  53++A247                  ; ; ret
+  54++A247
+  55++A247              ; ; Tries read byte with timeout
+  56++A247              ; ; Flag C <- is byte read
+  57++A247              ; ; A <- byte
+  58++A247              ; read:
+  59++A247              	; ;xor a ;4
+  60++A247              	; ;ld (#5C78),a ;обнулить счётчик ожидания ;13
+  61++A247              ; .wait
+  62++A247                  ; ld a, LSR
+  63++A247                  ; in a, (#EF)
+  64++A247                  ; rrca
+  65++A247              	; jr nc, .wait
+  66++A247                  ; ld a, RBR_THR
+  67++A247                  ; in a, (#EF)
+  68++A247              	; ret
+  69++A247              ; ; .readW
+  70++A247              	; ; OS_GETTIMER
+  71++A247              	; ; ld a,e
+  72++A247              	; ; and retry_rec_count_max
+  73++A247              	; ; ;ld a,(#5C78)
+  74++A247              	; ; ;cp retry_rec_count_max
+  75++A247              	; ; jr nz, .wait ;ещё попытка
+  76++A247              	; ; xor a ;выключим флаг переноса если время вышло
+  77++A247              	; ; ret
+  78++A247
+  79++A247
+  80++A247
+  81++A247
+  82++A247              ; ; Blocking read
+  83++A247              ; ; A <- Byte
+  84++A247              ; ; readB:
+  85++A247                  ; ; ld a, LSR
+  86++A247                  ; ; in a, (#EF)
+  87++A247                  ; ; rrca
+  88++A247                  ; ; jr nc, readB
+  89++A247              	; ; ld a, RBR_THR
+  90++A247                  ; ; in a, (#EF)
+  91++A247                  ; ; ret
+  92++A247
+  93++A247              ; ; A -> byte to send
+  94++A247              ; write:
+  95++A247                  ; push af
+  96++A247              ; .wait
+  97++A247              	; ld a, LSR
+  98++A247                  ; in a, (#EF)
+  99++A247                  ; and #20
+ 100++A247                  ; jr z, .wait
+ 101++A247                  ; pop af
+ 102++A247              	; ld b, RBR_THR
+ 103++A247              	; ld c, #EF
+ 104++A247                  ; out (c), a
+ 105++A247                  ; ret
+ 106++A247
+ 107++A247                  ; endmodule
 # file closed: drivers/zx-wifi.asm
-  15+ A2AC                  ENDIF
-  16+ A2AC
-  17+ A2AC                  IFDEF SMUCRTC
-  18+ A2AC ~                include "smuc-rtc.asm"
-  19+ A2AC                  ENDIF
-  20+ A2AC
-  21+ A2AC                  include "utils.asm"
+  15+ A247                  ENDIF
+  16+ A247
+  17+ A247                  IFDEF SMUCRTC
+  18+ A247 ~                include "smuc-rtc.asm"
+  19+ A247                  ENDIF
+  20+ A247
+  21+ A247                  include "utils.asm"
 # file opened: drivers/utils.asm
-   1++A2AC              ;;; Macroses!!!!
-   2++A2AC                  MACRO EspSend Text
-   3++A2AC ~                ld hl, .txtB
-   4++A2AC ~                ld e, (.txtE - .txtB)
-   5++A2AC ~                call espSend
-   6++A2AC ~                jr .txtE
-   7++A2AC ~            .txtB
-   8++A2AC ~                db Text
-   9++A2AC ~            .txtE
-  10++A2AC                  ENDM
-  11++A2AC
-  12++A2AC                  MACRO EspCmd Text
-  13++A2AC ~                ld hl, .txtB
-  14++A2AC ~                ld e, (.txtE - .txtB)
-  15++A2AC ~                call espSend
-  16++A2AC ~                jr .txtE
-  17++A2AC ~            .txtB
-  18++A2AC ~                db Text
-  19++A2AC ~                db 13, 10
-  20++A2AC ~            .txtE
-  21++A2AC                  ENDM
-  22++A2AC
-  23++A2AC                  MACRO EspCmdOkErr text
-  24++A2AC ~                EspCmd text
-  25++A2AC ~                call checkOkErr
-  26++A2AC                  ENDM
-  27++A2AC
-  28++A2AC              ; IN DE - string pointer
-  29++A2AC              ; OUT HL - string len
-  30++A2AC              strLen:
-  31++A2AC 21 00 00         ld hl, 0
-  32++A2AF              .loop
-  33++A2AF 1A               ld a, (de)
-  33++A2B0 A7             and a
-  33++A2B1 C8             ret z
-  34++A2B2 13 23            inc de, hl
-  35++A2B4 18 F9            jr .loop
+   1++A247              ; ;;; Macroses!!!!
+   2++A247                  ; MACRO EspSend Text
+   3++A247                  ; ld hl, .txtB
+   4++A247                  ; ld e, (.txtE - .txtB)
+   5++A247                  ; call espSend
+   6++A247                  ; jr .txtE
+   7++A247              ; .txtB
+   8++A247                  ; db Text
+   9++A247              ; .txtE
+  10++A247                  ; ENDM
+  11++A247
+  12++A247                  ; MACRO EspCmd Text
+  13++A247                  ; ld hl, .txtB
+  14++A247                  ; ld e, (.txtE - .txtB)
+  15++A247                  ; call espSend
+  16++A247                  ; jr .txtE
+  17++A247              ; .txtB
+  18++A247                  ; db Text
+  19++A247                  ; db 13, 10
+  20++A247              ; .txtE
+  21++A247                  ; ENDM
+  22++A247
+  23++A247                  ; MACRO EspCmdOkErr text
+  24++A247                  ; EspCmd text
+  25++A247                  ; call checkOkErr
+  26++A247                  ; ENDM
+  27++A247
+  28++A247              ; IN DE - string pointer
+  29++A247              ; OUT HL - string len
+  30++A247              strLen:
+  31++A247 21 00 00         ld hl, 0
+  32++A24A              .loop
+  33++A24A 1A               ld a, (de)
+  33++A24B A7             and a
+  33++A24C C8             ret z
+  34++A24D 13 23            inc de, hl
+  35++A24F 18 F9            jr .loop
 # file closed: drivers/utils.asm
-  22+ A2B6                  include "wifi.asm"
+  22+ A251                  include "wifi.asm"
 # file opened: drivers/wifi.asm
-   1++A2B6                  MODULE Wifi
-   2++A2B6 00 00        bytes_avail dw 0
-   3++A2B8 00 00        buffer_pointer dw 0
-   4++A2BA 01           closed db 1
-   5++A2BB              ; Initialize Wifi chip to work
-   6++A2BB              init:
-   7++A2BB                  ; ld hl, .uartIniting : call TextMode.printZ
-   8++A2BB                  ; call Uart.init
-   9++A2BB 21 7F A3         ld hl, .chipIniting
-   9++A2BE CD 1E 80       call TextMode.printZ
-  10++A2C1                  EspCmdOkErr "ATE0"
-  10++A2C1             >    EspCmd "ATE0"
-  10++A2C1 21 CB A2    >    ld hl, .txtB
-  10++A2C4 1E 06       >    ld e, (.txtE - .txtB)
-  10++A2C6 CD 5C A4    >    call espSend
-  10++A2C9 18 06       >    jr .txtE
-  10++A2CB             >.txtB
-  10++A2CB 41 54 45 30 >    db "ATE0"
-  10++A2CF 0D 0A       >    db 13, 10
-  10++A2D1             >.txtE
-  10++A2D1 CD F5 A3    >    call checkOkErr
-  11++A2D4 38 79            jr c, .initError
-  12++A2D6
-  13++A2D6                  EspCmdOkErr "AT+CIPSERVER=0"
-  13++A2D6             >    EspCmd "AT+CIPSERVER=0"
-  13++A2D6 21 E0 A2    >    ld hl, .txtB
-  13++A2D9 1E 10       >    ld e, (.txtE - .txtB)
-  13++A2DB CD 5C A4    >    call espSend
-  13++A2DE 18 10       >    jr .txtE
-  13++A2E0             >.txtB
-  13++A2E0 41 54 2B 43 >    db "AT+CIPSERVER=0"
-  13++A2E4 49 50 53 45 >
-  13++A2E8 52 56 45 52 >
-  13++A2EC 3D 30       >
-  13++A2EE 0D 0A       >    db 13, 10
-  13++A2F0             >.txtE
-  13++A2F0 CD F5 A3    >    call checkOkErr
-  14++A2F3                  EspCmdOkErr "AT+CIPCLOSE" ; Close if there some connection was. Don't care about result
-  14++A2F3             >    EspCmd "AT+CIPCLOSE"
-  14++A2F3 21 FD A2    >    ld hl, .txtB
-  14++A2F6 1E 0D       >    ld e, (.txtE - .txtB)
-  14++A2F8 CD 5C A4    >    call espSend
-  14++A2FB 18 0D       >    jr .txtE
-  14++A2FD             >.txtB
-  14++A2FD 41 54 2B 43 >    db "AT+CIPCLOSE"
-  14++A301 49 50 43 4C >
-  14++A305 4F 53 45    >
-  14++A308 0D 0A       >    db 13, 10
-  14++A30A             >.txtE
-  14++A30A CD F5 A3    >    call checkOkErr
-  15++A30D                  EspCmdOkErr "AT+CIPMUX=0" ; Single connection mode
-  15++A30D             >    EspCmd "AT+CIPMUX=0"
-  15++A30D 21 17 A3    >    ld hl, .txtB
-  15++A310 1E 0D       >    ld e, (.txtE - .txtB)
-  15++A312 CD 5C A4    >    call espSend
-  15++A315 18 0D       >    jr .txtE
-  15++A317             >.txtB
-  15++A317 41 54 2B 43 >    db "AT+CIPMUX=0"
-  15++A31B 49 50 4D 55 >
-  15++A31F 58 3D 30    >
-  15++A322 0D 0A       >    db 13, 10
-  15++A324             >.txtE
-  15++A324 CD F5 A3    >    call checkOkErr
-  16++A327 38 26            jr c, .initError
-  17++A329
-  18++A329                  EspCmdOkErr "AT+CIPDINFO=0" ; Disable additional info
-  18++A329             >    EspCmd "AT+CIPDINFO=0"
-  18++A329 21 33 A3    >    ld hl, .txtB
-  18++A32C 1E 0F       >    ld e, (.txtE - .txtB)
-  18++A32E CD 5C A4    >    call espSend
-  18++A331 18 0F       >    jr .txtE
-  18++A333             >.txtB
-  18++A333 41 54 2B 43 >    db "AT+CIPDINFO=0"
-  18++A337 49 50 44 49 >
-  18++A33B 4E 46 4F 3D >
-  18++A33F 30          >
-  18++A340 0D 0A       >    db 13, 10
-  18++A342             >.txtE
-  18++A342 CD F5 A3    >    call checkOkErr
-  19++A345 38 08            jr c, .initError
-  20++A347
-  21++A347 21 90 A3         ld hl, .doneInit
-  21++A34A CD 1E 80       call TextMode.printZ
-  22++A34D
-  23++A34D B7               or a
-  24++A34E C9               ret
-  25++A34F              .initError
-  26++A34F 21 57 A3         ld hl, .errMsg
-  26++A352 CD 27 86       call DialogBox.msgBox
-  27++A355 37               scf
-  28++A356 C9               ret
-  29++A357 57 69 46 69  .errMsg db "WiFi chip init failed!",0
-  29++A35B 20 63 68 69
-  29++A35F 70 20 69 6E
-  29++A363 69 74 20 66
-  29++A367 61 69 6C 65
-  29++A36B 64 21 00
-  30++A36E 55 61 72 74  .uartIniting db "Uart initing...",13,0
-  30++A372 20 69 6E 69
-  30++A376 74 69 6E 67
-  30++A37A 2E 2E 2E 0D
-  30++A37E 00
-  31++A37F 43 68 69 70  .chipIniting db "Chip initing...",13,0
-  31++A383 20 69 6E 69
-  31++A387 74 69 6E 67
-  31++A38B 2E 2E 2E 0D
-  31++A38F 00
-  32++A390 44 6F 6E 65  .doneInit    db "Done!",0
-  32++A394 21 00
-  33++A396                  IFNDEF PROXY
-  34++A396              ; HL - host pointer in gopher row
-  35++A396              ; DE - port pointer in gopher row
-  36++A396              openTCP:
-  37++A396 D5               push de
-  38++A397 E5               push hl
-  39++A398                  EspCmdOkErr "AT+CIPCLOSE" ; Don't care about result. Just close if it didn't happens before
-  39++A398             >    EspCmd "AT+CIPCLOSE"
-  39++A398 21 A2 A3    >    ld hl, .txtB
-  39++A39B 1E 0D       >    ld e, (.txtE - .txtB)
-  39++A39D CD 5C A4    >    call espSend
-  39++A3A0 18 0D       >    jr .txtE
-  39++A3A2             >.txtB
-  39++A3A2 41 54 2B 43 >    db "AT+CIPCLOSE"
-  39++A3A6 49 50 43 4C >
-  39++A3AA 4F 53 45    >
-  39++A3AD 0D 0A       >    db 13, 10
-  39++A3AF             >.txtE
-  39++A3AF CD F5 A3    >    call checkOkErr
-  40++A3B2                  EspSend 'AT+CIPSTART="TCP","'
-  40++A3B2 21 BC A3    >    ld hl, .txtB
-  40++A3B5 1E 13       >    ld e, (.txtE - .txtB)
-  40++A3B7 CD 5C A4    >    call espSend
-  40++A3BA 18 13       >    jr .txtE
-  40++A3BC             >.txtB
-  40++A3BC 41 54 2B 43 >    db 'AT+CIPSTART="TCP","'
-  40++A3C0 49 50 53 54 >
-  40++A3C4 41 52 54 3D >
-  40++A3C8 22 54 43 50 >
-  40++A3CC 22 2C 22    >
-  40++A3CF             >.txtE
-  41++A3CF E1               pop hl
-  42++A3D0 CD 65 A4         call espSendT
-  43++A3D3                  EspSend '",'
-  43++A3D3 21 DD A3    >    ld hl, .txtB
-  43++A3D6 1E 02       >    ld e, (.txtE - .txtB)
-  43++A3D8 CD 5C A4    >    call espSend
-  43++A3DB 18 02       >    jr .txtE
-  43++A3DD             >.txtB
-  43++A3DD 22 2C       >    db '",'
-  43++A3DF             >.txtE
-  44++A3DF E1               pop hl
-  45++A3E0 CD 65 A4         call espSendT
-  46++A3E3 3E 0D            ld a, 13
-  46++A3E5 CD 9B A2       call Uart.write
-  47++A3E8 3E 0A            ld a, 10
-  47++A3EA CD 9B A2       call Uart.write
-  48++A3ED AF               xor a
-  48++A3EE 32 BA A2       ld (closed), a
-  49++A3F1 C3 F5 A3         jp checkOkErr
-  50++A3F4
-  51++A3F4              continue:
-  52++A3F4 C9               ret
-  53++A3F5                  ENDIF
-  54++A3F5
-  55++A3F5
-  56++A3F5
-  57++A3F5              checkOkErr:
-  58++A3F5 CD 8F A2         call Uart.read
-  59++A3F8 FE 4F            cp 'O'
-  59++A3FA 28 0A          jr z, .okStart ; OK
-  60++A3FC FE 45            cp 'E'
-  60++A3FE 28 19          jr z, .errStart ; ERROR
-  61++A400 FE 46            cp 'F'
-  61++A402 28 36          jr z, .failStart ; FAIL
-  62++A404 18 EF            jr checkOkErr
-  63++A406              .okStart
-  64++A406 CD 8F A2         call Uart.read
-  64++A409 FE 4B          cp 'K'
-  64++A40B 20 E8          jr nz, checkOkErr
-  65++A40D CD 8F A2         call Uart.read
-  65++A410 FE 0D          cp 13
-  65++A412 20 E1          jr nz, checkOkErr
-  66++A414 CD 54 A4         call .flushToLF
-  67++A417 B7               or a
-  68++A418 C9               ret
-  69++A419              .errStart
-  70++A419 CD 8F A2         call Uart.read
-  70++A41C FE 52          cp 'R'
-  70++A41E 20 D5          jr nz, checkOkErr
-  71++A420 CD 8F A2         call Uart.read
-  71++A423 FE 52          cp 'R'
-  71++A425 20 CE          jr nz, checkOkErr
-  72++A427 CD 8F A2         call Uart.read
-  72++A42A FE 4F          cp 'O'
-  72++A42C 20 C7          jr nz, checkOkErr
-  73++A42E CD 8F A2         call Uart.read
-  73++A431 FE 52          cp 'R'
-  73++A433 20 C0          jr nz, checkOkErr
-  74++A435 CD 54 A4         call .flushToLF
-  75++A438 37               scf
-  76++A439 C9               ret
-  77++A43A              .failStart
-  78++A43A CD 8F A2         call Uart.read
-  78++A43D FE 41          cp 'A'
-  78++A43F 20 B4          jr nz, checkOkErr
-  79++A441 CD 8F A2         call Uart.read
-  79++A444 FE 49          cp 'I'
-  79++A446 20 AD          jr nz, checkOkErr
-  80++A448 CD 8F A2         call Uart.read
-  80++A44B FE 4C          cp 'L'
-  80++A44D 20 A6          jr nz, checkOkErr
-  81++A44F CD 54 A4         call .flushToLF
-  82++A452 37               scf
-  83++A453 C9               ret
-  84++A454              .flushToLF
-  85++A454 CD 8F A2         call Uart.read
-  86++A457 FE 0A            cp 10
-  86++A459 20 F9          jr nz, .flushToLF
-  87++A45B C9               ret
-  88++A45C
-  89++A45C              ; Send buffer to UART
-  90++A45C              ; HL - buff
-  91++A45C              ; E - count
-  92++A45C              espSend:
-  93++A45C 7E               ld a, (hl)
-  93++A45D CD 9B A2       call Uart.write
-  94++A460 23               inc hl
-  95++A461 1D               dec e
-  96++A462 20 F8            jr nz, espSend
-  97++A464 C9               ret
-  98++A465
-  99++A465              ; HL - string that ends with one of the terminator(CR/LF/TAB/NULL)
- 100++A465              espSendT:
- 101++A465 7E               ld a, (hl)
- 102++A466
- 103++A466 A7               and a
- 103++A467 C8             ret z
- 104++A468 FE 09            cp 9
- 104++A46A C8             ret z
- 105++A46B FE 0D            cp 13
- 105++A46D C8             ret z
- 106++A46E FE 0A            cp 10
- 106++A470 C8             ret z
- 107++A471
- 108++A471 CD 9B A2         call Uart.write
- 109++A474 23               inc hl
- 110++A475 18 EE            jr espSendT
- 111++A477
- 112++A477              ; HL - stringZ to send
- 113++A477              ; Adds CR LF
- 114++A477              tcpSendZ:
- 115++A477 E5               push hl
- 116++A478                  EspSend "AT+CIPSEND="
- 116++A478 21 82 A4    >    ld hl, .txtB
- 116++A47B 1E 0B       >    ld e, (.txtE - .txtB)
- 116++A47D CD 5C A4    >    call espSend
- 116++A480 18 0B       >    jr .txtE
- 116++A482             >.txtB
- 116++A482 41 54 2B 43 >    db "AT+CIPSEND="
- 116++A486 49 50 53 45 >
- 116++A48A 4E 44 3D    >
- 116++A48D             >.txtE
- 117++A48D D1               pop de
- 117++A48E D5             push de
- 118++A48F CD AC A2         call strLen
- 119++A492 23               inc hl
- 119++A493 23             inc hl ; +CRLF
- 120++A494 CD 52 A5         call hlToNumEsp
- 121++A497 3E 0D            ld a, 13
- 121++A499 CD 9B A2       call Uart.write
- 122++A49C 3E 0A            ld a, 10
- 122++A49E CD 9B A2       call Uart.write
- 123++A4A1 CD F5 A3         call checkOkErr
- 123++A4A4 D8             ret c
- 124++A4A5              .wait
- 125++A4A5 CD 8F A2         call Uart.read
- 125++A4A8 FE 3E          cp '>'
- 125++A4AA 20 F9          jr nz, .wait
- 126++A4AC E1               pop hl
- 127++A4AD              .loop
- 128++A4AD 7E               ld a, (hl)
- 128++A4AE A7             and a
- 128++A4AF 28 07          jr z, .exit
- 129++A4B1 CD 9B A2         call Uart.write
- 130++A4B4 23               inc hl
- 131++A4B5 C3 AD A4         jp .loop
- 132++A4B8              .exit
- 133++A4B8 3E 0D            ld a, 13
- 133++A4BA CD 9B A2       call Uart.write
- 134++A4BD 3E 0A            ld a, 10
- 134++A4BF CD 9B A2       call Uart.write
- 135++A4C2 C3 F5 A3         jp checkOkErr
- 136++A4C5
- 137++A4C5              getPacket:
- 138++A4C5 CD 8F A2         call Uart.read
- 139++A4C8 FE 2B            cp '+'
- 139++A4CA 28 28          jr z, .ipdBegun    ; "+IPD," packet
- 140++A4CC FE 4F            cp 'O'
- 140++A4CE 28 02          jr z, .closedBegun ; It enough to check "OSED\n" :-)
- 141++A4D0 18 F3            jr getPacket
- 142++A4D2              .closedBegun
- 143++A4D2 CD 8F A2         call Uart.read
- 143++A4D5 FE 53          cp 'S'
- 143++A4D7 20 EC          jr nz, getPacket
- 144++A4D9 CD 8F A2         call Uart.read
- 144++A4DC FE 45          cp 'E'
- 144++A4DE 20 E5          jr nz, getPacket
- 145++A4E0 CD 8F A2         call Uart.read
- 145++A4E3 FE 44          cp 'D'
- 145++A4E5 20 DE          jr nz, getPacket
- 146++A4E7 CD 8F A2         call Uart.read
- 146++A4EA FE 0D          cp 13
- 146++A4EC 20 D7          jr nz, getPacket
- 147++A4EE 3E 01 32 BA      ld a, 1, (closed), a
- 147++A4F2 A2
- 148++A4F3 C9               ret
- 149++A4F4              .ipdBegun
- 150++A4F4 CD 8F A2         call Uart.read
- 150++A4F7 FE 49          cp 'I'
- 150++A4F9 20 CA          jr nz, getPacket
- 151++A4FB CD 8F A2         call Uart.read
- 151++A4FE FE 50          cp 'P'
- 151++A500 20 C3          jr nz, getPacket
- 152++A502 CD 8F A2         call Uart.read
- 152++A505 FE 44          cp 'D'
- 152++A507 20 BC          jr nz, getPacket
- 153++A509 CD 8F A2         call Uart.read ; Comma
- 154++A50C CD 39 A5         call .count_ipd_lenght
- 154++A50F 22 B6 A2       ld (bytes_avail), hl
- 155++A512 44 4D            ld bc, hl
- 156++A514 2A B8 A2         ld hl, (buffer_pointer)
- 157++A517              .readp
- 158++A517 7C               ld a, h
- 158++A518 FE FF          cp #ff
- 158++A51A 30 12          jr nc, .skipbuff
- 159++A51C C5 E5            push bc, hl
- 160++A51E CD 8F A2         call Uart.read
- 161++A521 E1 C1            pop hl, bc
- 162++A523 77               ld (hl), a
- 163++A524 0B               dec bc
- 163++A525 23             inc hl
- 164++A526 78               ld a, b
- 164++A527 B1             or c
- 164++A528 20 ED          jr nz, .readp
- 165++A52A 22 B8 A2         ld (buffer_pointer), hl
- 166++A52D C9               ret
- 167++A52E              .skipbuff
- 168++A52E C5               push bc
- 169++A52F CD 8F A2         call Uart.read
- 170++A532 C1               pop bc
- 171++A533 0B               dec bc
- 171++A534 78             ld a, b
- 171++A535 B1             or c
- 171++A536 20 F6          jr nz, .skipbuff
- 172++A538 C9               ret
- 173++A539              .count_ipd_lenght
- 174++A539 21 00 00     		ld hl,0			; count lenght
- 175++A53C E5           .cil1	push  hl
- 176++A53D CD 8F A2             call Uart.read
- 177++A540 E1                   pop hl
- 178++A541 FE 3A        		cp ':'
- 178++A543 C8             ret z
- 179++A544 D6 30        		sub 0x30
- 179++A546 4D             ld c,l
- 179++A547 44             ld b,h
- 179++A548 29             add hl,hl
- 179++A549 29             add hl,hl
- 179++A54A 09             add hl,bc
- 179++A54B 29             add hl,hl
- 179++A54C 4F             ld c,a
- 179++A54D 06 00          ld b,0
- 179++A54F 09             add hl,bc
- 180++A550 18 EA        		jr .cil1
- 181++A552
- 182++A552              ; Based on: https://wikiti.brandonw.net/index.php?title=Z80_Routines:Other:DispHL
- 183++A552              ; HL - number
- 184++A552              ; It will be written to UART
- 185++A552              hlToNumEsp:
- 186++A552 01 F0 D8     	ld	bc,-10000
- 187++A555 CD 6B A5     	call	.n1
- 188++A558 01 18 FC     	ld	bc,-1000
- 189++A55B CD 6B A5     	call	.n1
- 190++A55E 01 9C FF     	ld	bc,-100
- 191++A561 CD 6B A5     	call	.n1
- 192++A564 0E F6        	ld	c,-10
- 193++A566 CD 6B A5     	call	.n1
- 194++A569 0E FF        	ld	c,-1
- 195++A56B 3E 2F        .n1	ld	a,'0'-1
- 196++A56D 3C           .n2	inc	a
- 197++A56E 09           	add	hl,bc
- 198++A56F 38 FC        	jr	c, .n2
- 199++A571 ED 42        	sbc	hl,bc
- 200++A573 C5               push bc
- 201++A574 CD 9B A2     	call Uart.write
- 202++A577 C1               pop bc
- 203++A578 C9               ret
- 204++A579
- 205++A579                  ENDMODULE
+   1++A251                  MODULE Wifi
+   2++A251 00 00        bytes_avail dw 0
+   3++A253 00 00        buffer_pointer dw 0
+   4++A255 01           closed db 1
+   5++A256              ;link_id db 0;
+   6++A256              wait_count equ 5*50 ; ожидание в кадрах
+   7++A256              buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
+   8++A256              ; ; Initialize Wifi chip to work
+   9++A256              ;init:
+  10++A256              	;ld hl,uartGetID : call TextMode.printZ
+  11++A256              ; init1:
+  12++A256              	; halt
+  13++A256              	; xor a ;CY=0
+  14++A256              	; OS_ESP_LINK_ID ;получить номер соединения
+  15++A256              	; jr c,init1:
+  16++A256              	; ld (link_id),a
+  17++A256              	;ret
+  18++A256                  ; ; ld hl, .uartIniting : call TextMode.printZ
+  19++A256                  ; ; call Uart.init
+  20++A256                  ; ld hl, .chipIniting : call TextMode.printZ
+  21++A256                  ; EspCmdOkErr "ATE0"
+  22++A256                  ; jr c, .initError
+  23++A256
+  24++A256                  ; EspCmdOkErr "AT+CIPSERVER=0"
+  25++A256                  ; EspCmdOkErr "AT+CIPCLOSE" ; Close if there some connection was. Don't care about result
+  26++A256                  ; EspCmdOkErr "AT+CIPMUX=0" ; Single connection mode
+  27++A256                  ; jr c, .initError
+  28++A256
+  29++A256                  ; EspCmdOkErr "AT+CIPDINFO=0" ; Disable additional info
+  30++A256                  ; jr c, .initError
+  31++A256
+  32++A256                  ; ld hl, .doneInit : call TextMode.printZ
+  33++A256
+  34++A256                  ; or a
+  35++A256                  ; ret
+  36++A256              ; .initError
+  37++A256                  ; ld hl, .errMsg : call DialogBox.msgBox
+  38++A256                  ; scf
+  39++A256                  ; ret
+  40++A256              ; .errMsg db "WiFi chip init failed!",0
+  41++A256              ;.uartIniting db "Uart initing...",13,0
+  42++A256              ;uartGetID db "Get link ID...",13,0
+  43++A256              ; .chipIniting db "Chip initing...",13,0
+  44++A256              ; .doneInit    db "Done!",0
+  45++A256                  ; IFNDEF PROXY
+  46++A256              ; ; HL - host pointer in gopher row
+  47++A256              ; ; DE - port pointer in gopher row
+  48++A256              openTCP:
+  49++A256              	;ld a,(link_id)
+  50++A256              	OS_ESP_CLOSE ;если уже пытались раньше, то закрыть
+  50++A256 0E 0C       >    ld c,#0c
+  50++A258 E7          >    rst #20
+  51++A259
+  52++A259 06 FA        	ld b,wait_count ; пробуем открыть
+  53++A25B              openTCP_wait1
+  54++A25B 76           	halt
+  55++A25C C5           	push bc
+  56++A25D AF           	xor a ;TCP
+  57++A25E              	OS_ESP_OPEN
+  57++A25E 0E 0D       >    ld c,#0d
+  57++A260 E7          >    rst #20
+  58++A261 C1           	pop bc
+  59++A262 30 03        	jr nc,openTCP_wait1_ok
+  60++A264 10 F5        	djnz openTCP_wait1
+  61++A266 C9           	ret ;не удалось, наверное очередь
+  62++A267              openTCP_wait1_ok
+  63++A267
+  64++A267              	;или подождём открытия
+  65++A267 06 FA        	ld b,wait_count ;
+  66++A269              openTCP_wait
+  67++A269 76           	halt
+  68++A26A DD 7E 02     	ld a,(ix+2) ;флаг
+  69++A26D 07           	rlca
+  70++A26E D8           	ret c ;если ошибка (=255)
+  71++A26F B7           	or a
+  72++A270 20 04        	jr nz,openTCP_wait_skip
+  73++A272 10 F5        	djnz openTCP_wait
+  74++A274 37           	scf
+  75++A275 C9           	ret
+  76++A276              openTCP_wait_skip
+  77++A276 DD 7E 02     	ld a,(ix+2) ;флаг
+  78++A279 EE 01        	xor 1
+  79++A27B 32 55 A2     	ld (closed), a
+  80++A27E B7           	or a ;успешно
+  81++A27F C9           	ret
+  82++A280
+  83++A280
+  84++A280
+  85++A280                  ; push de
+  86++A280                  ; push hl
+  87++A280                  ; EspCmdOkErr "AT+CIPCLOSE" ; Don't care about result. Just close if it didn't happens before
+  88++A280                  ; EspSend 'AT+CIPSTART="TCP","'
+  89++A280                  ; pop hl
+  90++A280                  ; call espSendT
+  91++A280                  ; EspSend '",'
+  92++A280                  ; pop hl
+  93++A280                  ; call espSendT
+  94++A280                  ; ld a, 13 : call Uart.write
+  95++A280                  ; ld a, 10 : call Uart.write
+  96++A280                  ; xor a : ld (closed), a
+  97++A280                  ; jp checkOkErr
+  98++A280
+  99++A280              ; continue:
+ 100++A280                  ; ret
+ 101++A280                  ; ENDIF
+ 102++A280
+ 103++A280
+ 104++A280
+ 105++A280              ; checkOkErr:
+ 106++A280                  ; call Uart.read
+ 107++A280                  ; cp 'O' : jr z, .okStart ; OK
+ 108++A280                  ; cp 'E' : jr z, .errStart ; ERROR
+ 109++A280                  ; cp 'F' : jr z, .failStart ; FAIL
+ 110++A280                  ; jr checkOkErr
+ 111++A280              ; .okStart
+ 112++A280                  ; call Uart.read : cp 'K' : jr nz, checkOkErr
+ 113++A280                  ; call Uart.read : cp 13  : jr nz, checkOkErr
+ 114++A280                  ; call .flushToLF
+ 115++A280                  ; or a
+ 116++A280                  ; ret
+ 117++A280              ; .errStart
+ 118++A280                  ; call Uart.read : cp 'R' : jr nz, checkOkErr
+ 119++A280                  ; call Uart.read : cp 'R' : jr nz, checkOkErr
+ 120++A280                  ; call Uart.read : cp 'O' : jr nz, checkOkErr
+ 121++A280                  ; call Uart.read : cp 'R' : jr nz, checkOkErr
+ 122++A280                  ; call .flushToLF
+ 123++A280                  ; scf
+ 124++A280                  ; ret
+ 125++A280              ; .failStart
+ 126++A280                  ; call Uart.read : cp 'A' : jr nz, checkOkErr
+ 127++A280                  ; call Uart.read : cp 'I' : jr nz, checkOkErr
+ 128++A280                  ; call Uart.read : cp 'L' : jr nz, checkOkErr
+ 129++A280                  ; call .flushToLF
+ 130++A280                  ; scf
+ 131++A280                  ; ret
+ 132++A280              ; .flushToLF
+ 133++A280                  ; call Uart.read
+ 134++A280                  ; cp 10 : jr nz, .flushToLF
+ 135++A280                  ; ret
+ 136++A280
+ 137++A280              ; ; Send buffer to UART
+ 138++A280              ; ; HL - buff
+ 139++A280              ; ; E - count
+ 140++A280              ; espSend:
+ 141++A280                  ; ld a, (hl) : call Uart.write
+ 142++A280                  ; inc hl
+ 143++A280                  ; dec e
+ 144++A280                  ; jr nz, espSend
+ 145++A280                  ; ret
+ 146++A280
+ 147++A280              ; ; HL - string that ends with one of the terminator(CR/LF/TAB/NULL)
+ 148++A280              ; espSendT:
+ 149++A280                  ; ld a, (hl)
+ 150++A280
+ 151++A280                  ; and a : ret z
+ 152++A280                  ; cp 9 : ret z
+ 153++A280                  ; cp 13 : ret z
+ 154++A280                  ; cp 10 : ret z
+ 155++A280
+ 156++A280                  ; call Uart.write
+ 157++A280                  ; inc hl
+ 158++A280                  ; jr espSendT
+ 159++A280
+ 160++A280              ; ; HL - stringZ to send
+ 161++A280              ; ; Adds CR LF
+ 162++A280              tcpSendZ:
+ 163++A280 E5           	push hl
+ 164++A281 EB           	ex de,hl
+ 165++A282 CD 47 A2     	call strLen ;узнать длину
+ 166++A285 EB           	ex de,hl
+ 167++A286 E1           	pop hl ;буфер
+ 168++A287 E5           	push hl
+ 169++A288 19           	add hl,de ;добавить в конце 13 и 10
+ 170++A289 36 0D        	ld (hl),13
+ 171++A28B 23           	inc hl
+ 172++A28C 36 0A        	ld (hl),10
+ 173++A28E E1           	pop hl
+ 174++A28F 13           	inc de ;увеличить длину
+ 175++A290 13           	inc de
+ 176++A291
+ 177++A291              	;call Wifi.tcpSendZ ;послать запрос
+ 178++A291              	;ld a,(link_id)
+ 179++A291              	OS_ESP_SEND
+ 179++A291 0E 0E       >    ld c,#0e
+ 179++A293 E7          >    rst #20
+ 180++A294              	;ret c ;сразу не удалось (может, очередь)
+ 181++A294              	;ждём когда запрос пройдёт
+ 182++A294              	;ld b,wait_count ;
+ 183++A294              tcpSendZ_wait1 ;бесконечно ждём
+ 184++A294 76           	halt
+ 185++A295 DD 7E 04     	ld a,(ix+4) ;флаг
+ 186++A298 FE 01        	cp 1
+ 187++A29A 20 F8        	jr nz,tcpSendZ_wait1
+ 188++A29C B7           	or a
+ 189++A29D C9           	ret
+ 190++A29E
+ 191++A29E
+ 192++A29E                  ; push hl
+ 193++A29E                  ; EspSend "AT+CIPSEND="
+ 194++A29E                  ; pop de : push de
+ 195++A29E                  ; call strLen
+ 196++A29E                  ; inc hl : inc hl ; +CRLF
+ 197++A29E                  ; call hlToNumEsp
+ 198++A29E                  ; ld a, 13 : call Uart.write
+ 199++A29E                  ; ld a, 10 : call Uart.write
+ 200++A29E                  ; call checkOkErr : ret c
+ 201++A29E              ; .wait
+ 202++A29E                  ; call Uart.read : cp '>' : jr nz, .wait
+ 203++A29E                  ; pop hl
+ 204++A29E              ; .loop
+ 205++A29E                  ; ld a, (hl) : and a : jr z, .exit
+ 206++A29E                  ; call Uart.write
+ 207++A29E                  ; inc hl
+ 208++A29E                  ; jp .loop
+ 209++A29E              ; .exit
+ 210++A29E                  ; ld a, 13 : call Uart.write
+ 211++A29E                  ; ld a, 10 : call Uart.write
+ 212++A29E                  ; jp checkOkErr
+ 213++A29E
+ 214++A29E              ;вх: hl - адрес буфера
+ 215++A29E              getPacket:
+ 216++A29E              	;переделано под ОС
+ 217++A29E 7C           	ld a,h
+ 218++A29F FE FA        	cp buffer_top ;ограничение буфера
+ 219++A2A1 38 10        	jr c,getPacket_skip_over ; ниже ограничения грузим
+ 220++A2A3 3E 01        	ld a,1 ;или прекращаем
+ 221++A2A5 32 55 A2     	ld (closed),a ;флаг закрытия
+ 222++A2A8 21 00 00     	ld hl,0
+ 223++A2AB 22 51 A2     	ld (bytes_avail), hl
+ 224++A2AE              	OS_ESP_CLOSE ;освободить очередь
+ 224++A2AE 0E 0C       >    ld c,#0c
+ 224++A2B0 E7          >    rst #20
+ 225++A2B1 37           	scf
+ 226++A2B2 C9           	ret
+ 227++A2B3              getPacket_skip_over
+ 228++A2B3
+ 229++A2B3              	;ld a,(link_id)
+ 230++A2B3              	OS_ESP_GET
+ 230++A2B3 0E 0F       >    ld c,#0f
+ 230++A2B5 E7          >    rst #20
+ 231++A2B6              	; ret c ;сразу не удалось (может, очередь)
+ 232++A2B6              	; ld b,wait_count ;
+ 233++A2B6              getPacket_wait1
+ 234++A2B6 76           	halt
+ 235++A2B7 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
+ 236++A2BA              	; rlca
+ 237++A2BA              	; ret c ;если ошибка (=255)
+ 238++A2BA FE 01        	cp 1
+ 239++A2BC 20 F8        	jr nz,getPacket_wait1
+ 240++A2BE
+ 241++A2BE
+ 242++A2BE              ;getPacket_wait1_skip
+ 243++A2BE 2A 53 A2     	ld hl,(buffer_pointer)
+ 244++A2C1 DD 4E 09     	ld c,(ix+9) ; длина принятого
+ 245++A2C4 DD 46 0A     	ld b,(ix+10)
+ 246++A2C7 ED 43 51 A2  	ld (bytes_avail), bc
+ 247++A2CB 09           	add hl,bc
+ 248++A2CC 22 53 A2     	ld (buffer_pointer),hl ;продолжить загружать с этого места
+ 249++A2CF
+ 250++A2CF DD 7E 02     	ld a,(ix+2) ;!!! closed
+ 251++A2D2 EE 01        	xor 1
+ 252++A2D4 32 55 A2     	ld (closed),a ;флаг закрытия
+ 253++A2D7 28 03        	jr z,getPacket_ex
+ 254++A2D9              	OS_ESP_CLOSE ;освободить очередь
+ 254++A2D9 0E 0C       >    ld c,#0c
+ 254++A2DB E7          >    rst #20
+ 255++A2DC              getPacket_ex
+ 256++A2DC B7           	or a
+ 257++A2DD C9           	ret
+ 258++A2DE
+ 259++A2DE
+ 260++A2DE                  ; call Uart.read
+ 261++A2DE                  ; cp '+' : jr z, .ipdBegun    ; "+IPD," packet
+ 262++A2DE                  ; cp 'O' : jr z, .closedBegun ; It enough to check "OSED\n" :-)
+ 263++A2DE                  ; jr getPacket
+ 264++A2DE              ; .closedBegun
+ 265++A2DE                  ; call Uart.read : cp 'S' : jr nz, getPacket
+ 266++A2DE                  ; call Uart.read : cp 'E' : jr nz, getPacket
+ 267++A2DE                  ; call Uart.read : cp 'D' : jr nz, getPacket
+ 268++A2DE                  ; call Uart.read : cp 13 : jr nz, getPacket
+ 269++A2DE                  ; ld a, 1, (closed), a
+ 270++A2DE                  ; ret
+ 271++A2DE              ; .ipdBegun
+ 272++A2DE                  ; call Uart.read : cp 'I' : jr nz, getPacket
+ 273++A2DE                  ; call Uart.read : cp 'P' : jr nz, getPacket
+ 274++A2DE                  ; call Uart.read : cp 'D' : jr nz, getPacket
+ 275++A2DE                  ; call Uart.read ; Comma
+ 276++A2DE                  ; call .count_ipd_lenght : ld (bytes_avail), hl
+ 277++A2DE                  ; ld bc, hl
+ 278++A2DE                  ; ld hl, (buffer_pointer)
+ 279++A2DE              ; .readp
+ 280++A2DE                  ; ld a, h : cp #ff : jr nc, .skipbuff
+ 281++A2DE                  ; push bc, hl
+ 282++A2DE                  ; call Uart.read
+ 283++A2DE                  ; pop hl, bc
+ 284++A2DE                  ; ld (hl), a
+ 285++A2DE                  ; dec bc : inc hl
+ 286++A2DE                  ; ld a, b : or c : jr nz, .readp
+ 287++A2DE                  ; ld (buffer_pointer), hl
+ 288++A2DE                  ; ret
+ 289++A2DE              ; .skipbuff
+ 290++A2DE                  ; push bc
+ 291++A2DE                  ; call Uart.read
+ 292++A2DE                  ; pop bc
+ 293++A2DE                  ; dec bc : ld a, b : or c : jr nz, .skipbuff
+ 294++A2DE                  ; ret
+ 295++A2DE              ; .count_ipd_lenght
+ 296++A2DE              		; ld hl,0			; count lenght
+ 297++A2DE              ; .cil1	push  hl
+ 298++A2DE                      ; call Uart.read
+ 299++A2DE                      ; pop hl
+ 300++A2DE              		; cp ':' : ret z
+ 301++A2DE              		; sub 0x30 : ld c,l : ld b,h : add hl,hl : add hl,hl : add hl,bc : add hl,hl : ld c,a : ld b,0 : add hl,bc
+ 302++A2DE              		; jr .cil1
+ 303++A2DE
+ 304++A2DE              ; ; Based on: https://wikiti.brandonw.net/index.php?title=Z80_Routines:Other:DispHL
+ 305++A2DE              ; ; HL - number
+ 306++A2DE              ; ; It will be written to UART
+ 307++A2DE              ; hlToNumEsp:
+ 308++A2DE              	; ld	bc,-10000
+ 309++A2DE              	; call	.n1
+ 310++A2DE              	; ld	bc,-1000
+ 311++A2DE              	; call	.n1
+ 312++A2DE              	; ld	bc,-100
+ 313++A2DE              	; call	.n1
+ 314++A2DE              	; ld	c,-10
+ 315++A2DE              	; call	.n1
+ 316++A2DE              	; ld	c,-1
+ 317++A2DE              ; .n1	ld	a,'0'-1
+ 318++A2DE              ; .n2	inc	a
+ 319++A2DE              	; add	hl,bc
+ 320++A2DE              	; jr	c, .n2
+ 321++A2DE              	; sbc	hl,bc
+ 322++A2DE                  ; push bc
+ 323++A2DE              	; call Uart.write
+ 324++A2DE                  ; pop bc
+ 325++A2DE                  ; ret
+ 326++A2DE
+ 327++A2DE                  ENDMODULE
 # file closed: drivers/wifi.asm
-  23+ A579                  include "proxy.asm"
+  23+ A2DE                  include "proxy.asm"
 # file opened: drivers/proxy.asm
-   1++A579                  IFDEF PROXY
-   2++A579 ~                MODULE Wifi
-   3++A579 ~            ; Same singature as wifi.openTCP
-   4++A579 ~            ; HL - host pointer in gopher row
-   5++A579 ~            ; DE - port pointer in gopher row
-   6++A579 ~            openTCP:
-   7++A579 ~                push de
-   8++A579 ~                push hl
-   9++A579 ~
-  10++A579 ~                xor a
-  10++A579 ~              ld hl, hostBuff, de, hostBuff + 1, bc, 102, (hl), a
-  10++A579 ~              ldir
-  11++A579 ~
-  12++A579 ~                EspCmdOkErr "AT+CIPCLOSE"
-  13++A579 ~                EspCmdOkErr 'AT+CIPSTART="TCP","138.68.76.243",6912' // Replace here for yourown proxy. If you wish
-  14++A579 ~                jr c, .error
-  15++A579 ~                pop hl
-  15++A579 ~              ld de, hostBuff
-  16++A579 ~            .copyHost
-  17++A579 ~                ld a, (hl)
-  17++A579 ~              and a
-  17++A579 ~              jr z, 1F
-  17++A579 ~              and a
-  17++A579 ~              jr z, 1F
-  18++A579 ~                ld (de), a
-  18++A579 ~              inc hl, de
-  19++A579 ~                jr .copyHost
-  20++A579 ~            1   xor a
-  20++A579 ~              ld (de), a
-  21++A579 ~                pop hl
-  21++A579 ~              ld de, portBuff
-  22++A579 ~            .copyPort
-  23++A579 ~                ld a, (hl)
-  23++A579 ~              and a
-  23++A579 ~              jr z, 1F
-  23++A579 ~              and a
-  23++A579 ~              jr z, 1F
-  24++A579 ~                ld (de), a
-  24++A579 ~              inc hl, de
-  25++A579 ~                jr .copyPort
-  26++A579 ~            1   ld hl, hostBuff
-  26++A579 ~              call tcpSendZ
-  27++A579 ~                ld hl, portBuff
-  27++A579 ~              call tcpSendZ
-  28++A579 ~                xor a
-  28++A579 ~              ld (closed), a
-  29++A579 ~                ret
-  30++A579 ~            .error
-  31++A579 ~                pop hl
-  31++A579 ~              pop de
-  32++A579 ~                ret
-  33++A579 ~
-  34++A579 ~            continue:
-  35++A579 ~                EspCmdOkErr "AT+CIPSEND=1"
-  36++A579 ~                ret c
-  37++A579 ~            .wait
-  38++A579 ~                call Uart.read
-  38++A579 ~              cp '>'
-  38++A579 ~              jr nz, .wait
-  39++A579 ~                ld a, 'c'
-  39++A579 ~              call Uart.write
-  40++A579 ~                jp checkOkErr
-  41++A579 ~
-  42++A579 ~            hostBuff ds 96
-  43++A579 ~            portBuff ds 7
-  44++A579 ~                ENDMODULE
-  45++A579                  ENDIF
+   1++A2DE                  IFDEF PROXY
+   2++A2DE ~                MODULE Wifi
+   3++A2DE ~            ; Same singature as wifi.openTCP
+   4++A2DE ~            ; HL - host pointer in gopher row
+   5++A2DE ~            ; DE - port pointer in gopher row
+   6++A2DE ~            openTCP:
+   7++A2DE ~                push de
+   8++A2DE ~                push hl
+   9++A2DE ~
+  10++A2DE ~                xor a
+  10++A2DE ~              ld hl, hostBuff, de, hostBuff + 1, bc, 102, (hl), a
+  10++A2DE ~              ldir
+  11++A2DE ~
+  12++A2DE ~                EspCmdOkErr "AT+CIPCLOSE"
+  13++A2DE ~                EspCmdOkErr 'AT+CIPSTART="TCP","138.68.76.243",6912' // Replace here for yourown proxy. If you wish
+  14++A2DE ~                jr c, .error
+  15++A2DE ~                pop hl
+  15++A2DE ~              ld de, hostBuff
+  16++A2DE ~            .copyHost
+  17++A2DE ~                ld a, (hl)
+  17++A2DE ~              and a
+  17++A2DE ~              jr z, 1F
+  17++A2DE ~              and a
+  17++A2DE ~              jr z, 1F
+  18++A2DE ~                ld (de), a
+  18++A2DE ~              inc hl, de
+  19++A2DE ~                jr .copyHost
+  20++A2DE ~            1   xor a
+  20++A2DE ~              ld (de), a
+  21++A2DE ~                pop hl
+  21++A2DE ~              ld de, portBuff
+  22++A2DE ~            .copyPort
+  23++A2DE ~                ld a, (hl)
+  23++A2DE ~              and a
+  23++A2DE ~              jr z, 1F
+  23++A2DE ~              and a
+  23++A2DE ~              jr z, 1F
+  24++A2DE ~                ld (de), a
+  24++A2DE ~              inc hl, de
+  25++A2DE ~                jr .copyPort
+  26++A2DE ~            1   ld hl, hostBuff
+  26++A2DE ~              call tcpSendZ
+  27++A2DE ~                ld hl, portBuff
+  27++A2DE ~              call tcpSendZ
+  28++A2DE ~                xor a
+  28++A2DE ~              ld (closed), a
+  29++A2DE ~                ret
+  30++A2DE ~            .error
+  31++A2DE ~                pop hl
+  31++A2DE ~              pop de
+  32++A2DE ~                ret
+  33++A2DE ~
+  34++A2DE ~            continue:
+  35++A2DE ~                EspCmdOkErr "AT+CIPSEND=1"
+  36++A2DE ~                ret c
+  37++A2DE ~            .wait
+  38++A2DE ~                call Uart.read
+  38++A2DE ~              cp '>'
+  38++A2DE ~              jr nz, .wait
+  39++A2DE ~                ld a, 'c'
+  39++A2DE ~              call Uart.write
+  40++A2DE ~                jp checkOkErr
+  41++A2DE ~
+  42++A2DE ~            hostBuff ds 96
+  43++A2DE ~            portBuff ds 7
+  44++A2DE ~                ENDMODULE
+  45++A2DE                  ENDIF
 # file closed: drivers/proxy.asm
-  24+ A579                  include "memory.asm"
+  24+ A2DE                  include "memory.asm"
 # file opened: drivers/memory.asm
-   1++A579                  module Memory
-   2++A579              BANKM = #5b5c
-   3++A579              MEM_PORT = #7ffd
-   4++A579
-   5++A579              init:
-   6++A579 F3               di
-   7++A57A FD CB 01 A6      res 4, (iy + 1)
-   8++A57E
-   9++A57E AF               xor a
-   9++A57F CD 83 A5       call setPage
-  10++A582 C9               ret
-  11++A583
-  12++A583              ; a - page
-  13++A583              setPage:
-  14++A583 F6 18            or #18
-  14++A585 32 5C 5B       ld (BANKM), a
-  15++A588 01 FD 7F         ld bc, MEM_PORT
-  15++A58B ED 79          out (c), a
-  16++A58D C9               ret
-  17++A58E
-  18++A58E                  endmodule
+   1++A2DE                  module Memory
+   2++A2DE              BANKM = #5b5c
+   3++A2DE              MEM_PORT = #7ffd
+   4++A2DE
+   5++A2DE              init:
+   6++A2DE F3               di
+   7++A2DF FD CB 01 A6      res 4, (iy + 1)
+   8++A2E3
+   9++A2E3 AF               xor a
+   9++A2E4 CD E8 A2       call setPage
+  10++A2E7 C9               ret
+  11++A2E8
+  12++A2E8              ; a - page
+  13++A2E8              setPage:
+  14++A2E8 F6 18            or #18
+  14++A2EA 32 5C 5B       ld (BANKM), a
+  15++A2ED 01 FD 7F         ld bc, MEM_PORT
+  15++A2F0 ED 79          out (c), a
+  16++A2F2 C9               ret
+  17++A2F3
+  18++A2F3                  endmodule
 # file closed: drivers/memory.asm
-  25+ A58E                  include "general-sound.asm"
+  25+ A2F3                  include "general-sound.asm"
 # file opened: drivers/general-sound.asm
-   1++A58E                  ifdef GS
-   2++A58E                  macro _WaitCommand
-   3++A58E ~            .wait
-   4++A58E ~                in a, (GeneralSound.CMD)
-   5++A58E ~                rrca
-   6++A58E ~                jr c, .wait
-   7++A58E                  endm
-   8++A58E
-   9++A58E                  macro _WaitData
-  10++A58E ~            .wait
-  11++A58E ~                in a, (GeneralSound.CMD)
-  12++A58E ~                rlca
-  13++A58E ~                jr c, .wait
-  14++A58E                  endm
-  15++A58E
-  16++A58E                  macro _SendCommand nn
-  17++A58E ~                ld a, nn
-  17++A58E ~              out (GeneralSound.CMD), a
-  18++A58E                  endm
-  19++A58E
-  20++A58E                  module GeneralSound
-  21++A58E              ;; Control ports
-  22++A58E              CMD  = 187
-  23++A58E              DATA = 179
-  24++A58E
-  25++A58E              ;; Commands
-  26++A58E              CMD_WARM_RESET      = #F3
-  27++A58E              CMD_COLD_RESET      = #F4
-  28++A58E              CMD_LOAD_MODULE     = #30
-  29++A58E              CMD_PLAY_MODULE     = #31
-  30++A58E              CMD_STOP_MODULE     = #32
-  31++A58E              CMD_CONTINUE_MODULE = #33
-  32++A58E              CMD_OPEN_STREAM     = #D1
-  33++A58E              CMD_CLOSE_STREAM    = #D2
-  34++A58E
-  35++A58E              ; A - 0 warm reset, other - cold
-  36++A58E              init:
-  37++A58E A7               and a
-  37++A58F 20 05          jr nz, .cold
-  38++A591                  _SendCommand CMD_WARM_RESET
-  38++A591 3E F3       >    ld a, CMD_WARM_RESET
-  38++A593 D3 BB       >  out (GeneralSound.CMD), a
-  39++A595 C9               ret
-  40++A596              .cold
-  41++A596                  _SendCommand CMD_COLD_RESET
-  41++A596 3E F4       >    ld a, CMD_COLD_RESET
-  41++A598 D3 BB       >  out (GeneralSound.CMD), a
-  42++A59A C9               ret
-  43++A59B
-  44++A59B              ;; Initializes loading module
-  45++A59B              loadModule:
-  46++A59B                  _SendCommand CMD_LOAD_MODULE
-  46++A59B 3E 30       >    ld a, CMD_LOAD_MODULE
-  46++A59D D3 BB       >  out (GeneralSound.CMD), a
-  47++A59F                  _WaitCommand
-  47++A59F             >.wait
-  47++A59F DB BB       >    in a, (GeneralSound.CMD)
-  47++A5A1 0F          >    rrca
-  47++A5A2 38 FB       >    jr c, .wait
-  48++A5A4                  _SendCommand CMD_OPEN_STREAM
-  48++A5A4 3E D1       >    ld a, CMD_OPEN_STREAM
-  48++A5A6 D3 BB       >  out (GeneralSound.CMD), a
-  49++A5A8                  _WaitCommand
-  49++A5A8             >.wait
-  49++A5A8 DB BB       >    in a, (GeneralSound.CMD)
-  49++A5AA 0F          >    rrca
-  49++A5AB 38 FB       >    jr c, .wait
-  50++A5AD C9               ret
-  51++A5AE
-  52++A5AE              ;; Use it for streaming mod file
-  53++A5AE              sendByte:
-  54++A5AE D3 B3            out (DATA), a
-  55++A5B0                  _WaitData
-  55++A5B0             >.wait
-  55++A5B0 DB BB       >    in a, (GeneralSound.CMD)
-  55++A5B2 07          >    rlca
-  55++A5B3 38 FB       >    jr c, .wait
-  56++A5B5 C9               ret
-  57++A5B6
-  58++A5B6              ;; Call it when module was loaded
-  59++A5B6              finishLoadingModule:
-  60++A5B6                  _SendCommand CMD_CLOSE_STREAM
-  60++A5B6 3E D2       >    ld a, CMD_CLOSE_STREAM
-  60++A5B8 D3 BB       >  out (GeneralSound.CMD), a
-  61++A5BA                  _WaitCommand
-  61++A5BA             >.wait
-  61++A5BA DB BB       >    in a, (GeneralSound.CMD)
-  61++A5BC 0F          >    rrca
-  61++A5BD 38 FB       >    jr c, .wait
-  62++A5BF              rewind:
-  63++A5BF 3E 01            ld a, 1
-  63++A5C1 D3 B3          out (DATA), a
-  64++A5C3                  _SendCommand CMD_PLAY_MODULE
-  64++A5C3 3E 31       >    ld a, CMD_PLAY_MODULE
-  64++A5C5 D3 BB       >  out (GeneralSound.CMD), a
-  65++A5C7                  _WaitCommand
-  65++A5C7             >.wait
-  65++A5C7 DB BB       >    in a, (GeneralSound.CMD)
-  65++A5C9 0F          >    rrca
-  65++A5CA 38 FB       >    jr c, .wait
-  66++A5CC 3E 01 32 F0      ld a, 1, (state),a
-  66++A5D0 A5
-  67++A5D1 C9               ret
-  68++A5D2
-  69++A5D2              ;; Works like pause too
-  70++A5D2              stopModule:
-  71++A5D2 AF               xor a
-  71++A5D3 32 F0 A5       ld (state), a
-  72++A5D6                  _SendCommand CMD_STOP_MODULE
-  72++A5D6 3E 32       >    ld a, CMD_STOP_MODULE
-  72++A5D8 D3 BB       >  out (GeneralSound.CMD), a
-  73++A5DA C9               ret
-  74++A5DB
-  75++A5DB              continueModule:
-  76++A5DB 3E 01            ld a, 1
-  76++A5DD 32 F0 A5       ld (state), a
-  77++A5E0                  _SendCommand CMD_CONTINUE_MODULE
-  77++A5E0 3E 33       >    ld a, CMD_CONTINUE_MODULE
-  77++A5E2 D3 BB       >  out (GeneralSound.CMD), a
-  78++A5E4 C9               ret
-  79++A5E5
-  80++A5E5              ; Pauses resumes
-  81++A5E5              toggleModule:
-  82++A5E5 CD A0 86         call Console.waitForKeyUp
-  83++A5E8 3A F0 A5         ld a, (state)
-  83++A5EB A7             and a
-  84++A5EC 28 ED            jr z, continueModule
-  85++A5EE 18 E2            jr stopModule
-  86++A5F0
-  87++A5F0 00           state db 0
-  88++A5F1                  endmodule
-  89++A5F1
-  90++A5F1                  endif
+   1++A2F3                  ifdef GS
+   2++A2F3                  macro _WaitCommand
+   3++A2F3 ~            .wait
+   4++A2F3 ~                in a, (GeneralSound.CMD)
+   5++A2F3 ~                rrca
+   6++A2F3 ~                jr c, .wait
+   7++A2F3                  endm
+   8++A2F3
+   9++A2F3                  macro _WaitData
+  10++A2F3 ~            .wait
+  11++A2F3 ~                in a, (GeneralSound.CMD)
+  12++A2F3 ~                rlca
+  13++A2F3 ~                jr c, .wait
+  14++A2F3                  endm
+  15++A2F3
+  16++A2F3                  macro _SendCommand nn
+  17++A2F3 ~                ld a, nn
+  17++A2F3 ~              out (GeneralSound.CMD), a
+  18++A2F3                  endm
+  19++A2F3
+  20++A2F3                  module GeneralSound
+  21++A2F3              ;; Control ports
+  22++A2F3              CMD  = 187
+  23++A2F3              DATA = 179
+  24++A2F3
+  25++A2F3              ;; Commands
+  26++A2F3              CMD_WARM_RESET      = #F3
+  27++A2F3              CMD_COLD_RESET      = #F4
+  28++A2F3              CMD_LOAD_MODULE     = #30
+  29++A2F3              CMD_PLAY_MODULE     = #31
+  30++A2F3              CMD_STOP_MODULE     = #32
+  31++A2F3              CMD_CONTINUE_MODULE = #33
+  32++A2F3              CMD_OPEN_STREAM     = #D1
+  33++A2F3              CMD_CLOSE_STREAM    = #D2
+  34++A2F3
+  35++A2F3              ; A - 0 warm reset, other - cold
+  36++A2F3              init:
+  37++A2F3 A7               and a
+  37++A2F4 20 05          jr nz, .cold
+  38++A2F6                  _SendCommand CMD_WARM_RESET
+  38++A2F6 3E F3       >    ld a, CMD_WARM_RESET
+  38++A2F8 D3 BB       >  out (GeneralSound.CMD), a
+  39++A2FA C9               ret
+  40++A2FB              .cold
+  41++A2FB                  _SendCommand CMD_COLD_RESET
+  41++A2FB 3E F4       >    ld a, CMD_COLD_RESET
+  41++A2FD D3 BB       >  out (GeneralSound.CMD), a
+  42++A2FF C9               ret
+  43++A300
+  44++A300              ;; Initializes loading module
+  45++A300              loadModule:
+  46++A300                  _SendCommand CMD_LOAD_MODULE
+  46++A300 3E 30       >    ld a, CMD_LOAD_MODULE
+  46++A302 D3 BB       >  out (GeneralSound.CMD), a
+  47++A304                  _WaitCommand
+  47++A304             >.wait
+  47++A304 DB BB       >    in a, (GeneralSound.CMD)
+  47++A306 0F          >    rrca
+  47++A307 38 FB       >    jr c, .wait
+  48++A309                  _SendCommand CMD_OPEN_STREAM
+  48++A309 3E D1       >    ld a, CMD_OPEN_STREAM
+  48++A30B D3 BB       >  out (GeneralSound.CMD), a
+  49++A30D                  _WaitCommand
+  49++A30D             >.wait
+  49++A30D DB BB       >    in a, (GeneralSound.CMD)
+  49++A30F 0F          >    rrca
+  49++A310 38 FB       >    jr c, .wait
+  50++A312 C9               ret
+  51++A313
+  52++A313              ;; Use it for streaming mod file
+  53++A313              sendByte:
+  54++A313 D3 B3            out (DATA), a
+  55++A315                  _WaitData
+  55++A315             >.wait
+  55++A315 DB BB       >    in a, (GeneralSound.CMD)
+  55++A317 07          >    rlca
+  55++A318 38 FB       >    jr c, .wait
+  56++A31A C9               ret
+  57++A31B
+  58++A31B              ;; Call it when module was loaded
+  59++A31B              finishLoadingModule:
+  60++A31B                  _SendCommand CMD_CLOSE_STREAM
+  60++A31B 3E D2       >    ld a, CMD_CLOSE_STREAM
+  60++A31D D3 BB       >  out (GeneralSound.CMD), a
+  61++A31F                  _WaitCommand
+  61++A31F             >.wait
+  61++A31F DB BB       >    in a, (GeneralSound.CMD)
+  61++A321 0F          >    rrca
+  61++A322 38 FB       >    jr c, .wait
+  62++A324              rewind:
+  63++A324 3E 01            ld a, 1
+  63++A326 D3 B3          out (DATA), a
+  64++A328                  _SendCommand CMD_PLAY_MODULE
+  64++A328 3E 31       >    ld a, CMD_PLAY_MODULE
+  64++A32A D3 BB       >  out (GeneralSound.CMD), a
+  65++A32C                  _WaitCommand
+  65++A32C             >.wait
+  65++A32C DB BB       >    in a, (GeneralSound.CMD)
+  65++A32E 0F          >    rrca
+  65++A32F 38 FB       >    jr c, .wait
+  66++A331 3E 01 32 55      ld a, 1, (state),a
+  66++A335 A3
+  67++A336 C9               ret
+  68++A337
+  69++A337              ;; Works like pause too
+  70++A337              stopModule:
+  71++A337 AF               xor a
+  71++A338 32 55 A3       ld (state), a
+  72++A33B                  _SendCommand CMD_STOP_MODULE
+  72++A33B 3E 32       >    ld a, CMD_STOP_MODULE
+  72++A33D D3 BB       >  out (GeneralSound.CMD), a
+  73++A33F C9               ret
+  74++A340
+  75++A340              continueModule:
+  76++A340 3E 01            ld a, 1
+  76++A342 32 55 A3       ld (state), a
+  77++A345                  _SendCommand CMD_CONTINUE_MODULE
+  77++A345 3E 33       >    ld a, CMD_CONTINUE_MODULE
+  77++A347 D3 BB       >  out (GeneralSound.CMD), a
+  78++A349 C9               ret
+  79++A34A
+  80++A34A              ; Pauses resumes
+  81++A34A              toggleModule:
+  82++A34A CD A0 86         call Console.waitForKeyUp
+  83++A34D 3A 55 A3         ld a, (state)
+  83++A350 A7             and a
+  84++A351 28 ED            jr z, continueModule
+  85++A353 18 E2            jr stopModule
+  86++A355
+  87++A355 00           state db 0
+  88++A356                  endmodule
+  89++A356
+  90++A356                  endif
 # file closed: drivers/general-sound.asm
-  26+ A5F1
+  26+ A356
 # file closed: drivers/index.asm
-  29  A5F1              start:
-  30  A5F1              	; IFDEF TRD
-  31  A5F1              	; align 256 ;временно
-  32  A5F1              	; ENDIF
-  33  A5F1              outputBuffer: ;equ #c000
-  34  A5F1                  ;di
-  35  A5F1                  ;xor a : ld (#5c6a), a  ; Thank you, Mario Prato, for feedback
-  36  A5F1                  ;ld (#5c00),a
-  37  A5F1                  ;ld sp, asmOrg
-  38  A5F1                  ;call Memory.init
-  39  A5F1                  ;xor a : out (#fe),a
-  40  A5F1                  ;ei
-  41  A5F1
-  42  A5F1                  ;ld a, 7 : call Memory.setPage
-  43  A5F1                  ;; Logo
-  44  A5F1                  ; ld hl, logo, b, Dos.FMODE_READ : call Dos.fopen
-  45  A5F1                  ; push af
-  46  A5F1                  ; ld hl, #c000, bc, 6912 : call Dos.fread
-  47  A5F1                  ; pop af
-  48  A5F1                  ; call Dos.fclose
-  49  A5F1
-  50  A5F1              	; ifdef ZSGMX
-  51  A5F1              	; call TextMode.disable
-  52  A5F1              	; endif
-  53  A5F1
-  54  A5F1                  ; ld b, 50
-  55  A5F1              ; 1   halt
-  56  A5F1                  ; djnz 1b
-  57  A5F1                  ;; End of logo :-)
-  58  A5F1
-  59  A5F1 CD 03 80         call TextMode.init
-  60  A5F4
-  61  A5F4 21 00 A6         ld hl, initing
-  61  A5F7 CD 1E 80       call TextMode.printZ
-  62  A5FA                  IFNDEF EMU
-  63  A5FA CD BB A2         call Wifi.init
-  64  A5FD                  ENDIF
-  65  A5FD
-  66  A5FD C3 1F 87         jp History.home
-  67  A600
-  68  A600 49 6E 69 74  initing db "Initing Wifi...",13,0
-  68  A604 69 6E 67 20
-  68  A608 57 69 66 69
-  68  A60C 2E 2E 2E 0D
-  68  A610 00
-  69  A611 64 61 74 61  logo    db  "data/logo.scr", 0
-  69  A615 2F 6C 6F 67
-  69  A619 6F 2E 73 63
-  69  A61D 72 00
-  70  A61F                  display "ENDS: ", $
-  71  A61F                  display "Buff size", #ffff - $
-  72  A61F
-  73  A61F                  ;IFDEF ESX
-  74  A61F                  ;save3dos "moon.bin", asmOrg, $ - asmOrg
-  75  A61F                  savebin "moonr.com", asmOrg, $ - asmOrg
-  76  A61F              	;ELSE
-  77  A61F                  ;SAVETRD "MOONR.TRD",|"moon.C",asmOrg, $ - asmOrg
-  78  A61F                  ;ENDIF
+  29  A356              start:
+  30  A356              	; IFDEF TRD
+  31  A356              	; align 256 ;временно
+  32  A356              	; ENDIF
+  33  A356              outputBuffer: ;equ #c000
+  34  A356                  ;di
+  35  A356                  ;xor a : ld (#5c6a), a  ; Thank you, Mario Prato, for feedback
+  36  A356                  ;ld (#5c00),a
+  37  A356                  ;ld sp, asmOrg
+  38  A356                  ;call Memory.init
+  39  A356                  ;xor a : out (#fe),a
+  40  A356                  ;ei
+  41  A356
+  42  A356                  ;ld a, 7 : call Memory.setPage
+  43  A356                  ;; Logo
+  44  A356                  ; ld hl, logo, b, Dos.FMODE_READ : call Dos.fopen
+  45  A356                  ; push af
+  46  A356                  ; ld hl, #c000, bc, 6912 : call Dos.fread
+  47  A356                  ; pop af
+  48  A356                  ; call Dos.fclose
+  49  A356
+  50  A356              	; ifdef ZSGMX
+  51  A356              	; call TextMode.disable
+  52  A356              	; endif
+  53  A356
+  54  A356                  ; ld b, 50
+  55  A356              ; 1   halt
+  56  A356                  ; djnz 1b
+  57  A356                  ;; End of logo :-)
+  58  A356
+  59  A356 CD 03 80         call TextMode.init
+  60  A359
+  61  A359                  ; ld hl, initing : call TextMode.printZ
+  62  A359                  ; IFNDEF EMU
+  63  A359                  ; call Wifi.init
+  64  A359                  ; ENDIF
+  65  A359
+  66  A359 C3 1F 87         jp History.home
+  67  A35C
+  68  A35C              ;initing db "Initing Wifi...",13,0
+  69  A35C 64 61 74 61  logo    db  "data/logo.scr", 0
+  69  A360 2F 6C 6F 67
+  69  A364 6F 2E 73 63
+  69  A368 72 00
+  70  A36A                  display "ENDS: ", $
+  71  A36A                  display "Buff size", #ffff - $
+  72  A36A
+  73  A36A                  ;IFDEF ESX
+  74  A36A                  ;save3dos "moon.bin", asmOrg, $ - asmOrg
+  75  A36A                  savebin "moonr.com", asmOrg, $ - asmOrg
+  76  A36A              	;ELSE
+  77  A36A                  ;SAVETRD "MOONR.TRD",|"moon.C",asmOrg, $ - asmOrg
+  78  A36A                  ;ENDIF
 # file closed: main.asm

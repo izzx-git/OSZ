@@ -1,25 +1,41 @@
-;Radio - приложение для OS
+;Radio - приложение для OS GMX
    device ZXSPECTRUM128
 	include "../os_defs.asm"  
 	org PROGSTART	
+	
+;порядок работы:
+;открытие соединения
+;проверка результата
+;отправка запроса
+;проверка результата
+;принять ответ
+;проверка результата
+;принять ещё пакеты, если есть, до закрытия соединения, или до получения ожидаемой длины
+;закрыть соединение
+;при каждой возможности (в паузах) закрывать соединение, чтобы уступить очередь другим приложениям.
+	
 start_radio
-
+	; ld a,13 ;новая строка
+	; OS_PRINT_CHARF	
 	ld hl,msg_title_radio ;имя приложения
 	OS_PRINTZ ;печать
 
-; OS_UART_READ
 
-; OS_UART_WRITE
-;порядок работы:
-;открыть сайт
-;послать запрос
-;принять ответ
+; radio_get_link	
+	; ld hl,msg_get_link_id
+	; OS_PRINTZ ;печать
 
-	call Wifi.init ;инициализация
+	; xor a ;CY=0
+	; OS_ESP_LINK_ID ;получить номер соединения
+	; jr nc,radio_get_link_ok
 	
-	ld a,13 ;новая строка
-	OS_PRCHARF	
+	; call radio_main_error
+	; jr radio_get_link
 	
+; radio_get_link_ok ;ID получили
+	; ld (link_id),a 
+	
+start_radio_warm		
 	ld hl,start_request ;очистить номер первого трека
 	ld de,start_request+1
 	ld bc,5-1
@@ -40,7 +56,7 @@ start_radio
 	
 radio_main
 ;основной цикл
-	; OS_GETCHAR
+	; OS_GET_CHAR
 	; cp "r"
 	; jp z,start_radio ;всё сначала
 	; cp "R"
@@ -54,7 +70,7 @@ radio_main
 	
 radio_main_open_ok
 ;открыли нормально
-	OS_GETCHAR
+	OS_GET_CHAR
 	cp "r"
 	jp z,start_radio ;всё сначала
 	cp "R"
@@ -72,7 +88,7 @@ radio_main_open_ok
 	
 radio_request_info_ok
 ;запрос прошёл
-	OS_GETCHAR
+	OS_GET_CHAR
 	cp "r"
 	jp z,start_radio ;всё сначала
 	cp "R"
@@ -94,7 +110,7 @@ radio_download_info_ok
 
 ;теперь выбранный трек
 
-	OS_GETCHAR
+	OS_GET_CHAR
 	cp "r"
 	jp z,start_radio ;всё сначала
 	cp "R"
@@ -108,7 +124,7 @@ radio_download_info_ok
 
 radio_request_track_ok
 ;загрузка инфы о треке прошла
-	OS_GETCHAR
+	OS_GET_CHAR
 	cp "r"
 	jp z,start_radio ;всё сначала
 	cp "R"
@@ -141,7 +157,7 @@ radio_download_track_ok
 	
 loop_radio
 	halt
-	OS_GETCHAR
+	OS_GET_CHAR
 	cp "r"
 	jp z,restart ;всё сначала
 	cp "R"
@@ -178,7 +194,7 @@ restart
 	OS_VTPL_MUTE
 	ld hl,msg_restart
 	OS_PRINTZ
-	jp start_radio
+	jp start_radio_warm
 
 	
 ;следующий трек
@@ -251,28 +267,49 @@ select_format_print
 	push hl
 	OS_PRINTZ
 	ld a,13
-	OS_PRCHARF
+	OS_PRINT_CHARF
 	pop hl
 	ret
 	
 	
 radio_main_error ;печать ошибка
 	;какая-то ошибка
+	ld a,2 ;цвет
+	ld b,#c
+	OS_SET_COLOR
 	ld hl,msg_error
 	OS_PRINTZ	
+	ld a,7 ;цвет
+	ld b,#c
+	OS_SET_COLOR
 	call delay ;задержка	
 	ret
 	
 radio_open_site ;открыть сайт
+	OS_ESP_CLOSE ;на всякий случай сначала закрыть
 	ld hl,msg_open ;печать инфы
 	OS_PRINTZ	
 	ld hl,site_name
 	OS_PRINTZ
 	ld a,13 ;новая строка
-	OS_PRCHARF	
+	OS_PRINT_CHARF	
 	ld hl,site_name ;сайт
 	ld de,port_number
-	call Wifi.openTCP ;открыть сайт
+	;call Wifi.openTCP ;открыть сайт
+	xor a ;открыть TCP
+	OS_ESP_OPEN
+	ret c ;сразу не удалось (может, очередь)
+	;или подождём открытия
+	ld b,wait_count ;
+radio_open_site_wait
+	halt
+	ld a,(ix+2) ;флаг
+	rlca
+	ret c ;если ошибка (=255)
+	or a ;если флаг !=0
+	ret nz
+	djnz radio_open_site_wait
+	scf ;ощибка
 	ret
 
 
@@ -285,9 +322,26 @@ radio_request_info ;запрос инфы
 
 	ld hl,msg_request_info ;
 	OS_PRINTZ	
+	ld de,requestbuffer	
+	call strLen ;узнать длину
+	ex de,hl
 	ld hl,requestbuffer	
-	call Wifi.tcpSendZ ;послать запрос
+	;call Wifi.tcpSendZ ;послать запрос
+	OS_ESP_SEND 
+	ret c;сразу не удалось (может, очередь)
+	;ждём когда запрос пройдёт
+	ld b,wait_count ;
+radio_request_info_wait2
+	halt
+	ld a,(ix+4) ;флаг
+	rlca
+	ret c ;если ошибка (=255)
+	or a
+	ret nz
+	djnz radio_request_info_wait2
+	scf ;ощибка
 	ret
+
 
 radio_download_info ;загрузить инфо
 
@@ -297,34 +351,113 @@ radio_download_info ;загрузить инфо
 	call clear_outputBuffer ;очистить
 	
 	ld hl,outputBuffer ;буфер для загрузки
-	ld (Wifi.buffer_pointer),hl 
-	call Wifi.getPacket ;получить ответ
-	ret c
-	
-radio_download_info1
-	ld hl,(Wifi.buffer_pointer) ;
-	call Wifi.getPacket 
-
-	ld a,(Wifi.closed)
+	ld (buffer_pointer),hl 
+	;call Wifi.getPacket ;получить ответ
+	OS_ESP_GET
+	ret c ;сразу не удалось (может, очередь)
+	ld b,wait_count ;
+radio_download_info_wait1
+	halt
+	ld a,(ix+6) ;флаг результат приёма
+	rlca
+	ret c ;если ошибка (=255)
 	or a
-	jr z,radio_download_info1 ;получить ещё части до конца
+	jr nz,radio_download_info_wait1_skip
+	djnz radio_download_info_wait1
+	scf ;ощибка
+	ret
+	
+radio_download_info_wait1_skip
+	;подготовка к приёму дальше
+	ld hl,(buffer_pointer)
+	ld c,(ix+9) ; длина принятого
+	ld b,(ix+10)
+	add hl,bc
+	ld (buffer_pointer),hl ;продолжить загружать с этого места
 
-	ld de,Content_Sucesfully ;найти запись об успешном запросе
-	call search_str
-	ret c	
-
-	ld de,Content_Length ;найти запись о длине
+	;попробуем найти начало данных
+	ld de,Content_Length ;найти запись о длине данных
 	call search_str
 	ret c
 	
 	ex de,hl
 	call text_to_digit ;преобразовать в число
+	ld (data_length),hl ;длина данных
 	
-	ex de,hl
-	ld hl,(Wifi.buffer_pointer) ;
+	ld de,rnrn ;найти конец заголовка
+	call search_str
+	ret c
+	ld (data_start),hl ;начало данных
+	
+	ld de,(data_length)
+	add hl,de ;узнали ожидаемый конец данных
+	ld (data_end),hl
+
+;загрузка остальных частей, если есть	
+radio_download_info1
+	ld a,(ix+2) ;!!! closed
+	or a
+	jr z,radio_download_info1_skip ;если закрыто, больше не грузим
+
+	ld hl,(buffer_pointer)
+	ld de,(data_end)
 	and a
 	sbc hl,de
-	;узнали начало пакета
+	jr z,radio_download_info1_skip ;если уже всё загружено
+
+
+	;ещё не всё
+	ld hl,(buffer_pointer)	
+	ld a,h
+	cp buffer_top ;ограничение
+	jr nc,radio_download_info1_skip
+
+	;call Wifi.getPacket 
+	OS_ESP_GET
+	ld b,wait_count ;
+radio_download_info_wait2
+	halt
+	ld a,(ix+6) ;флаг результат приёма
+	rlca
+	ret c ;если ошибка (=255)
+	or a
+	jr nz,radio_download_info_wait2_skip
+	djnz radio_download_info_wait2
+	scf 
+	ret
+
+radio_download_info_wait2_skip	
+	ld hl,(buffer_pointer)
+	ld c,(ix+9) ; длина принятого
+	ld b,(ix+10)
+	add hl,bc
+	ld (buffer_pointer),hl ;продолжить загружать с этого места	
+	
+	jr radio_download_info1 ;получить ещё части до конца
+	
+radio_download_info1_skip
+
+	OS_ESP_CLOSE ;закрыть соединение!
+
+
+	ld de,Content_Sucesfully ;найти запись об успешном запросе
+	call search_str
+	ret c	
+
+	; ld de,Content_Length ;найти запись о длине
+	; call search_str
+	; ret c
+	
+	; ex de,hl
+	; call text_to_digit ;преобразовать в число
+	
+	; ex de,hl
+	; ld hl,(buffer_pointer) ;
+	; and a
+	; sbc hl,de
+	; ;узнали начало пакета
+	
+	ld hl,(data_start)
 	
 	ld de,Content_ID ;найти запись об ID файла
 	call search_str
@@ -332,10 +465,11 @@ radio_download_info1
 	
 
 	;инфа получена
+	
 	push hl
 	call print_info_track ;инфо
 	ld a,13
-	OS_PRCHARF
+	OS_PRINT_CHARF
 	pop hl
 	ld de,requestbuffer2_file_id
 	
@@ -367,9 +501,26 @@ radio_request_track	;запрос трека
 	
 	;ld hl,requestbuffer2_title
 	;OS_PRINTZ
+	ld de,requestbuffer2	
+	call strLen ;узнать длину
+	ex de,hl
 	ld hl,requestbuffer2
-	call Wifi.tcpSendZ ;послать запрос
+	OS_ESP_SEND 
+	ret c ;сразу не удалось (может, очередь)
+	;ждём когда запрос пройдёт
+	ld b,wait_count ;
+radio_request_track_wait2
+	halt
+	ld a,(ix+4) ;флаг
+	rlca
+	ret c ;если ошибка (=255)
+	or a
+	ret nz
+	djnz radio_request_track_wait2
+	scf
 	ret
+
+
 
 
 radio_download_track ;загрузить трек
@@ -379,37 +530,109 @@ radio_download_track ;загрузить трек
 	call clear_outputBuffer ;очистить
 	
 	ld hl,outputBuffer ;буфер для загрузки
-	ld (Wifi.buffer_pointer),hl 
-	call Wifi.getPacket ;получить ответ
-	ret c
-	
-	;HL - конец пакета
-	; ld hl,outputBuffer_title ;для теста
-	; OS_PRINTZ
-	; ld a,13
-	; OS_PRCHARF	
-
-radio_download_track1
-	ld hl,(Wifi.buffer_pointer) ;
-	call Wifi.getPacket 
-
-	ld a,(Wifi.closed)
+	ld (buffer_pointer),hl 
+	;call Wifi.getPacket ;получить ответ
+	OS_ESP_GET
+	ret c ;сразу не удалось (может, очередь)
+	ld b,wait_count ;
+radio_download_track_wait1
+	halt
+	ld a,(ix+6) ;флаг результат приёма
+	rlca
+	ret c ;если ошибка (=255)
 	or a
-	jr z,radio_download_track1 ;получить ещё части до конца
+	jr nz,radio_download_track_wait1_skip	
+	djnz radio_download_track_wait1
+	scf
+	ret
 
+radio_download_track_wait1_skip
+	;подготовка к приёму дальше
+	ld hl,(buffer_pointer)
+	ld c,(ix+9) ; длина принятого
+	ld b,(ix+10)
+	add hl,bc
+	ld (buffer_pointer),hl ;продолжить загружать с этого места
 
-	;определить длину
-	ld de,Content_Length ;найти запись о длине
+	;попробуем найти начало данных
+	ld de,Content_Length ;найти запись о длине данных
 	call search_str
 	ret c
-	ex de,hl
-	call text_to_digit ;преобразовать в число
 	
 	ex de,hl
-	ld hl,(Wifi.buffer_pointer) ;
+	call text_to_digit ;преобразовать в число
+	ld (data_length),hl ;длина данных
+	
+	ld de,rnrn ;найти конец заголовка
+	call search_str
+	ret c
+	ld (data_start),hl ;начало данных
+	
+	ld de,(data_length)
+	add hl,de ;узнали ожидаемый конец данных
+	ld (data_end),hl	
+	
+	;загрузка остатка
+radio_download_track1
+
+	ld a,(ix+2) ;!!! closed
+	or a
+	jr z,radio_download_track1_skip ;если закрыто, больше не грузим
+	
+	ld hl,(buffer_pointer)
+	ld de,(data_end)
 	and a
 	sbc hl,de
-	;узнали начало пакета
+	jr z,radio_download_track1_skip ;если уже всё загружено
+
+
+	;ещё не всё
+	ld hl,(buffer_pointer)	
+	ld a,h
+	cp buffer_top ;ограничение
+	jr nc,radio_download_track1_skip
+	
+	;call Wifi.getPacket 
+	OS_ESP_GET
+	ld b,wait_count ;
+radio_download_track_wait2
+	halt
+	ld a,(ix+6) ;флаг результат приёма
+	rlca
+	ret c ;если ошибка (=255)
+	or a
+	jr nz,radio_download_track_wait2_skip
+	djnz radio_download_track_wait2
+	scf
+	ret
+	
+radio_download_track_wait2_skip
+	ld hl,(buffer_pointer)
+	ld c,(ix+9) ; длина принятого
+	ld b,(ix+10)
+	add hl,bc
+	ld (buffer_pointer),hl ;продолжить загружать с этого места	
+	
+	jr radio_download_track1 ;получить ещё части до конца
+	
+radio_download_track1_skip
+	OS_ESP_CLOSE ;закрыть!
+
+
+	; ;определить длину
+	; ld de,Content_Length ;найти запись о длине
+	; call search_str
+	; ret c
+	; ex de,hl
+	; call text_to_digit ;преобразовать в число
+	
+	; ex de,hl
+	; ld hl,(buffer_pointer) ;
+	; and a
+	; sbc hl,de
+	; ;узнали начало пакета
+
+	ld hl,(data_start) ;начало данных
 	or a
 	ret
 
@@ -472,14 +695,14 @@ print_info_track ;печать инфо о треке
 	ret c
 	
 	ld a,13
-	OS_PRCHARF	
+	OS_PRINT_CHARF	
 	ret
 	
 	
 print_info_track_one
 	push hl
 	ld a,13
-	OS_PRCHARF
+	OS_PRINT_CHARF
 	pop hl
 	push hl
 	OS_PRINTZ
@@ -497,7 +720,7 @@ print_to_sym ;печать до символа "," или 0
 	or a
 	ret z
 	push hl
-	OS_PRCHARF
+	OS_PRINT_CHARF
 	pop hl
 	inc hl
 	jr print_to_sym
@@ -539,6 +762,12 @@ id_copy_ex
 	ld (de),a  ;в конце 0 
 	ret
 
+strLen: ;посчитать длину строки до 0
+    ld hl, 0
+.loop
+    ld a, (de) : and a : ret z
+    inc de, hl
+    jr .loop
 
 text_to_digit ;тест в цифру
 ;de - текст
@@ -715,12 +944,14 @@ toDecimal0001k
 decimalS	ds 6 ;десятичные цифры
 
 	
-    include "drivers/utils.asm"
-    include "drivers/wifi.asm"
-	include "drivers/zx-wifi.asm"
+    ; include "drivers/utils.asm"
+    ; include "drivers/wifi.asm"
+	; include "drivers/zx-wifi.asm"
 
 
 id_lenght equ 6 ;длина кода файла
+wait_count equ 2*50 ;задержка в кадрах
+buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
 
 ; ;ответы ESP
 ; sendOk[] = "SEND OK";
@@ -733,6 +964,12 @@ id_lenght equ 6 ;длина кода файла
 ;at_cipstart db "AT+CIPSTART=1,\"TCP\",\"zxart.ee\",80",0
 ; "AT+CIPSEND="
 ; "AT+CIPCLOSE"
+;link_id db 0; номер соединения
+data_start dw 0 ;начало данных
+data_end dw 0 ;конец данных
+data_length dw 0 ;конец данных
+buffer_pointer dw 0 ;указатель на буфер
+rnrn db 13,10,13,10,0 ;окончание заголовка
 site_name db "zxart.ee",0 ;имя сайта
 port_number db "80" ,0;
 Content_Length db "Content-Length: ",0
@@ -756,6 +993,7 @@ msg_download_track db "Download track...",13,0
 msg_play_track db "Play track...",13,0
 msg_stop db "Stop",13,0
 msg_restart db "Restart...",13,0
+;msg_get_link_id db "Get link ID...",13,0
 msg_sys_info db "S - stop, R - restart, 1-2 - Format (pt2, pt3)",13
 	db "Sp - Next",13,0
 
@@ -805,7 +1043,7 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_radio
-	db "Radio ver 2024 11 15",10,13,0
+	db "Radio ver 2024.12.12",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки

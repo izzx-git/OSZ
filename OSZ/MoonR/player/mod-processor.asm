@@ -23,9 +23,9 @@ play:
 
 .loop
     halt : 
-    OS_GETCHAR
-	cp 255
-	jp nz, .stopKey
+    OS_GET_CHAR
+	cp " " ;пробел
+	jp z, .stopKey
 	call printRTC
     ;проверка что MOD начал играть сначала
     GS_SendCommand2 CMD_GET_SONG_POSITION

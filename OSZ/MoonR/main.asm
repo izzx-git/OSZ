@@ -58,14 +58,14 @@ outputBuffer: ;equ #c000
     
     call TextMode.init
 
-    ld hl, initing : call TextMode.printZ
-    IFNDEF EMU
-    call Wifi.init
-    ENDIF
+    ; ld hl, initing : call TextMode.printZ
+    ; IFNDEF EMU
+    ; call Wifi.init
+    ; ENDIF
 
     jp History.home
 
-initing db "Initing Wifi...",13,0
+;initing db "Initing Wifi...",13,0
 logo    db  "data/logo.scr", 0
     display "ENDS: ", $
     display "Buff size", #ffff - $

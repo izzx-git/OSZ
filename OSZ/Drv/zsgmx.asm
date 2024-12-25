@@ -32,7 +32,7 @@ cls:
     ld hl, #c000, de, #c001, bc, 16000-1, (hl), a : ldir ;очистить
 	ld a,(con_atr_cur) ;атрибуты
 	call PageSlot3 ;включить страницу атрибутов	
-	ld a,(attr_screen) ;цвет
+	xor a ;ld a,(attr_screen) ;цвет
 	ld hl, #c000, de, #c001, bc, 16000-1, (hl), a : ldir ;очистить
 	;call gmxscron ;включить расширенный экран
 	ld a,(page_slot3_cur)
@@ -196,7 +196,7 @@ move_cr80
 	ld	a,(hl)
 
 	cp	LINE_LIMIT
-	ret	c
+	jr	c,move_cr80_01 ;на выход
 
 	xor	a
 	;ld	(half_tile_screen),a
@@ -272,10 +272,21 @@ clear_line ;очистить строку
     ;ld b, hsize-1 ;последняя
     ;ld c, 0
     call bc_to_attr ;узнать адрес
+	push hl
 	ld d,h
 	ld e,l
 	inc de
 	ld bc,scrline-1
+	ld (hl),0
+	ldir
+	ld a,(con_atr_cur) ;теперь страница атрибутов
+	call PageSlot3 ;
+	pop hl
+	ld d,h
+	ld e,l
+	inc de
+	ld bc,scrline-1
+	;ld a,(con_atr_cur) ;атрибуты
 	ld (hl),0
 	ldir
 	ret

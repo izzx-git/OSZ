@@ -10,7 +10,7 @@ keyCode db 0
 
 waitForKeyUp:
 	halt
-	OS_GETCHAR
+	OS_GET_CHAR
    cp 255
    jr nz, waitForKeyUp
 
@@ -19,7 +19,7 @@ waitForKeyUp:
 
 getC:
 	halt
-	OS_GETCHAR
+	OS_GET_CHAR
    ;ld a,(BASIC_KEY)
    ;and a : jr z, getC
    cp 255
@@ -30,7 +30,7 @@ getC:
    ret
 
 peekC:
-	OS_GETCHAR
+	OS_GET_CHAR
     ;xor a: ld (BASIC_KEY),a
     ;call inkey
     ret

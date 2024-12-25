@@ -5,6 +5,7 @@ fetchFromNet:
     call Gopher.loadBuffer
     jp MediaProcessor.processResource
 .error
+	OS_ESP_CLOSE ;закрыть соединение, если было
     ld hl, .err : call DialogBox.msgBox 
     jp History.back
     

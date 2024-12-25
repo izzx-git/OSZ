@@ -35,7 +35,7 @@ cls:
 ; Set console coordinates
 ; d = row(0..23), e = column (0..79)
 gotoXY:
-	OS_SETXY
+	OS_SET_XY
 	;rr e
 	; ld a, 0
 	; ld (half_tile_screen), a
@@ -50,7 +50,7 @@ disable:
 ; H - line 
 ; A - char
 fillLine: ;заполнение строки одним символом
-	OS_FLINE
+	OS_FILL_LINE
 	ret
     ; push af
     ; ld d, h, e, 0 : call gotoXY
@@ -60,7 +60,7 @@ fillLine: ;заполнение строки одним символом
 
 usualLine: ;на входе в A номер строки, которую надо покрасить обычным цветом
 	ld b,#07 ;цвет
-	OS_PLINE
+	OS_PAINT_LINE
 	ret
     ; ld b, a
     ; ld c, 0
@@ -81,7 +81,7 @@ usualLine: ;на входе в A номер строки, которую над�
 
 highlightLine: ;на входе в A номер строки, которую надо покрасить другим цветом 
 	ld b,#0c ;цвет
-	OS_PLINE
+	OS_PAINT_LINE
 	ret
     ; ld b, a
     ; ld c, 0
@@ -111,7 +111,7 @@ highlightLine: ;на входе в A номер строки, которую н�
 ; Print just one symbol
 ; A - symbol
 putC
-	OS_PRCHARF
+	OS_PRINT_CHARF
 	ret
     ; cp 13 : jp z, mvCR
 

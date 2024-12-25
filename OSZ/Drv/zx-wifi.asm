@@ -3,7 +3,7 @@
 ; Make init shorter and readable:-)
     macro outp port, value
 	ld b, port
-	ld c, #ef
+	ld c, #EF
     ld a, value
     out (c), a
     endm
@@ -18,7 +18,9 @@ LSR     = RBR_THR + 5
 MSR     = RBR_THR + 6
 SR      = RBR_THR + 7
 
-chek: ;проверка есть ли карта
+
+;out: a=255 - no UART
+check: ;проверка есть ли карта
 	ld a, RBR_THR	
     in a, (#fe)
 	cp #ff
@@ -27,7 +29,8 @@ chek: ;проверка есть ли карта
     in a, (#fe) ;второй раз для надёжности
 	cp #ff
 	ret
-
+	
+	
 init:
     outp MCR,     #0d  // Assert RTS
     outp IIR_FCR, #87  // Enable fifo 8 level, and clear it
@@ -40,12 +43,12 @@ init:
     outp MCR,     #2f // Enable AFE
     ret
 	
-retry_rec_count_max equ 10 ;ждать данных максимум столько прерываний
+;retry_rec_count_max equ %00011111 ;ждать столько прерываний
     
 ; Flag C <- Data available
 ; isAvailable:
     ; ld a, LSR
-    ; in a, (#ef)
+    ; in a, (#EF)
     ; rrca
     ; ret
 
@@ -54,37 +57,35 @@ retry_rec_count_max equ 10 ;ждать данных максимум столь�
 ; A <- byte
 ; read1:
     ; ld a, LSR
-    ; in a, (#ef)
+    ; in a, (#EF)
     ; rrca
     ; ret nc
     ; ld a, RBR_THR	
-    ; in a, (#ef)
+    ; in a, (#EF)
     ; scf 
     ; ret
 
 ; Tries read byte with timeout
-; Flag C = 0 is byte read
+; Flag C <- is byte read
 ; A <- byte
 read:
 	;xor a ;4
 	;ld (#5C78),a ;обнулить счётчик ожидания ;13
-;.wait
+.wait
     ld a, LSR
-    in a, (#ef)
+    in a, (#EF)
     rrca
-	jr nc, .readNo
+	jr nc, .wait
     ld a, RBR_THR	
-    in a, (#fe)
-	or a ;есть данные
+    in a, (#EF)
 	ret	
-.readNo ;нет данных
-	xor a
-	scf
-	ret
 ; .readW	
+	; OS_GETTIMER
+	; ld a,e
+	; and retry_rec_count_max
 	; ;ld a,(#5C78)
-	; cp retry_rec_count_max
-	; jr c, .wait ;ещё попытка
+	; ;cp retry_rec_count_max
+	; jr nz, .wait ;ещё попытка
 	; xor a ;выключим флаг переноса если время вышло
 	; ret
 	
@@ -95,30 +96,25 @@ read:
 ; A <- Byte
 ; readB:
     ; ld a, LSR
-    ; in a, (#ef)
+    ; in a, (#EF)
     ; rrca
     ; jr nc, readB
 	; ld a, RBR_THR
-    ; in a, (#ef)
+    ; in a, (#EF)
     ; ret
 
 ; A -> byte to send
-;Out: Flag C = 0 is byte writed
 write:
     push af
-;.wait
+.wait
 	ld a, LSR
-    in a, (#ef)
+    in a, (#EF)
     and #20
-    jr z, .writeNo
+    jr z, .wait
     pop af
 	ld b, RBR_THR
-	ld c, #ef	
+	ld c, #EF	
     out (c), a
-	or a ;отправили
     ret
-.writeNo
-	pop af
-	scf ;не отправили
-	ret
+
     endmodule

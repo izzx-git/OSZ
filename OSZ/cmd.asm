@@ -15,12 +15,12 @@ start_cmd
 	OS_PRINTZ	
 	
 	ld a,">" ;приглашение
-	OS_PRCHARF
+	OS_PRINT_CHARF
 	
 	
 cmd_loop
 	halt
-	OS_GETCHAR ;получить нажатую клавишу
+	OS_GET_CHAR ;получить нажатую клавишу
 	cp 255
 	jr z,cmd_loop
 	cp 13
@@ -28,7 +28,7 @@ cmd_loop
 	cp " "
 	jr c,cmd_loop ;символы до пробела не печатаем
 cmd_loop_print
-	OS_PRCHARF ;печать символа
+	OS_PRINT_CHARF ;печать символа
 	jr cmd_loop
 
 	
