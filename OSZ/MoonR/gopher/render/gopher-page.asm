@@ -34,7 +34,7 @@ workLoop:
     ; halt
     ; edup
 .nothing
-	halt
+	OS_WAIT
 	call printRTC
     call Console.peekC
     cp 255 : jr z, .nothing

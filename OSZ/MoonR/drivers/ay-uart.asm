@@ -21,7 +21,7 @@ init:
     ei
     ld b, #ff
 .flush
-    halt
+    OS_WAIT
     djnz .flush
     ret
 

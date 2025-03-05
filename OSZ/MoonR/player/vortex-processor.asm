@@ -13,7 +13,7 @@ play:
     endif
 	OS_VTPL_PLAY
 .loop
-    halt :; di : call VTPL.PLAY : ei
+    OS_WAIT :; di : call VTPL.PLAY : ei
 	OS_GET_CHAR
 	cp " " ;останов по пробелу
 	jp z, .stopKey

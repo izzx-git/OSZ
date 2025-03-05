@@ -51,7 +51,7 @@ openTCP:
 	
 	ld b,wait_count ; пробуем открыть
 openTCP_wait1
-	halt
+	OS_WAIT
 	push bc
 	xor a ;TCP
 	OS_ESP_OPEN
@@ -64,7 +64,7 @@ openTCP_wait1_ok
 	;или подождём открытия
 	ld b,wait_count ;
 openTCP_wait
-	halt
+	OS_WAIT
 	ld a,(ix+2) ;флаг
 	rlca
 	ret c ;если ошибка (=255)
@@ -181,7 +181,7 @@ tcpSendZ:
 	;ждём когда запрос пройдёт
 	;ld b,wait_count ;
 tcpSendZ_wait1 ;бесконечно ждём
-	halt
+	OS_WAIT
 	ld a,(ix+4) ;флаг
 	cp 1
 	jr nz,tcpSendZ_wait1
@@ -231,7 +231,7 @@ getPacket_skip_over
 	; ret c ;сразу не удалось (может, очередь)
 	; ld b,wait_count ;
 getPacket_wait1
-	halt
+	OS_WAIT
 	ld a,(ix+6) ;флаг результат приёма
 	; rlca
 	; ret c ;если ошибка (=255)

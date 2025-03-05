@@ -11,14 +11,18 @@ display:
 	ld ix,6912
 	OS_RAM_COPY
     ;call TextMode.disable
+display_wait
 	ld a,7
-	OS_SET_SCREEN
+	OS_SET_SCREEN ;включить экран
+	jr nc,.wait
+	OS_WAIT
+	jr display_wait
 .wait
-	halt
+	OS_WAIT
 	OS_GET_CHAR
 	cp 255
 	jr z, .wait
-	ld a,#39
+	ld a,0 ;текстовый
 	OS_SET_SCREEN
     ;call TextMode.cls
     jp History.back

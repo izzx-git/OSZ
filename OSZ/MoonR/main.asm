@@ -72,7 +72,7 @@ logo    db  "data/logo.scr", 0
 
     ;IFDEF ESX
     ;save3dos "moon.bin", asmOrg, $ - asmOrg
-    savebin "moonr.com", asmOrg, $ - asmOrg
+    savebin "moonr.apg", asmOrg, $ - asmOrg
 	;ELSE 
     ;SAVETRD "MOONR.TRD",|"moon.C",asmOrg, $ - asmOrg	
     ;ENDIF

@@ -75,6 +75,8 @@ radio_main_open_ok
 	jp z,start_radio ;всё сначала
 	cp "R"
 	jp z,start_radio ;всё сначала
+	cp 24 ;break
+	jp z,exit
 	
 
 	call radio_request_info ;запрос информации
@@ -93,6 +95,8 @@ radio_request_info_ok
 	jp z,start_radio ;всё сначала
 	cp "R"
 	jp z,start_radio ;всё сначала
+	cp 24 ;break
+	jp z,exit
 	
 	call radio_download_info ;загрузка информации
 	
@@ -115,6 +119,8 @@ radio_download_info_ok
 	jp z,start_radio ;всё сначала
 	cp "R"
 	jp z,start_radio ;всё сначала
+	cp 24 ;break
+	jp z,exit
 	
 	call radio_request_track ;запрос трека
 	
@@ -129,6 +135,8 @@ radio_request_track_ok
 	jp z,start_radio ;всё сначала
 	cp "R"
 	jp z,start_radio ;всё сначала
+	cp 24 ;break
+	jp z,exit
 	
 	call radio_download_track ;загрузка трека
 	
@@ -156,7 +164,7 @@ radio_download_track_ok
 	
 	
 loop_radio
-	halt
+	OS_WAIT
 	OS_GET_CHAR
 	cp "r"
 	jp z,restart ;всё сначала
@@ -178,6 +186,8 @@ loop_radio
 	; jp z, select_ts
 	; cp "4" ;формат
 	; jp z, select_tfc
+	cp 24 ;break
+	jp z,exit
 	OS_GET_VTPL_SETUP
     ld a, (hl) : 
 	rla : jr nc, loop_radio
@@ -195,6 +205,10 @@ restart
 	ld hl,msg_restart
 	OS_PRINTZ
 	jp start_radio_warm
+	
+exit ;выход в ДОС
+	xor a
+	OS_PROC_CLOSE
 
 	
 ;следующий трек
@@ -302,7 +316,7 @@ radio_open_site ;открыть сайт
 	;или подождём открытия
 	ld b,wait_count ;
 radio_open_site_wait
-	halt
+	OS_WAIT
 	ld a,(ix+2) ;флаг
 	rlca
 	ret c ;если ошибка (=255)
@@ -332,7 +346,7 @@ radio_request_info ;запрос инфы
 	;ждём когда запрос пройдёт
 	ld b,wait_count ;
 radio_request_info_wait2
-	halt
+	OS_WAIT
 	ld a,(ix+4) ;флаг
 	rlca
 	ret c ;если ошибка (=255)
@@ -357,7 +371,7 @@ radio_download_info ;загрузить инфо
 	ret c ;сразу не удалось (может, очередь)
 	ld b,wait_count ;
 radio_download_info_wait1
-	halt
+	OS_WAIT
 	ld a,(ix+6) ;флаг результат приёма
 	rlca
 	ret c ;если ошибка (=255)
@@ -416,7 +430,7 @@ radio_download_info1
 	OS_ESP_GET
 	ld b,wait_count ;
 radio_download_info_wait2
-	halt
+	OS_WAIT
 	ld a,(ix+6) ;флаг результат приёма
 	rlca
 	ret c ;если ошибка (=255)
@@ -510,7 +524,7 @@ radio_request_track	;запрос трека
 	;ждём когда запрос пройдёт
 	ld b,wait_count ;
 radio_request_track_wait2
-	halt
+	OS_WAIT
 	ld a,(ix+4) ;флаг
 	rlca
 	ret c ;если ошибка (=255)
@@ -536,7 +550,7 @@ radio_download_track ;загрузить трек
 	ret c ;сразу не удалось (может, очередь)
 	ld b,wait_count ;
 radio_download_track_wait1
-	halt
+	OS_WAIT
 	ld a,(ix+6) ;флаг результат приёма
 	rlca
 	ret c ;если ошибка (=255)
@@ -596,7 +610,7 @@ radio_download_track1
 	OS_ESP_GET
 	ld b,wait_count ;
 radio_download_track_wait2
-	halt
+	OS_WAIT
 	ld a,(ix+6) ;флаг результат приёма
 	rlca
 	ret c ;если ошибка (=255)
@@ -729,7 +743,7 @@ print_to_sym ;печать до символа "," или 0
 delay ;задержка между запросами
 	ld b,50*1 ;
 delay1
-	halt
+	OS_WAIT
 	djnz delay1
 	ret
 
@@ -995,7 +1009,7 @@ msg_stop db "Stop",13,0
 msg_restart db "Restart...",13,0
 ;msg_get_link_id db "Get link ID...",13,0
 msg_sys_info db "S - stop, R - restart, 1-2 - Format (pt2, pt3)",13
-	db "Sp - Next",13,0
+	db "Sp - Next, Break - exit",13,0
 
 total_track dw 0;
 start_track dw 0;
@@ -1043,11 +1057,11 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_radio
-	db "Radio ver 2024.12.12",10,13,0
+	db "Radio ver 2025.01.16",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки
 
 end_radio
 	;SAVETRD "OS.TRD",|"radio.C",start_radio,$-start_radio
-	savebin "radio.com",start_radio,$-start_radio
+	savebin "radio.apg",start_radio,$-start_radio

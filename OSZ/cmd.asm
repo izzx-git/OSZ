@@ -19,7 +19,7 @@ start_cmd
 	
 	
 cmd_loop
-	halt
+	OS_WAIT
 	OS_GET_CHAR ;получить нажатую клавишу
 	cp 255
 	jr z,cmd_loop
@@ -37,4 +37,4 @@ msg_title_cmd
 
 end_cmd
 	;SAVETRD "OS.TRD",|"cmd.C",start_cmd,$-start_cmd
-	savebin "cmd.com",start_cmd,$-start_cmd
+	savebin "cmd.apg",start_cmd,$-start_cmd

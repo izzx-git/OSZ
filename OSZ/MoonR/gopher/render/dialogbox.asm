@@ -37,7 +37,7 @@ msgBox:
     call msgNoWait
     ld b, 150
 .loop
-    halt
+    OS_WAIT
     djnz .loop
     ret
 

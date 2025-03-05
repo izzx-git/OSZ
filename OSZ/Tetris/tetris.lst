@@ -1,0 +1,1867 @@
+# file opened: tetris.asm
+   1  0000              ;Tetris - приложение для OS GMX
+   2  0000                 device ZXSPECTRUM128
+   3  0000              	include "../os_defs.asm"
+# file opened: ../os_defs.asm
+   1+ 0000              ;Список всех вызовов (функций) ОС GMX
+   2+ 0000
+   3+ 0000              ;Включить в свой код (в начале файла):
+   4+ 0000              	; include os_defs.asm
+   5+ 0000
+   6+ 0000              ;Использовать только имена функций, коды могут поменяться
+   7+ 0000
+   8+ 0000              ;например:
+   9+ 0000              	; org PROGSTART
+  10+ 0000              	; ../include os_defs.asm
+  11+ 0000              	; ld hl,text
+  12+ 0000              	; OS_PRINTZ ;печать	до кода 0
+  13+ 0000
+  14+ 0000              ;сохранность регистров не гарантируется
+  15+ 0000              ;на выходе обычно (но не всегда) CY=1 = ошибка
+  16+ 0000
+  17+ 0000              PROGSTART equ #8000 ;адрес старта приложений
+  18+ 0000
+  19+ 0000
+  20+ 0000              ;короткие вызовы (именные RST) -------------------------
+  21+ 0000
+  22+ 0000              ;печать символа в консоль (ускоренная)
+  23+ 0000              	MACRO OS_PRINT_CHARF ;a=char
+  24+ 0000 ~            	rst #10
+  25+ 0000              	ENDM
+  26+ 0000
+  27+ 0000
+  28+ 0000              ;передача управления ОС до следующего прерывания (когда придёт очередь процесса в следующий раз);
+  29+ 0000              ;все регистры сохраняются
+  30+ 0000              ;рекомендуется использовать вместо обычного halt
+  31+ 0000              	MACRO OS_WAIT
+  32+ 0000 ~            	rst #18
+  33+ 0000              	ENDM
+  34+ 0000
+  35+ 0000              	; MACRO OS_
+  36+ 0000              	; rst #28
+  37+ 0000              	; ENDM
+  38+ 0000
+  39+ 0000              	; MACRO OS_
+  40+ 0000              	; rst #30
+  41+ 0000              	; ENDM
+  42+ 0000
+  43+ 0000
+  44+ 0000
+  45+ 0000              ;вызовы через единую точку входа RST #20 ----------------
+  46+ 0000
+  47+ 0000              ;вывод в консоль --------------------
+  48+ 0000
+  49+ 0000              ;очистить консоль
+  50+ 0000              	macro OS_CLS ;clear visible area of terminal
+  51+ 0000 ~                ld c,#00
+  52+ 0000 ~                rst #20
+  53+ 0000                  endm
+  54+ 0000
+  55+ 0000              ;установить позицию курсора в консоли
+  56+ 0000                  macro OS_SET_XY ;de=yx ;SET CURSOR POSITION
+  57+ 0000 ~                ld c,#01
+  58+ 0000 ~                rst #20
+  59+ 0000                  endm
+  60+ 0000
+  61+ 0000              ;печать символа в консоль
+  62+ 0000                  macro OS_PRINT_CHAR ;a=char
+  63+ 0000 ~                ld c,#02
+  64+ 0000 ~                rst #20
+  65+ 0000                  endm
+  66+ 0000
+  67+ 0000              ;заполнение строки одним символом
+  68+ 0000                  macro OS_FILL_LINE ;; H - line ; A - char
+  69+ 0000 ~                ld c,#03
+  70+ 0000 ~                rst #20
+  71+ 0000                  endm
+  72+ 0000
+  73+ 0000              ;покрасить строку цветом
+  74+ 0000                  macro OS_PAINT_LINE ;a - line, b - color
+  75+ 0000 ~                ld c,#04
+  76+ 0000 ~                rst #20
+  77+ 0000                  endm
+  78+ 0000
+  79+ 0000
+  80+ 0000                  ; macro OS_ ;
+  81+ 0000                  ; ld c,#05
+  82+ 0000                  ; rst #20
+  83+ 0000                  ; endm
+  84+ 0000
+  85+ 0000              ;установить цвет текста в консоли;
+  86+ 0000                  macro OS_SET_COLOR ;a = color, b = color 2 (highlight)
+  87+ 0000 ~                ld c,#06
+  88+ 0000 ~                rst #20
+  89+ 0000                  endm
+  90+ 0000
+  91+ 0000                  ; macro OS_ ;
+  92+ 0000                  ; ld c,#07
+  93+ 0000                  ; rst #20
+  94+ 0000                  ; endm
+  95+ 0000
+  96+ 0000                  ; macro OS_ ;
+  97+ 0000                  ; ld c,#08
+  98+ 0000                  ; rst #20
+  99+ 0000                  ; endm
+ 100+ 0000
+ 101+ 0000
+ 102+ 0000
+ 103+ 0000              ;печать в консоль до кода 0
+ 104+ 0000                  macro OS_PRINTZ ;hl=text ;PRINT to 0
+ 105+ 0000 ~                ld c,#09
+ 106+ 0000 ~                rst #20
+ 107+ 0000                  endm
+ 108+ 0000
+ 109+ 0000
+ 110+ 0000              ;прочитать байт из порта uart
+ 111+ 0000              ;вх:
+ 112+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart или нет данных для приёма
+ 113+ 0000              ;вых: A - считанный байт
+ 114+ 0000                  macro OS_UART_READ
+ 115+ 0000 ~                ld c,#0a
+ 116+ 0000 ~                rst #20
+ 117+ 0000                  endm
+ 118+ 0000
+ 119+ 0000              ;записать байт в порт uart
+ 120+ 0000              ;вх: A -байт
+ 121+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+ 122+ 0000                  macro OS_UART_WRITE
+ 123+ 0000 ~                ld c,#0b
+ 124+ 0000 ~                rst #20
+ 125+ 0000                  endm
+ 126+ 0000
+ 127+ 0000              ;закрыть соединение ESP
+ 128+ 0000              ;вх:
+ 129+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+ 130+ 0000                  macro OS_ESP_CLOSE
+ 131+ 0000 ~                ld c,#0c
+ 132+ 0000 ~                rst #20
+ 133+ 0000                  endm
+ 134+ 0000
+ 135+ 0000              ;установить соединение ESP (CIPSTART);
+ 136+ 0000              ;вх: a - тип соединения 0-tcp, 1-udp, 2-ssl; 3-прямое соединение с портом; hl - строка адрес, de - строка порт
+ 137+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+ 138+ 0000              ;вых: ix - адрес в таблице соединений (ix+2 - флаг открытия =1 - открыто, 255 - ошибка);
+ 139+ 0000                  macro OS_ESP_OPEN
+ 140+ 0000 ~                ld c,#0d
+ 141+ 0000 ~                rst #20
+ 142+ 0000                  endm
+ 143+ 0000
+ 144+ 0000              ;послать запрос ESP (CIPSEND);
+ 145+ 0000              ;вх: hl - адрес данных, de - длина данных
+ 146+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+ 147+ 0000              ;вых: ix - адрес в таблице соединений (ix+4 - флаг =1 - отправлено, 255 - ошибка)
+ 148+ 0000                  macro OS_ESP_SEND
+ 149+ 0000 ~                ld c,#0e
+ 150+ 0000 ~                rst #20
+ 151+ 0000                  endm
+ 152+ 0000
+ 153+ 0000              ;получить пакет ESP (+IPD);
+ 154+ 0000              ;вх: hl - адрес для данных
+ 155+ 0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+ 156+ 0000              ;вых: ix - адрес в таблице соединений (ix+6 - флаг =1 - принято, 255 - ошибка)
+ 157+ 0000                  macro OS_ESP_GET
+ 158+ 0000 ~                ld c,#0f
+ 159+ 0000 ~                rst #20
+ 160+ 0000                  endm
+ 161+ 0000
+ 162+ 0000              ;ввод с консоли ----------------------
+ 163+ 0000
+ 164+ 0000              ;получить код нажатой клавиши
+ 165+ 0000                  macro OS_GET_CHAR ;read char from stdin (out: A=char, 255-no char)
+ 166+ 0000 ~                ld c,#10
+ 167+ 0000 ~                rst #20
+ 168+ 0000                  endm
+ 169+ 0000
+ 170+ 0000
+ 171+ 0000              ;процессы ----------------------------
+ 172+ 0000
+ 173+ 0000              ;запустить процесс
+ 174+ 0000              ;вх: hl - имя файла (заканчивается на 0)
+ 175+ 0000                  macro OS_PROC_RUN ;
+ 176+ 0000 ~                ld c,#11
+ 177+ 0000 ~                rst #20
+ 178+ 0000                  endm
+ 179+ 0000
+ 180+ 0000              ;установить фокус
+ 181+ 0000              ;вх: a - id процесса
+ 182+ 0000                  macro OS_PROC_SET_FOCUS ;
+ 183+ 0000 ~                ld c,#12
+ 184+ 0000 ~                rst #20
+ 185+ 0000                  endm
+ 186+ 0000
+ 187+ 0000              ;закрыть процесс
+ 188+ 0000              ;вх: A - ID процесса. Если A=0, закрыть текущий (себя)
+ 189+ 0000              ;останавливается процесс и освобождаются все его страницы памяти, файлы, соединения
+ 190+ 0000                  macro OS_PROC_CLOSE ;
+ 191+ 0000 ~                ld c,#13
+ 192+ 0000 ~                rst #20
+ 193+ 0000                  endm
+ 194+ 0000
+ 195+ 0000
+ 196+ 0000              ;прерывания --------------------------
+ 197+ 0000
+ 198+ 0000              ;установка адреса обработчика прерываний процесса;
+ 199+ 0000                  ; macro OS_SET_INTER ;(HL - address, A = 1 - On, A = 0 - Off)
+ 200+ 0000                  ; ld c,#14
+ 201+ 0000                  ; rst #20
+ 202+ 0000                  ; endm
+ 203+ 0000
+ 204+ 0000
+ 205+ 0000              ;плеер AY ----------------------------
+ 206+ 0000
+ 207+ 0000              ;инициализация плеера AY;
+ 208+ 0000                  macro OS_VTPL_INIT ;(HL - address music)
+ 209+ 0000 ~                ld c,#15
+ 210+ 0000 ~                rst #20
+ 211+ 0000                  endm
+ 212+ 0000
+ 213+ 0000              ;запустить плеер AY (система будет сама вызывать его каждое прерывание);
+ 214+ 0000                  macro OS_VTPL_PLAY ;()
+ 215+ 0000 ~                ld c,#16
+ 216+ 0000 ~                rst #20
+ 217+ 0000                  endm
+ 218+ 0000
+ 219+ 0000              ;заглушить плеер AY;
+ 220+ 0000                  macro OS_VTPL_MUTE ;()
+ 221+ 0000 ~                ld c,#17
+ 222+ 0000 ~                rst #20
+ 223+ 0000                  endm
+ 224+ 0000
+ 225+ 0000              ;получить значение переменной плеера;
+ 226+ 0000                  macro OS_GET_VTPL_SETUP ;(out: HL - setup address)
+ 227+ 0000 ~                ld c,#18
+ 228+ 0000 ~                rst #20
+ 229+ 0000                  endm
+ 230+ 0000
+ 231+ 0000
+ 232+ 0000              ;прочие ------------------------------
+ 233+ 0000
+ 234+ 0000
+ 235+ 0000              ;скопировать данные из страницы в страницу
+ 236+ 0000              ;вх: hl - откуда (абсолютный адрес 0-ffff); de - куда; ix - длина; a - страница слот2; b - страница слот3;
+ 237+ 0000                  macro OS_RAM_COPY
+ 238+ 0000 ~                ld c,#19
+ 239+ 0000 ~                rst #20
+ 240+ 0000                  endm
+ 241+ 0000
+ 242+ 0000              ;получить дополнительную страницу памяти;
+ 243+ 0000                  macro OS_GET_PAGE ;(out A - number page)
+ 244+ 0000 ~                ld c,#1a
+ 245+ 0000 ~                rst #20
+ 246+ 0000                  endm
+ 247+ 0000
+ 248+ 0000              ;включить страницу в слот 2 (#8000); предварительно зарезервировать страницу OS_GET_PAGE
+ 249+ 0000                  macro OS_SET_PAGE_SLOT2 ;(A - page number)
+ 250+ 0000 ~                ld c,#1b
+ 251+ 0000 ~                rst #20
+ 252+ 0000                  endm
+ 253+ 0000
+ 254+ 0000              ;включить страницу в слот 3 (#C000); предварительно зарезервировать страницу OS_GET_PAGE
+ 255+ 0000                  macro OS_SET_PAGE_SLOT3 ;(A - page number)
+ 256+ 0000 ~                ld c,#1c
+ 257+ 0000 ~                rst #20
+ 258+ 0000                  endm
+ 259+ 0000
+ 260+ 0000              ;включить экран N;
+ 261+ 0000              ;вх: A - номер экрана (5, 7, #39, #3a; 0 = текстовый)
+ 262+ 0000              ;переключать может только приложение в фокусе
+ 263+ 0000              ;если режим не текстовый, то приложение работает только когда в фокусе. Иначе временно останавливается.
+ 264+ 0000              ;при переключении процессов сохраняется только экран #39
+ 265+ 0000                  macro OS_SET_SCREEN ;
+ 266+ 0000 ~                ld c,#1d
+ 267+ 0000 ~                rst #20
+ 268+ 0000                  endm
+ 269+ 0000
+ 270+ 0000
+ 271+ 0000              ;получить номера страниц процесса;
+ 272+ 0000              ;вх:
+ 273+ 0000              ;вых: b, c - страницы в слотах 2, 3
+ 274+ 0000                  macro OS_GET_MAIN_PAGES ;
+ 275+ 0000 ~                ld c,#1e
+ 276+ 0000 ~                rst #20
+ 277+ 0000                  endm
+ 278+ 0000
+ 279+ 0000              ;получить значение системного таймера
+ 280+ 0000                  macro OS_GET_TIMER ;(out: HL, DE - timer)
+ 281+ 0000 ~                ld c,#1F
+ 282+ 0000 ~                rst #20
+ 283+ 0000                  endm
+ 284+ 0000
+ 285+ 0000
+ 286+ 0000
+ 287+ 0000                  ; macro OS_ ;
+ 288+ 0000                  ; ld c,#20
+ 289+ 0000                  ; rst #20
+ 290+ 0000                  ; endm
+ 291+ 0000
+ 292+ 0000
+ 293+ 0000              ;дисковые операции -------------------
+ 294+ 0000
+ 295+ 0000              ;открыть файл для чтения или записи
+ 296+ 0000                  macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size)
+ 297+ 0000 ~                ld c,#21
+ 298+ 0000 ~                rst #20
+ 299+ 0000                  endm
+ 300+ 0000
+ 301+ 0000              ;создать файл
+ 302+ 0000                  macro OS_FILE_CREATE ;HL - File name  (out: A - id file)
+ 303+ 0000 ~                ld c,#22
+ 304+ 0000 ~                rst #20
+ 305+ 0000                  endm
+ 306+ 0000
+ 307+ 0000              ;прочитать из файла
+ 308+ 0000                  macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
+ 309+ 0000 ~                ld c,#23
+ 310+ 0000 ~                rst #20
+ 311+ 0000                  endm
+ 312+ 0000
+ 313+ 0000              ;записать в файл
+ 314+ 0000                  macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
+ 315+ 0000 ~                ld c,#24
+ 316+ 0000 ~                rst #20
+ 317+ 0000                  endm
+ 318+ 0000
+ 319+ 0000              ;закрыть файл
+ 320+ 0000                  macro OS_FILE_CLOSE ;A - id file
+ 321+ 0000 ~                ld c,#25
+ 322+ 0000 ~                rst #20
+ 323+ 0000                  endm
+ 324+ 0000
+ 325+ 0000              ;чтение секторов текущего каталога
+ 326+ 0000              ; вх:
+ 327+ 0000                   ; hl - буфер для чтения
+ 328+ 0000                   ; de - относительный номер первого сектора каталога для чтения [0..nn]
+ 329+ 0000                   ; b - максимальное количество секторов для чтения
+ 330+ 0000              ; вых: cy=1, если были ошибки, код ошибки возвращается в аккумуляторе
+ 331+ 0000                     ; a=errRWnum
+ 332+ 0000                     ; a=errInvalidPart
+ 333+ 0000                     ; a=errFileEmpty
+ 334+ 0000                   ; cy=0, a=errEoF - каталог закончился
+ 335+ 0000                     ; hl - следующий адрес в буфере
+ 336+ 0000                     ; de - номер первого непрочитанного сектора
+ 337+ 0000                     ; b - не прочитано секторов
+ 338+ 0000                   ; cy=0 - считано успешно
+ 339+ 0000                     ; hl - следующий адрес в буфере
+ 340+ 0000                     ; de - номер первого непрочитанного сектора
+ 341+ 0000                     ; b=#00
+ 342+ 0000                  macro OS_READ_DIR ;
+ 343+ 0000 ~                ld c,#26
+ 344+ 0000 ~                rst #20
+ 345+ 0000                  endm
+ 346+ 0000
+ 347+ 0000              ;вход в каталог/выход в родительский каталог
+ 348+ 0000              	; Если путь не указан производится только настройка переменных драйвера,
+ 349+ 0000              	; при этом если передан дескриптор файла, текущий каталог не изменится)
+ 350+ 0000              	; Если пусть указан, в конец пути добавится название каталога (если это
+ 351+ 0000              	; переход в родительский, последнее имя в пути удалится).
+ 352+ 0000              	; Если передан дескриптор файла, текущий каталог не изменится, к пути
+ 353+ 0000              	; добавится имя файла
+ 354+ 0000              ; вх:
+ 355+ 0000                   ; hl - адрес пути (=#0000 - путь отсутствует)
+ 356+ 0000                   ; de - адрес дескриптора директории/файла
+ 357+ 0000              ; вых: a - если путь был указан, новая длина пути
+ 358+ 0000                  macro OS_OPEN_DIR ;
+ 359+ 0000 ~                ld c,#27
+ 360+ 0000 ~                rst #20
+ 361+ 0000                  endm
+ 362+ 0000
+ 363+ 0000
+ 364+ 0000                  ; macro OS_ ;
+ 365+ 0000                  ; ld c,#28
+ 366+ 0000                  ; rst #20
+ 367+ 0000                  ; endm
+ 368+ 0000
+ 369+ 0000                  ; macro OS_ ;
+ 370+ 0000                  ; ld c,#29
+ 371+ 0000                  ; rst #20
+ 372+ 0000                  ; endm
+ 373+ 0000
+ 374+ 0000
+# file closed: ../os_defs.asm
+   4  0000              	org PROGSTART
+   5  8000
+   6  8000              start_tetris
+   7  8000              	; ld a,13 ;новая строка
+   8  8000              	; OS_PRINT_CHARF
+   9  8000 21 D3 8B     	ld hl,msg_title_tetris ;имя приложения
+  10  8003              	OS_PRINTZ ;печать
+  10  8003 0E 09       >    ld c,#09
+  10  8005 E7          >    rst #20
+  11  8006
+  12  8006              start_tetris_wait
+  13  8006 3E 39        	ld a,page_pix ;основной экран
+  14  8008              	OS_SET_SCREEN ;включит граф режим
+  14  8008 0E 1D       >    ld c,#1d
+  14  800A E7          >    rst #20
+  15  800B 30 03        	jr nc,start_tetris_warm
+  16  800D              	OS_WAIT
+  16  800D DF          >	rst #18
+  17  800E 18 F6        	jr start_tetris_wait ;ждать когда дадут граф экран
+  18  8010
+  19  8010              start_tetris_warm
+  20  8010 3E 39        	ld a,page_pix ;страница пикселей
+  21  8012              	OS_SET_PAGE_SLOT3
+  21  8012 0E 1C       >    ld c,#1c
+  21  8014 E7          >    rst #20
+  22  8015
+  23  8015 21 00 C0     	ld hl,#c000
+  24  8018 11 01 C0     	ld de,#c001
+  25  801B 01 7F 3E     	ld bc,16000-1
+  26  801E 36 00        	ld (hl),0
+  27  8020 ED B0        	ldir
+  28  8022
+  29  8022
+  30  8022 3E 79        	ld a,page_attr ;страница атрибутов
+  31  8024              	OS_SET_PAGE_SLOT3
+  31  8024 0E 1C       >    ld c,#1c
+  31  8026 E7          >    rst #20
+  32  8027
+  33  8027 21 00 C0     	ld hl,#c000
+  34  802A 11 01 C0     	ld de,#c001
+  35  802D 01 7F 3E     	ld bc,16000-1
+  36  8030 36 00        	ld (hl),0 ;пока чорный
+  37  8032 ED B0        	ldir
+  38  8034
+  39  8034
+  40  8034
+  41  8034 AF           	xor a
+  42  8035 32 D7 85     	ld (figure_fell_flag),a ;флаг
+  43  8038 32 D6 85     	ld (figure_fall_count),a
+  44  803B 32 D4 85     	ld (speed_count),a
+  45  803E
+  46  803E              	;почистить базу
+  47  803E 21 3F 88     	ld hl,base_orig
+  48  8041 11 23 8A     	ld de,base
+  49  8044 01 B0 01     	ld bc,base_orig_end-base_orig
+  50  8047 ED B0        	ldir
+  51  8049
+  52  8049 21 00 00     	ld hl,0 ;очки
+  53  804C 22 E9 85     	ld (score_x1),hl
+  54  804F 22 EB 85     	ld (score_x2),hl
+  55  8052 22 ED 85     	ld (score_x3),hl
+  56  8055 22 EF 85     	ld (score_x4),hl
+  57  8058 22 F1 85     	ld (score_total),hl
+  58  805B
+  59  805B 3E 14        	ld a,figure_fall_count_target_start ;скорость
+  60  805D 32 D5 85     	ld (figure_fall_count_target),a
+  61  8060
+  62  8060
+  63  8060 3E 01        	ld a,1
+  64  8062 32 3D 84     	ld (print_square_pix_flag+1),a ;включить пиксели
+  65  8065 CD 3C 85     	call print_cupe ;печатать весь стакан с пикселями
+  66  8068 AF           	xor a
+  67  8069 32 3D 84     	ld (print_square_pix_flag+1),a ;выключить пиксели
+  68  806C
+  69  806C
+  70  806C CD 84 84     	call get_next_figure ;узнать текущую фигуру и сразу следующую
+  71  806F
+  72  806F CD 84 84     	call get_next_figure
+  73  8072
+  74  8072 21 24 01     	ld 	hl,figure_pos_start ;стартовая позиция
+  75  8075 22 E7 85     	ld (figure_pos_cur),hl
+  76  8078
+  77  8078 11 00 08     	ld de,msg_help_pos ;надпись
+  78  807B              	OS_SET_XY
+  78  807B 0E 01       >    ld c,#01
+  78  807D E7          >    rst #20
+  79  807E 21 FF 85     	ld hl,msg_help
+  80  8081              	OS_PRINTZ
+  80  8081 0E 09       >    ld c,#09
+  80  8083 E7          >    rst #20
+  81  8084
+  82  8084 11 44 08     	ld de,msg_next_pos ;надпись
+  83  8087              	OS_SET_XY
+  83  8087 0E 01       >    ld c,#01
+  83  8089 E7          >    rst #20
+  84  808A 21 49 86     	ld hl,msg_next
+  85  808D              	OS_PRINTZ
+  85  808D 0E 09       >    ld c,#09
+  85  808F E7          >    rst #20
+  86  8090
+  87  8090 01 44 0A     	ld bc,figure_pos_next ;напечатать следующую
+  88  8093 2A E4 85     	ld hl,(figure_next) ;фигура
+  89  8096 3E 01        	ld a,1
+  90  8098 32 3D 84     	ld (print_square_pix_flag+1),a ;включить пиксели
+  91  809B CD BF 84     	call print_figure
+  92  809E AF           	xor a
+  93  809F 32 3D 84     	ld (print_square_pix_flag+1),a ;выключить пиксели
+  94  80A2
+  95  80A2 CD 12 82     	call print_score
+  96  80A5
+  97  80A5              	; ld a,(figure_color_cur) ;текущий цвет
+  98  80A5 2A E2 85     	ld hl,(figure_cur) ;фигура
+  99  80A8 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 100  80AC CD BF 84     	call print_figure
+ 101  80AF
+ 102  80AF              tetris_loop ;основной цикл игры
+ 103  80AF              	OS_WAIT
+ 103  80AF DF          >	rst #18
+ 104  80B0              	; ld a,4
+ 105  80B0              	; out (254),a
+ 106  80B0 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 107  80B3 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 108  80B7 CD FD 84     	call clear_figure	;стереть
+ 109  80BA              	;ld a,0
+ 110  80BA              	;out (254),a
+ 111  80BA
+ 112  80BA CD 91 83     	call figure_fall ;падение
+ 113  80BD 28 2E        	jr z,tetris_loop_next2 ;можно продолжить, ещё нет столкновения
+ 114  80BF
+ 115  80BF              	;тут обработка после падения
+ 116  80BF 3E 01        	ld a,1
+ 117  80C1 32 D7 85     	ld (figure_fell_flag),a ;флаг что уже упала
+ 118  80C4
+ 119  80C4 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 120  80C7 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 121  80CB CD BF 84     	call print_figure	;напечатать	опять
+ 122  80CE
+ 123  80CE CD 20 81     	call speed ;проверить скорость игры
+ 124  80D1
+ 125  80D1 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 126  80D4 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 127  80D8 CD B9 83     	call figure_join ;поместить в базу
+ 128  80DB
+ 129  80DB CD 37 81     	call line_check ;проверить линию и убрать, если надо
+ 130  80DE 28 06        	jr z,tetris_loop_next3
+ 131  80E0 CD C0 81     	call score_add ;добавить очки
+ 132  80E3 CD 12 82     	call print_score ;напечатать очки
+ 133  80E6
+ 134  80E6              tetris_loop_next3
+ 135  80E6 3A D7 85     	ld a,(figure_fell_flag)
+ 136  80E9 B7           	or a
+ 137  80EA C2 8E 82     	jp nz,figure_get_next ;пора показать следующую или закончить игру
+ 138  80ED
+ 139  80ED
+ 140  80ED              tetris_loop_next2
+ 141  80ED
+ 142  80ED              	;проверка управления
+ 143  80ED              	OS_GET_CHAR
+ 143  80ED 0E 10       >    ld c,#10
+ 143  80EF E7          >    rst #20
+ 144  80F0 FE 09        	cp 9
+ 145  80F2 CA F4 82     	jp z,right ;вправо
+ 146  80F5 FE 08        	cp 8
+ 147  80F7 CA 10 83     	jp z,left ;влево
+ 148  80FA FE 0B        	cp 11
+ 149  80FC CA 5A 83     	jp z,rotation ;вверх
+ 150  80FF FE 0A        	cp 10
+ 151  8101 CA 2C 83     	jp z,down ;вниз
+ 152  8104 FE 20        	cp " "
+ 153  8106 CA 5A 83     	jp z,rotation ;вниз
+ 154  8109 FE 68        	cp "h"
+ 155  810B CA 04 82     	jp z,pause ;пауза
+ 156  810E FE 18        	cp 24 ;break
+ 157  8110 CA 74 85     	jp z,tetris_exit
+ 158  8113
+ 159  8113              tetris_loop_next
+ 160  8113              	;показать на новых координатах
+ 161  8113              	; ld a,4
+ 162  8113              	; out (254),a
+ 163  8113 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 164  8116 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 165  811A CD BF 84     	call print_figure	;напечатать
+ 166  811D              	; ld a,0
+ 167  811D              	; out (254),a
+ 168  811D C3 AF 80     	jp tetris_loop
+ 169  8120
+ 170  8120
+ 171  8120
+ 172  8120              ;увеличение скорости игры
+ 173  8120              speed
+ 174  8120 3A D4 85     	ld a,(speed_count)
+ 175  8123 3C           	inc a
+ 176  8124 FE 14        	cp speed_target ;конечная скорость
+ 177  8126 38 0B        	jr c,tetris_loop_speed_count
+ 178  8128              	;здесь надо увеличить скорость
+ 179  8128 3A D5 85     	ld a,(figure_fall_count_target)
+ 180  812B 3D           	dec a
+ 181  812C 20 01        	jr nz,tetris_loop_speed_count1
+ 182  812E 3C           	inc a ;не меньше 1
+ 183  812F              tetris_loop_speed_count1
+ 184  812F 32 D5 85     	ld (figure_fall_count_target),a
+ 185  8132 AF           	xor a
+ 186  8133              tetris_loop_speed_count
+ 187  8133 32 D4 85     	ld (speed_count),a
+ 188  8136 C9           	ret
+ 189  8137
+ 190  8137
+ 191  8137              ;проверка и удаление линии
+ 192  8137              line_check
+ 193  8137 FD 2E 00     	ld iyl,0 ;счётчик
+ 194  813A              line_check_warm
+ 195  813A DD 21 27 8A  	ld ix,base+4 ;база верхняя строка
+ 196  813E FD 26 00     	ld iyh,0 ;верхняя строка
+ 197  8141              	;цикл  20 строк
+ 198  8141 06 14        	ld b,20 ;цикл по строкам
+ 199  8143              line_check_cl_line
+ 200  8143 DD E5        	push ix
+ 201  8145 E1           	pop hl ;начало строки
+ 202  8146
+ 203  8146              line_check_cl_row ;цикл по столбцам
+ 204  8146 7E           	ld a,(hl) ;цвет фигуры
+ 205  8147 B7           	or a
+ 206  8148 28 11        	jr z,line_check_skip
+ 207  814A              	;проверка остальной строки
+ 208  814A 0E 09        	ld c,10-1
+ 209  814C              line_check_cl_row2
+ 210  814C 23           	inc hl ;дальше по базе
+ 211  814D 7E           	ld a,(hl)
+ 212  814E B7           	or a
+ 213  814F 28 0A        	jr z,line_check_skip
+ 214  8151 0D           	dec c
+ 215  8152 20 F8        	jr nz,line_check_cl_row2
+ 216  8154              	;тут узнали что строка заполнена
+ 217  8154 FD 2C        	inc iyl
+ 218  8156 CD 6A 81     	call line_remove
+ 219  8159 18 DF        	jr line_check_warm ;снова проверяем таблицу
+ 220  815B
+ 221  815B              line_check_skip
+ 222  815B FD 24        	inc iyh ;строка ++
+ 223  815D C5           	push bc
+ 224  815E 01 12 00     	ld bc,base_x_size
+ 225  8161 DD 09        	add ix,bc ;след строка
+ 226  8163 C1           	pop bc
+ 227  8164 10 DD        	djnz line_check_cl_line
+ 228  8166
+ 229  8166
+ 230  8166 FD 7D        	ld a,iyl ;сколько наши
+ 231  8168 B7           	or a
+ 232  8169 C9           	ret
+ 233  816A
+ 234  816A
+ 235  816A
+ 236  816A
+ 237  816A
+ 238  816A              ;убрать строку
+ 239  816A              line_remove
+ 240  816A DD E5        	push ix
+ 241  816C E1           	pop hl ;начало строки
+ 242  816D 36 42        	ld (hl),2+64 ;заполнить ярко красным
+ 243  816F 54           	ld d,h
+ 244  8170 5D           	ld e,l
+ 245  8171 13           	inc de
+ 246  8172 01 09 00     	ld bc,10-1
+ 247  8175 ED B0        	ldir
+ 248  8177
+ 249  8177 FD E5        	push iy
+ 250  8179 DD E5        	push ix
+ 251  817B CD 3C 85     	call print_cupe ;напечатать весь стакан
+ 252  817E DD E1        	pop ix
+ 253  8180 FD E1        	pop iy
+ 254  8182              	OS_WAIT ;пауза
+ 254  8182 DF          >	rst #18
+ 255  8183              	;OS_WAIT
+ 256  8183
+ 257  8183              	;теперь сдвинуть базу вниз
+ 258  8183 FD 7C        	ld a,iyh ; строка
+ 259  8185 B7           	or a
+ 260  8186 28 1F        	jr z,line_remove_ex ;если верхняя строка, то на выход
+ 261  8188
+ 262  8188 DD E5        	push ix
+ 263  818A E1           	pop hl
+ 264  818B              line_remove1
+ 265  818B 01 12 00     	ld bc,18
+ 266  818E 54           	ld d,h
+ 267  818F 5D           	ld e,l ;куда
+ 268  8190 A7           	and a
+ 269  8191 ED 42        	sbc hl,bc ;на строку вверх
+ 270  8193
+ 271  8193 01 0A 00     	ld bc,10
+ 272  8196 ED B0        	ldir ;перенести
+ 273  8198
+ 274  8198 FD 25        	dec iyh
+ 275  819A FD 7C        	ld a,iyh
+ 276  819C B7           	or a
+ 277  819D 28 08        	jr z,line_remove_ex
+ 278  819F
+ 279  819F 01 0A 00     	ld bc,10 ;ещё назад
+ 280  81A2 A7           	and a
+ 281  81A3 ED 42        	sbc hl,bc
+ 282  81A5
+ 283  81A5 18 E4        	jr line_remove1
+ 284  81A7
+ 285  81A7
+ 286  81A7
+ 287  81A7
+ 288  81A7              line_remove_ex
+ 289  81A7              	;почистить верхнюю строку
+ 290  81A7 21 27 8A     	ld hl,base+4
+ 291  81AA 11 28 8A     	ld de,base+4+1
+ 292  81AD 36 00        	ld (hl),0
+ 293  81AF 01 09 00     	ld bc,10-1
+ 294  81B2 ED B0        	ldir
+ 295  81B4
+ 296  81B4 FD E5        	push iy
+ 297  81B6 DD E5        	push ix
+ 298  81B8 CD 3C 85     	call print_cupe ;напечатать весь стакан
+ 299  81BB DD E1        	pop ix
+ 300  81BD FD E1        	pop iy
+ 301  81BF C9           	ret
+ 302  81C0
+ 303  81C0
+ 304  81C0              ;добавить очки
+ 305  81C0              ;вх: A - количество линий
+ 306  81C0              score_add
+ 307  81C0 B7           	or a
+ 308  81C1 C8           	ret z
+ 309  81C2 FE 05        	cp 5
+ 310  81C4 D0           	ret nc ;защита
+ 311  81C5 FE 01        	cp 1
+ 312  81C7 20 09        	jr nz,score_add_skip_1
+ 313  81C9 2A E9 85     	ld hl,(score_x1)
+ 314  81CC 23           	inc hl
+ 315  81CD 22 E9 85     	ld (score_x1),hl
+ 316  81D0 18 27        	jr score_add_ex
+ 317  81D2              score_add_skip_1
+ 318  81D2
+ 319  81D2 FE 02        	cp 2
+ 320  81D4 20 09        	jr nz,score_add_skip_2
+ 321  81D6 2A EB 85     	ld hl,(score_x2)
+ 322  81D9 23           	inc hl
+ 323  81DA 22 EB 85     	ld (score_x2),hl
+ 324  81DD 18 1A        	jr score_add_ex
+ 325  81DF              score_add_skip_2
+ 326  81DF
+ 327  81DF FE 03        	cp 3
+ 328  81E1 20 09        	jr nz,score_add_skip_3
+ 329  81E3 2A ED 85     	ld hl,(score_x3)
+ 330  81E6 23           	inc hl
+ 331  81E7 22 ED 85     	ld (score_x3),hl
+ 332  81EA 18 0D        	jr score_add_ex
+ 333  81EC              score_add_skip_3
+ 334  81EC
+ 335  81EC FE 04        	cp 4
+ 336  81EE 20 09        	jr nz,score_add_skip_4
+ 337  81F0 2A EF 85     	ld hl,(score_x4)
+ 338  81F3 23           	inc hl
+ 339  81F4 22 EF 85     	ld (score_x4),hl
+ 340  81F7 18 00        	jr score_add_ex
+ 341  81F9              score_add_skip_4
+ 342  81F9
+ 343  81F9
+ 344  81F9              score_add_ex
+ 345  81F9 2A F1 85     	ld hl,(score_total)
+ 346  81FC 4F           	ld c,a
+ 347  81FD 06 00        	ld b,0
+ 348  81FF 09           	add hl,bc
+ 349  8200 22 F1 85     	ld (score_total),hl
+ 350  8203 C9           	ret
+ 351  8204
+ 352  8204              ;пауза
+ 353  8204              pause
+ 354  8204 CD EB 82     	call release_key
+ 355  8207              pause1
+ 356  8207              	OS_WAIT
+ 356  8207 DF          >	rst #18
+ 357  8208              	OS_GET_CHAR
+ 357  8208 0E 10       >    ld c,#10
+ 357  820A E7          >    rst #20
+ 358  820B FE FF        	cp 255 ;ждём любой клавиши
+ 359  820D 28 F8        	jr z,pause1
+ 360  820F C3 AF 80     	jp tetris_loop
+ 361  8212
+ 362  8212
+ 363  8212
+ 364  8212              ;печать очков
+ 365  8212              print_score
+ 366  8212 11 00 00     	ld de,msg_score_pos
+ 367  8215              	OS_SET_XY
+ 367  8215 0E 01       >    ld c,#01
+ 367  8217 E7          >    rst #20
+ 368  8218 21 4F 86     	ld hl,msg_score
+ 369  821B              	OS_PRINTZ
+ 369  821B 0E 09       >    ld c,#09
+ 369  821D E7          >    rst #20
+ 370  821E
+ 371  821E 3A D5 85     	ld a,(figure_fall_count_target)
+ 372  8221 6F           	ld l,a
+ 373  8222 26 00        	ld h,0
+ 374  8224 CD 78 85     	call toDecimal
+ 375  8227 11 07 08     	ld de,msg_speed_pos
+ 376  822A              	OS_SET_XY
+ 376  822A 0E 01       >    ld c,#01
+ 376  822C E7          >    rst #20
+ 377  822D 21 D0 85     	ld hl,decimalS+2
+ 378  8230              	OS_PRINTZ
+ 378  8230 0E 09       >    ld c,#09
+ 378  8232 E7          >    rst #20
+ 379  8233
+ 380  8233 2A E9 85     	ld hl,(score_x1)
+ 381  8236 CD 78 85     	call toDecimal
+ 382  8239 11 04 01     	ld de,msg_score_pos_x1
+ 383  823C              	OS_SET_XY
+ 383  823C 0E 01       >    ld c,#01
+ 383  823E E7          >    rst #20
+ 384  823F 21 CE 85     	ld hl,decimalS
+ 385  8242              	OS_PRINTZ
+ 385  8242 0E 09       >    ld c,#09
+ 385  8244 E7          >    rst #20
+ 386  8245
+ 387  8245 2A EB 85     	ld hl,(score_x2)
+ 388  8248 CD 78 85     	call toDecimal
+ 389  824B 11 04 02     	ld de,msg_score_pos_x2
+ 390  824E              	OS_SET_XY
+ 390  824E 0E 01       >    ld c,#01
+ 390  8250 E7          >    rst #20
+ 391  8251 21 CE 85     	ld hl,decimalS
+ 392  8254              	OS_PRINTZ
+ 392  8254 0E 09       >    ld c,#09
+ 392  8256 E7          >    rst #20
+ 393  8257
+ 394  8257 2A ED 85     	ld hl,(score_x3)
+ 395  825A CD 78 85     	call toDecimal
+ 396  825D 11 04 03     	ld de,msg_score_pos_x3
+ 397  8260              	OS_SET_XY
+ 397  8260 0E 01       >    ld c,#01
+ 397  8262 E7          >    rst #20
+ 398  8263 21 CE 85     	ld hl,decimalS
+ 399  8266              	OS_PRINTZ
+ 399  8266 0E 09       >    ld c,#09
+ 399  8268 E7          >    rst #20
+ 400  8269
+ 401  8269 2A EF 85     	ld hl,(score_x4)
+ 402  826C CD 78 85     	call toDecimal
+ 403  826F 11 04 04     	ld de,msg_score_pos_x4
+ 404  8272              	OS_SET_XY
+ 404  8272 0E 01       >    ld c,#01
+ 404  8274 E7          >    rst #20
+ 405  8275 21 CE 85     	ld hl,decimalS
+ 406  8278              	OS_PRINTZ
+ 406  8278 0E 09       >    ld c,#09
+ 406  827A E7          >    rst #20
+ 407  827B
+ 408  827B 2A F1 85     	ld hl,(score_total)
+ 409  827E CD 78 85     	call toDecimal
+ 410  8281 11 07 06     	ld de,msg_score_pos_total
+ 411  8284              	OS_SET_XY
+ 411  8284 0E 01       >    ld c,#01
+ 411  8286 E7          >    rst #20
+ 412  8287 21 CE 85     	ld hl,decimalS
+ 413  828A              	OS_PRINTZ
+ 413  828A 0E 09       >    ld c,#09
+ 413  828C E7          >    rst #20
+ 414  828D C9           	ret
+ 415  828E
+ 416  828E
+ 417  828E              figure_get_next ;начало следующей
+ 418  828E 01 44 0A     	ld bc,figure_pos_next ;стереть следующую
+ 419  8291 2A E4 85     	ld hl,(figure_next) ;фигура
+ 420  8294 CD FD 84     	call clear_figure
+ 421  8297
+ 422  8297
+ 423  8297 CD 84 84     	call get_next_figure
+ 424  829A
+ 425  829A 01 24 01     	ld 	bc,figure_pos_start ;стартовая позиция
+ 426  829D ED 43 E7 85  	ld (figure_pos_cur),bc
+ 427  82A1
+ 428  82A1
+ 429  82A1 01 44 0A     	ld bc,figure_pos_next ;напечатать следующую
+ 430  82A4 2A E4 85     	ld hl,(figure_next) ;фигура
+ 431  82A7 3E 01        	ld a,1
+ 432  82A9 32 3D 84     	ld (print_square_pix_flag+1),a ;включить пиксели
+ 433  82AC CD BF 84     	call print_figure
+ 434  82AF AF           	xor a
+ 435  82B0 32 3D 84     	ld (print_square_pix_flag+1),a ;выключить пиксели
+ 436  82B3
+ 437  82B3
+ 438  82B3 AF           	xor a
+ 439  82B4 32 D7 85     	ld (figure_fell_flag),a ;флаг
+ 440  82B7
+ 441  82B7              	;проверить влезает ли
+ 442  82B7 ED 4B E7 85  	ld bc,(figure_pos_cur)
+ 443  82BB 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 444  82BE CD F3 83     	call figure_check_pos
+ 445  82C1 CA DE 82     	jp z,figure_get_next_ok	;
+ 446  82C4
+ 447  82C4              	;иначе конец игры
+ 448  82C4 11 23 0C     	ld de,msg_game_over_pos
+ 449  82C7              	OS_SET_XY
+ 449  82C7 0E 01       >    ld c,#01
+ 449  82C9 E7          >    rst #20
+ 450  82CA 21 F3 85     	ld hl,msg_game_over
+ 451  82CD              	OS_PRINTZ
+ 451  82CD 0E 09       >    ld c,#09
+ 451  82CF E7          >    rst #20
+ 452  82D0 CD EB 82     	call release_key
+ 453  82D3              figure_get_wait
+ 454  82D3              	OS_WAIT
+ 454  82D3 DF          >	rst #18
+ 455  82D4              	OS_GET_CHAR
+ 455  82D4 0E 10       >    ld c,#10
+ 455  82D6 E7          >    rst #20
+ 456  82D7 FE FF        	cp 255
+ 457  82D9 28 F8        	jr z,figure_get_wait
+ 458  82DB
+ 459  82DB C3 10 80     	jp start_tetris_warm ;сначала
+ 460  82DE
+ 461  82DE              figure_get_next_ok
+ 462  82DE
+ 463  82DE 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 464  82E1 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 465  82E5 CD BF 84     	call print_figure	;напечатать
+ 466  82E8
+ 467  82E8 C3 AF 80     	jp tetris_loop
+ 468  82EB
+ 469  82EB
+ 470  82EB              ;ждать отпускания клавиши
+ 471  82EB              release_key
+ 472  82EB              	OS_WAIT
+ 472  82EB DF          >	rst #18
+ 473  82EC              	OS_GET_CHAR
+ 473  82EC 0E 10       >    ld c,#10
+ 473  82EE E7          >    rst #20
+ 474  82EF FE FF        	cp 255
+ 475  82F1 20 F8        	jr nz,release_key
+ 476  82F3 C9           	ret
+ 477  82F4
+ 478  82F4
+ 479  82F4              right
+ 480  82F4 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 481  82F7 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 482  82FB 0C           	inc c ;вправо
+ 483  82FC 0C           	inc c
+ 484  82FD CD F3 83     	call figure_check_pos ;
+ 485  8300 C2 13 81     	jp nz,tetris_loop_next	;не вмещается
+ 486  8303 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 487  8307 0C           	inc c ;вправо
+ 488  8308 0C           	inc c
+ 489  8309 ED 43 E7 85  	ld (figure_pos_cur),bc
+ 490  830D C3 13 81     	jp tetris_loop_next
+ 491  8310
+ 492  8310              left
+ 493  8310 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 494  8313 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 495  8317 0D           	dec c ;влево
+ 496  8318 0D           	dec c
+ 497  8319 CD F3 83     	call figure_check_pos ;
+ 498  831C C2 13 81     	jp nz,tetris_loop_next	;не вмещается
+ 499  831F ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 500  8323 0D           	dec c ;влево
+ 501  8324 0D           	dec c
+ 502  8325 ED 43 E7 85  	ld (figure_pos_cur),bc
+ 503  8329 C3 13 81     	jp tetris_loop_next
+ 504  832C
+ 505  832C
+ 506  832C
+ 507  832C              ; up
+ 508  832C              	; jp tetris_loop_next
+ 509  832C
+ 510  832C
+ 511  832C              down ;ускоренное падение
+ 512  832C 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 513  832F ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 514  8333 04           	inc b ;вниз
+ 515  8334 CD F3 83     	call figure_check_pos ;
+ 516  8337 C2 13 81     	jp nz,tetris_loop_next	;не вмещается
+ 517  833A
+ 518  833A              	OS_WAIT
+ 518  833A DF          >	rst #18
+ 519  833B
+ 520  833B 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 521  833E ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 522  8342 CD FD 84     	call clear_figure	;стереть
+ 523  8345
+ 524  8345 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 525  8349 04           	inc b ;y++
+ 526  834A ED 43 E7 85  	ld (figure_pos_cur),bc
+ 527  834E
+ 528  834E 2A E2 85     	ld hl,(figure_cur) ;фигура
+ 529  8351 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 530  8355 CD BF 84     	call print_figure	;печатать
+ 531  8358 18 D2        	jr down ;снова
+ 532  835A
+ 533  835A
+ 534  835A
+ 535  835A              rotation
+ 536  835A 3A DC 85     	ld a,(figure_fase_cur)
+ 537  835D 3C           	inc a
+ 538  835E FE 04        	cp 4 ;максимум 3 фазы
+ 539  8360 DA 64 83     	jp c,rotation1
+ 540  8363 AF           	xor a
+ 541  8364              rotation1
+ 542  8364 CD 87 83     	call figure_calc_fase
+ 543  8367
+ 544  8367 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 545  836B CD F3 83     	call figure_check_pos ;
+ 546  836E C2 13 81     	jp nz,tetris_loop_next	;не вмещается
+ 547  8371 3A DC 85     	ld a,(figure_fase_cur)
+ 548  8374 3C           	inc a
+ 549  8375 FE 04        	cp 4 ;максимум 3 фазы
+ 550  8377 DA 7B 83     	jp c,rotation2
+ 551  837A AF           	xor a
+ 552  837B              rotation2
+ 553  837B 32 DC 85     	ld (figure_fase_cur),a
+ 554  837E CD 87 83     	call figure_calc_fase
+ 555  8381 22 E2 85     	ld (figure_cur),hl ;новая фаза
+ 556  8384
+ 557  8384 C3 13 81     	jp tetris_loop_next
+ 558  8387
+ 559  8387
+ 560  8387
+ 561  8387              figure_calc_fase ;определить адрес аписания фазы
+ 562  8387 07           	rlca ;*2
+ 563  8388 07           	rlca ;*4
+ 564  8389 4F           	ld c,a
+ 565  838A 06 00        	ld b,0
+ 566  838C 2A DE 85     	ld hl,(figure_cur_first_fase)
+ 567  838F 09           	add hl,bc ;узнали адрес фазы
+ 568  8390 C9           	ret
+ 569  8391
+ 570  8391              ;падение
+ 571  8391              figure_fall
+ 572  8391 3A D6 85     	ld a,(figure_fall_count)
+ 573  8394 3C           	inc a
+ 574  8395 32 D6 85     	ld (figure_fall_count),a
+ 575  8398 21 D5 85     	ld hl,figure_fall_count_target
+ 576  839B BE           	cp (hl)
+ 577  839C 38 19        	jr c,figure_fall_ex
+ 578  839E AF           	xor a
+ 579  839F 32 D6 85     	ld (figure_fall_count),a
+ 580  83A2
+ 581  83A2 ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 582  83A6 04           	inc b
+ 583  83A7 2A E2 85     	ld hl,(figure_cur)
+ 584  83AA CD F3 83     	call figure_check_pos ;проверить можно ли
+ 585  83AD C0           	ret nz ;нет
+ 586  83AE ED 4B E7 85  	ld bc,(figure_pos_cur) ;позиция
+ 587  83B2 04           	inc b ;вниз
+ 588  83B3 ED 43 E7 85  	ld (figure_pos_cur),bc
+ 589  83B7              figure_fall_ex
+ 590  83B7 AF           	xor a ;нормально
+ 591  83B8 C9           	ret
+ 592  83B9
+ 593  83B9
+ 594  83B9
+ 595  83B9
+ 596  83B9              ;слияние фигуры с базой
+ 597  83B9              ;HL - описание фигуры
+ 598  83B9              ;BC- позиция (b>=1)
+ 599  83B9              figure_join
+ 600  83B9 79           	ld a,c
+ 601  83BA D6 16        	sub cup_pos_x ;
+ 602  83BC 0F           	rrca ;/2 узнать позицию x по базе
+ 603  83BD E5           	push hl
+ 604  83BE 21 23 8A     	ld hl,base ;база
+ 605  83C1 05           	dec b ;коррекция
+ 606  83C2 28 07        	jr z,figure_join_pos_cl2_skip
+ 607  83C4 1E 12        	ld e,base_x_size
+ 608  83C6 16 00        	ld d,0
+ 609  83C8              figure_join_pos_cl2
+ 610  83C8 19           	add hl,de
+ 611  83C9 10 FD        	djnz figure_join_pos_cl2
+ 612  83CB              figure_join_pos_cl2_skip
+ 613  83CB 06 00        	ld b,0
+ 614  83CD 4F           	ld c,a
+ 615  83CE 09           	add hl,bc ;брибавить x
+ 616  83CF EB           	ex de,hl ;de - адрес в базе
+ 617  83D0 E1           	pop hl
+ 618  83D1              	;цикл построения 4*4
+ 619  83D1 01 04 04     	ld bc,#0404 ;xy
+ 620  83D4              figure_join_pos_cl1
+ 621  83D4 C5           	push bc
+ 622  83D5 7E           	ld a,(hl) ;цвет фигуры
+ 623  83D6 B7           	or a
+ 624  83D7 28 01        	jr z,figure_join_pos_skip
+ 625  83D9 12           	ld (de),a ;элемент базы
+ 626  83DA              figure_join_pos_skip
+ 627  83DA 23           	inc hl ;вперёд по описателю фигуры
+ 628  83DB 13           	inc de ;дальше по базе
+ 629  83DC C1           	pop bc
+ 630  83DD 10 F5        	djnz figure_join_pos_cl1
+ 631  83DF D5           	push de
+ 632  83E0 11 0C 00     	ld de,16-4 ;на след строку описания фигуры
+ 633  83E3 19           	add hl,de
+ 634  83E4 D1           	pop de
+ 635  83E5
+ 636  83E5 E5           	push hl
+ 637  83E6 EB           	ex de,hl
+ 638  83E7 11 0E 00     	ld de,base_x_size-4 ;на след строку базы
+ 639  83EA 19           	add hl,de
+ 640  83EB EB           	ex de,hl
+ 641  83EC E1           	pop hl
+ 642  83ED
+ 643  83ED 06 04        	ld b,#04 ;новый цикл строки
+ 644  83EF 0D           	dec c
+ 645  83F0 20 E2        	jr nz,figure_join_pos_cl1
+ 646  83F2 C9           	ret ;нормально
+ 647  83F3
+ 648  83F3
+ 649  83F3
+ 650  83F3              ;проверка помещается ли фигура
+ 651  83F3              ;HL - описание фигуры
+ 652  83F3              ;BC- позиция (b>=1)
+ 653  83F3              figure_check_pos
+ 654  83F3 79           	ld a,c
+ 655  83F4 D6 16        	sub cup_pos_x ;
+ 656  83F6 0F           	rrca ;/2 узнать позицию x по базе
+ 657  83F7 E5           	push hl
+ 658  83F8 21 23 8A     	ld hl,base ;база
+ 659  83FB 05           	dec b ;коррекция
+ 660  83FC 28 07        	jr z,figure_check_pos_cl2_skip
+ 661  83FE 1E 12        	ld e,base_x_size
+ 662  8400 16 00        	ld d,0
+ 663  8402              figure_check_pos_cl2
+ 664  8402 19           	add hl,de
+ 665  8403 10 FD        	djnz figure_check_pos_cl2
+ 666  8405              figure_check_pos_cl2_skip
+ 667  8405 06 00        	ld b,0
+ 668  8407 4F           	ld c,a
+ 669  8408 09           	add hl,bc ;брибавить x
+ 670  8409 EB           	ex de,hl ;de - адрес в базе
+ 671  840A E1           	pop hl
+ 672  840B              	;цикл построения 4*4
+ 673  840B 01 04 04     	ld bc,#0404 ;xy
+ 674  840E              figure_check_pos_cl1
+ 675  840E C5           	push bc
+ 676  840F 7E           	ld a,(hl) ;цвет фигуры
+ 677  8410 B7           	or a
+ 678  8411 28 04        	jr z,figure_check_pos_skip
+ 679  8413 1A           	ld a,(de) ;элемент базы
+ 680  8414 B7           	or a
+ 681  8415 20 1A        	jr nz,figure_check_pos_ex ;вернуться если столкновение
+ 682  8417              figure_check_pos_skip
+ 683  8417 23           	inc hl ;вперёд по описателю фигуры
+ 684  8418 13           	inc de ;дальше по базе
+ 685  8419 C1           	pop bc
+ 686  841A 10 F2        	djnz figure_check_pos_cl1
+ 687  841C D5           	push de
+ 688  841D 11 0C 00     	ld de,16-4 ;на след строку описания фигуры
+ 689  8420 19           	add hl,de
+ 690  8421 D1           	pop de
+ 691  8422
+ 692  8422 E5           	push hl
+ 693  8423 EB           	ex de,hl
+ 694  8424 11 0E 00     	ld de,base_x_size-4 ;на след строку базы
+ 695  8427 19           	add hl,de
+ 696  8428 EB           	ex de,hl
+ 697  8429 E1           	pop hl
+ 698  842A
+ 699  842A 06 04        	ld b,#04 ;новый цикл строки
+ 700  842C 0D           	dec c
+ 701  842D 20 DF        	jr nz,figure_check_pos_cl1
+ 702  842F AF           	xor a
+ 703  8430 C9           	ret ;нормально
+ 704  8431              figure_check_pos_ex
+ 705  8431              	;стокновение
+ 706  8431 C1           	pop bc
+ 707  8432 C9           	ret
+ 708  8433
+ 709  8433
+ 710  8433              ;нарисовать один квадрат
+ 711  8433              ;вх: BC - адрес на экране (xy)
+ 712  8433              ;вх: A - цвет
+ 713  8433              print_square
+ 714  8433 32 6E 86     	ld (square_color_cur),a ;запомнить цвет
+ 715  8436 CD 70 84     	call calc_addr_scr
+ 716  8439 54           	ld d,h ;координаты экрана в DE
+ 717  843A 5D           	ld e,l
+ 718  843B D5           	push de ;сохранить адрес символа на экране
+ 719  843C
+ 720  843C              print_square_pix_flag
+ 721  843C 3E 00        	ld a,0 ;флаг печатать пиксели
+ 722  843E B7           	or a
+ 723  843F 28 1A        	jr z,print_square_pix_skip
+ 724  8441
+ 725  8441 3E 39        	ld a,page_pix ;страница пиксели
+ 726  8443 D5           	push de
+ 727  8444              	OS_SET_PAGE_SLOT3
+ 727  8444 0E 1C       >    ld c,#1c
+ 727  8446 E7          >    rst #20
+ 728  8447 D1           	pop de
+ 729  8448
+ 730  8448 21 6F 86     	ld hl,square_one ;рисунок квадрата
+ 731  844B 01 FF 08         ld  bc,#08ff
+ 732  844E              print80_1
+ 733  844E ED A0        	ldi ;один байт
+ 734  8450 ED A0        	ldi ;второй
+ 735  8452
+ 736  8452 E5           	push hl ;на строку пикселей вниз
+ 737  8453 21 4E 00     	ld hl,80-2
+ 738  8456 19           	add hl,de
+ 739  8457 EB           	ex de,hl
+ 740  8458 E1           	pop hl
+ 741  8459
+ 742  8459 10 F3        	djnz    print80_1
+ 743  845B
+ 744  845B
+ 745  845B              print_square_pix_skip
+ 746  845B              	;атрибуты
+ 747  845B 3E 79        	ld a,page_attr ;страница атрибуты
+ 748  845D              	OS_SET_PAGE_SLOT3
+ 748  845D 0E 1C       >    ld c,#1c
+ 748  845F E7          >    rst #20
+ 749  8460
+ 750  8460 E1           	pop hl ;адрес символа на экране
+ 751  8461
+ 752  8461 06 08            ld   b,8
+ 753  8463 3A 6E 86     	ld a,(square_color_cur)
+ 754  8466 11 4F 00     	ld de,80-1
+ 755  8469              print80_1_attr ;теперь так же атрибуты
+ 756  8469
+ 757  8469 77           	ld (hl),a
+ 758  846A 23           	inc hl
+ 759  846B 77           	ld (hl),a
+ 760  846C 19           	add hl,de
+ 761  846D
+ 762  846D 10 FA        	djnz    print80_1_attr
+ 763  846F
+ 764  846F C9           	ret
+ 765  8470
+ 766  8470
+ 767  8470
+ 768  8470              calc_addr_scr	;определение адреса экрана по координатам символа
+ 769  8470              	;ld	bc,(col_screen)
+ 770  8470              bc_to_attr:
+ 771  8470 26 00        	ld h,0
+ 772  8472 68           	ld l,b ;строка (y)
+ 773  8473 29           	add hl,hl ;*2
+ 774  8474 11 EF 89     	ld de,table_addr_scr
+ 775  8477 19           	add hl,de
+ 776  8478 5E           	ld e,(hl)
+ 777  8479 23           	inc hl
+ 778  847A 56           	ld d,(hl) ;узнали координаты строки
+ 779  847B 26 00        	ld h,0
+ 780  847D 69           	ld l,c ;колонка
+ 781  847E 19           	add hl,de ;узнали адрес символа
+ 782  847F
+ 783  847F              	; ld de,(curscrl) ;добавить аппаратный скрол
+ 784  847F              	; add hl,de
+ 785  847F              	; ld de,scrsize
+ 786  847F              	; and a		;check over
+ 787  847F              	; sbc hl,de
+ 788  847F              	; jr nc,calc02
+ 789  847F              	; add hl,de
+ 790  847F              ; calc02:
+ 791  847F 11 00 C0     	ld de,scraddr  ;screen
+ 792  8482 19           	add hl,de
+ 793  8483 C9           	ret
+ 794  8484
+ 795  8484
+ 796  8484
+ 797  8484
+ 798  8484              ;получить следующую фигуру
+ 799  8484              ;вых: HL - адрес фигуры
+ 800  8484              get_next_figure
+ 801  8484              	;сначала перенести переменные от следующего в текущий
+ 802  8484 2A E4 85     	ld hl,(figure_next)
+ 803  8487 22 E2 85     	ld (figure_cur),hl
+ 804  848A 2A E0 85     	ld hl,(figure_next_first_fase)
+ 805  848D 22 DE 85     	ld (figure_cur_first_fase),hl
+ 806  8490 3A DD 85     	ld a,(figure_fase_next)
+ 807  8493 32 DC 85     	ld (figure_fase_cur),a
+ 808  8496              	;теперь найти следующую
+ 809  8496 ED 5F        	ld a,r ;случайное
+ 810  8498 E6 07        	and 7
+ 811  849A FE 07        	cp 7 ;не больше 7 вариантов
+ 812  849C 30 E6        	jr nc,get_next_figure
+ 813  849E 6F           	ld l,a
+ 814  849F              	;ld e,a ;запомнить
+ 815  849F 26 00        	ld h,0
+ 816  84A1 29           	add hl,hl ;*2
+ 817  84A2 29           	add hl,hl ;*4
+ 818  84A3 29           	add hl,hl ;*8
+ 819  84A4 29           	add hl,hl ;*16
+ 820  84A5 29           	add hl,hl ;*32
+ 821  84A6 29           	add hl,hl ;*64
+ 822  84A7 01 7F 86     	ld bc,tetrominos
+ 823  84AA 09           	add hl,bc ;определили фигуру
+ 824  84AB 22 E0 85     	ld (figure_next_first_fase),hl ;запомнить первую фазу
+ 825  84AE              	;ld a,(figure_fase_cur)
+ 826  84AE ED 5F        	ld a,r
+ 827  84B0 E6 03        	and 3 ;не больше 4 вариантов
+ 828  84B2 32 DD 85     	ld (figure_fase_next),a ;фаза
+ 829  84B5 07           	rlca ;*2
+ 830  84B6 07           	rlca ;*4
+ 831  84B7              	; rlca ;*8
+ 832  84B7              	; rlca ;*16
+ 833  84B7 4F           	ld c,a
+ 834  84B8 06 00        	ld b,0
+ 835  84BA 09           	add hl,bc
+ 836  84BB 22 E4 85     	ld (figure_next),hl
+ 837  84BE              	;определить цвет
+ 838  84BE              	; ld d,0
+ 839  84BE              	; ex de,hl
+ 840  84BE              	; ld bc,figure_color
+ 841  84BE              	; add hl,bc
+ 842  84BE              	; ld a,(hl) ;цвет
+ 843  84BE              	; ex de,hl
+ 844  84BE C9           	ret
+ 845  84BF
+ 846  84BF
+ 847  84BF
+ 848  84BF              ;печать фигурки
+ 849  84BF              ;вх: HL - адрес описания фигуры
+ 850  84BF              ;вх: BC - координаты yx
+ 851  84BF              print_figure
+ 852  84BF ED 43 D8 85  	ld (print_figure_pos_cur),bc
+ 853  84C3 79           	ld a,c
+ 854  84C4 32 DA 85     	ld (print_figure_pos_cur_x),a
+ 855  84C7              	;цикл построения 4*4
+ 856  84C7 01 04 04     	ld bc,#0404 ;xy
+ 857  84CA              print_figure_cl1
+ 858  84CA C5           	push bc
+ 859  84CB 7E           	ld a,(hl) ;цвет
+ 860  84CC B7           	or a
+ 861  84CD 28 09        	jr z,print_figure_skip
+ 862  84CF ED 4B D8 85  	ld bc,(print_figure_pos_cur) ;текущая позиция
+ 863  84D3 E5           	push hl
+ 864  84D4 CD 33 84     	call print_square ;печать элемента
+ 865  84D7 E1           	pop hl
+ 866  84D8              print_figure_skip
+ 867  84D8 ED 4B D8 85  	ld bc,(print_figure_pos_cur) ;увеличить позицию
+ 868  84DC 0C           	inc c ;один квадрат из двух знакомест
+ 869  84DD 0C           	inc c
+ 870  84DE ED 43 D8 85  	ld (print_figure_pos_cur),bc
+ 871  84E2 23           	inc hl ;вперёд по описанию фигуры
+ 872  84E3 C1           	pop bc
+ 873  84E4 10 E4        	djnz print_figure_cl1
+ 874  84E6 11 0C 00     	ld de,16-4 ;на след строку описания фигуры
+ 875  84E9 19           	add hl,de
+ 876  84EA 3A D9 85     	ld a,(print_figure_pos_cur+1)
+ 877  84ED 3C           	inc a ;y++
+ 878  84EE 32 D9 85     	ld (print_figure_pos_cur+1),a
+ 879  84F1 3A DA 85     	ld a,(print_figure_pos_cur_x) ;вернуть позицию x
+ 880  84F4 32 D8 85     	ld (print_figure_pos_cur),a
+ 881  84F7 06 04        	ld b,#04 ;новый цикл строки
+ 882  84F9 0D           	dec c
+ 883  84FA 20 CE        	jr nz,print_figure_cl1
+ 884  84FC C9           	ret
+ 885  84FD
+ 886  84FD              ;стирание фигурки
+ 887  84FD              ;вх: HL - адрес описания фигуры
+ 888  84FD              ;вх: BC - координаты yx
+ 889  84FD              clear_figure
+ 890  84FD ED 43 D8 85  	ld (print_figure_pos_cur),bc
+ 891  8501 79           	ld a,c
+ 892  8502 32 DA 85     	ld (print_figure_pos_cur_x),a
+ 893  8505              	;цикл построения 4*4
+ 894  8505 01 04 04     	ld bc,#0404 ;xy
+ 895  8508              clear_figure_cl1
+ 896  8508 C5           	push bc
+ 897  8509 7E           	ld a,(hl) ;цвет
+ 898  850A B7           	or a
+ 899  850B 28 0A        	jr z,clear_figure_skip
+ 900  850D AF           	xor a ;закрасить чорным
+ 901  850E ED 4B D8 85  	ld bc,(print_figure_pos_cur) ;текущая позиция
+ 902  8512 E5           	push hl
+ 903  8513 CD 33 84     	call print_square ;печать элемента
+ 904  8516 E1           	pop hl
+ 905  8517              clear_figure_skip
+ 906  8517 ED 4B D8 85  	ld bc,(print_figure_pos_cur) ;увеличить позицию
+ 907  851B 0C           	inc c
+ 908  851C 0C           	inc c
+ 909  851D ED 43 D8 85  	ld (print_figure_pos_cur),bc
+ 910  8521 23           	inc hl
+ 911  8522 C1           	pop bc
+ 912  8523 10 E3        	djnz clear_figure_cl1
+ 913  8525 11 0C 00     	ld de,16-4 ;на след строку
+ 914  8528 19           	add hl,de
+ 915  8529 3A D9 85     	ld a,(print_figure_pos_cur+1)
+ 916  852C 3C           	inc a ;y++
+ 917  852D 32 D9 85     	ld (print_figure_pos_cur+1),a
+ 918  8530 3A DA 85     	ld a,(print_figure_pos_cur_x) ;вернуть позицию x
+ 919  8533 32 D8 85     	ld (print_figure_pos_cur),a
+ 920  8536 06 04        	ld b,#04 ;новый цикл строки
+ 921  8538 0D           	dec c
+ 922  8539 20 CD        	jr nz,clear_figure_cl1
+ 923  853B C9           	ret
+ 924  853C
+ 925  853C
+ 926  853C              ;печать всего стакана
+ 927  853C              print_cupe
+ 928  853C 01 16 01     	ld bc,cup_pos
+ 929  853F ED 43 D8 85  	ld (print_figure_pos_cur),bc
+ 930  8543              	;цикл построения
+ 931  8543 01 18 12     	ld bc,#1218 ;24*18 xy
+ 932  8546 21 23 8A     	ld hl,base ;база
+ 933  8549              print_cube_cl1
+ 934  8549 C5           	push bc
+ 935  854A 7E           	ld a,(hl) ;цвет
+ 936  854B              	;or a
+ 937  854B              	;jr z,print_cube_skip
+ 938  854B ED 4B D8 85  	ld bc,(print_figure_pos_cur) ;текущая позиция
+ 939  854F E5           	push hl
+ 940  8550 CD 33 84     	call print_square ;печать элемента
+ 941  8553 E1           	pop hl
+ 942  8554              print_cube_skip
+ 943  8554 ED 4B D8 85  	ld bc,(print_figure_pos_cur) ;увеличить позицию
+ 944  8558 0C           	inc c ;x++
+ 945  8559 0C           	inc c
+ 946  855A ED 43 D8 85  	ld (print_figure_pos_cur),bc
+ 947  855E 23           	inc hl
+ 948  855F C1           	pop bc
+ 949  8560 10 E7        	djnz print_cube_cl1
+ 950  8562 3A D9 85     	ld a,(print_figure_pos_cur+1)
+ 951  8565 3C           	inc a ;y++
+ 952  8566 32 D9 85     	ld (print_figure_pos_cur+1),a
+ 953  8569 3E 16        	ld a,cup_pos_x
+ 954  856B 32 D8 85     	ld (print_figure_pos_cur),a
+ 955  856E 06 12        	ld b,#12 ;новый цикл строки *20
+ 956  8570 0D           	dec c
+ 957  8571 20 D6        	jr nz,print_cube_cl1
+ 958  8573 C9           	ret
+ 959  8574
+ 960  8574
+ 961  8574
+ 962  8574              tetris_exit ;выход в DOS
+ 963  8574 AF           	xor a
+ 964  8575              	OS_PROC_CLOSE
+ 964  8575 0E 13       >    ld c,#13
+ 964  8577 E7          >    rst #20
+ 965  8578
+ 966  8578              toDecimal		;конвертирует 2 байта в 5 десятичных цифр
+ 967  8578              				;на входе в HL число
+ 968  8578 11 10 27     			ld de,10000 ;десятки тысяч
+ 969  857B 3E FF        			ld a,255
+ 970  857D              toDecimal10k
+ 971  857D A7           			and a
+ 972  857E ED 52        			sbc hl,de
+ 973  8580 3C           			inc a
+ 974  8581 30 FA        			jr nc,toDecimal10k
+ 975  8583 19           			add hl,de
+ 976  8584 C6 30        			add a,48
+ 977  8586 32 CE 85     			ld (decimalS),a
+ 978  8589 11 E8 03     			ld de,1000 ;тысячи
+ 979  858C 3E FF        			ld a,255
+ 980  858E              toDecimal1k
+ 981  858E A7           			and a
+ 982  858F ED 52        			sbc hl,de
+ 983  8591 3C           			inc a
+ 984  8592 30 FA        			jr nc,toDecimal1k
+ 985  8594 19           			add hl,de
+ 986  8595 C6 30        			add a,48
+ 987  8597 32 CF 85     			ld (decimalS+1),a
+ 988  859A 11 64 00     			ld de,100 ;сотни
+ 989  859D 3E FF        			ld a,255
+ 990  859F              toDecimal01k
+ 991  859F A7           			and a
+ 992  85A0 ED 52        			sbc hl,de
+ 993  85A2 3C           			inc a
+ 994  85A3 30 FA        			jr nc,toDecimal01k
+ 995  85A5 19           			add hl,de
+ 996  85A6 C6 30        			add a,48
+ 997  85A8 32 D0 85     			ld (decimalS+2),a
+ 998  85AB 11 0A 00     			ld de,10 ;десятки
+ 999  85AE 3E FF        			ld a,255
+1000  85B0              toDecimal001k
+1001  85B0 A7           			and a
+1002  85B1 ED 52        			sbc hl,de
+1003  85B3 3C           			inc a
+1004  85B4 30 FA        			jr nc,toDecimal001k
+1005  85B6 19           			add hl,de
+1006  85B7 C6 30        			add a,48
+1007  85B9 32 D1 85     			ld (decimalS+3),a
+1008  85BC 11 01 00     			ld de,1 ;единицы
+1009  85BF 3E FF        			ld a,255
+1010  85C1              toDecimal0001k
+1011  85C1 A7           			and a
+1012  85C2 ED 52        			sbc hl,de
+1013  85C4 3C           			inc a
+1014  85C5 30 FA        			jr nc,toDecimal0001k
+1015  85C7 19           			add hl,de
+1016  85C8 C6 30        			add a,48
+1017  85CA 32 D2 85     			ld (decimalS+4),a
+1018  85CD
+1019  85CD C9           			ret
+1020  85CE 00 00 00...  decimalS ds 6 ;здесь будет цифра
+1021  85D4
+1022  85D4              ;
+1023  85D4
+1024  85D4
+1025  85D4              scraddr equ #c000 ;адрес экрана
+1026  85D4              page_pix equ #39 ;страница пикселей
+1027  85D4              page_attr equ #79 ;страница атрибутов
+1028  85D4              cup_pos equ #0116 ;позиция стакана yx
+1029  85D4              cup_pos_x equ #16 ;позиция стакана x
+1030  85D4              figure_pos_start equ #0124 ;позиция фигуры начальная
+1031  85D4              figure_pos_next equ #0a44 ;позиция фигуры слудующая
+1032  85D4              base_x_size equ 10+4+4 ;ширина базы
+1033  85D4              base_y_size equ 20+4 ;высота базы
+1034  85D4              msg_next_pos equ #0844 ;позиция надписи
+1035  85D4              msg_score_pos equ #0000 ;позиция надписи
+1036  85D4              msg_score_pos_x1 equ #0104 ;позиция надписи
+1037  85D4              msg_score_pos_x2 equ #0204 ;позиция надписи
+1038  85D4              msg_score_pos_x3 equ #0304 ;позиция надписи
+1039  85D4              msg_score_pos_x4 equ #0404 ;позиция надписи
+1040  85D4              msg_score_pos_total equ #0607 ;позиция надписи
+1041  85D4              msg_help_pos equ #0800 ;позиция подскази
+1042  85D4              msg_speed_pos equ #0807 ;позиция скорости
+1043  85D4              msg_game_over_pos equ #0c23 ;позиция
+1044  85D4              figure_fall_count_target_start equ 20 ;скорость падения начальная
+1045  85D4              speed_target equ 20 ;через столько фигурок увеличить скорость
+1046  85D4
+1047  85D4
+1048  85D4 00           speed_count db 0 ;счётчик скорости
+1049  85D5 00           figure_fall_count_target db 0 ;скорость падения
+1050  85D6 00           figure_fall_count db 0 ;счётчик падения
+1051  85D7 00           figure_fell_flag db 0 ;флаг что что-то упало совсем
+1052  85D8 00 00        print_figure_pos_cur dw 0;временно координаты
+1053  85DA 00 00        print_figure_pos_cur_x dw 0;временно координаты x
+1054  85DC 00           figure_fase_cur db 0 ;фаза фигурки
+1055  85DD 00           figure_fase_next db 0 ;фаза фигурки для следующей
+1056  85DE 00 00        figure_cur_first_fase dw 0 ;фаза фигурки первая
+1057  85E0 00 00        figure_next_first_fase dw 0 ;фаза фигурки первая для следующей
+1058  85E2 00 00        figure_cur dw 0 ;адрес текущей фигуры
+1059  85E4 00 00        figure_next dw 0 ;следующая фигура
+1060  85E6 00           figure_color_cur db 0 ;текущий цвет
+1061  85E7 00 00        figure_pos_cur dw 0 ;текущая позиция
+1062  85E9 00 00        score_x1 dw 0 ;очки
+1063  85EB 00 00        score_x2 dw 0
+1064  85ED 00 00        score_x3 dw 0
+1065  85EF 00 00        score_x4 dw 0
+1066  85F1 00 00        score_total dw 0
+1067  85F3
+1068  85F3
+1069  85F3 20 47 61 6D  msg_game_over db " Game over ",0
+1069  85F7 65 20 6F 76
+1069  85FB 65 72 20 00
+1070  85FF
+1071  85FF 53 70 65 65  msg_help db "Speed:",13,13
+1071  8603 64 3A 0D 0D
+1072  8607 43 75 72 73  	db "Cursor -",13
+1072  860B 6F 72 20 2D
+1072  860F 0D
+1073  8610 6C 65 66 74  	db "left, right, down",13
+1073  8614 2C 20 72 69
+1073  8618 67 68 74 2C
+1073  861C 20 64 6F 77
+1073  8620 6E 0D
+1074  8622 53 70 2C 20  	db "Sp, up - rotate",13
+1074  8626 75 70 20 2D
+1074  862A 20 72 6F 74
+1074  862E 61 74 65 0D
+1075  8632 68 20 2D 20  	db "h - pause",13
+1075  8636 70 61 75 73
+1075  863A 65 0D
+1076  863C 42 72 65 61  	db "Break - exit",0
+1076  8640 6B 20 2D 20
+1076  8644 65 78 69 74
+1076  8648 00
+1077  8649
+1078  8649
+1079  8649 4E 65 78 74  msg_next db "Next:",0
+1079  864D 3A 00
+1080  864F 53 63 6F 72  msg_score db "Score:",13
+1080  8653 65 3A 0D
+1081  8656 78 31 3A 0D  	db "x1:",13
+1082  865A 78 32 3A 0D  	db "x2:",13
+1083  865E 78 33 3A 0D  	db "x3:",13
+1084  8662 78 34 3A 0D  	db "x4:",13,13
+1084  8666 0D
+1085  8667 54 6F 74 61  	db "Total:",0
+1085  866B 6C 3A 00
+1086  866E
+1087  866E
+1088  866E 00           square_color_cur db 0; текущий цвет квадрата
+1089  866F              square_one ;один квадрат
+1090  866F FF FE        	db %11111111, %11111110
+1091  8671 8F FE        	db %10001111, %11111110
+1092  8673 BF FE        	db %10111111, %11111110
+1093  8675 FF FE        	db %11111111, %11111110
+1094  8677 FF FE        	db %11111111, %11111110
+1095  8679 FF FE        	db %11111111, %11111110
+1096  867B FF FE        	db %11111111, %11111110
+1097  867D 00 00        	db %00000000, %00000000
+1098  867F
+1099  867F
+1100  867F              ;фигурки во всех ракурсах
+1101  867F              tetrominos
+1102  867F              ;'I':
+1103  867F 00 00 00 00      db 0,0,0,0, 0,5,0,0, 0,0,0,0, 0,5,0,0 ;4*4*4=64 на элемент
+1103  8683 00 05 00 00
+1103  8687 00 00 00 00
+1103  868B 00 05 00 00
+1104  868F 05 05 05 05      db 5,5,5,5, 0,5,0,0, 5,5,5,5, 0,5,0,0
+1104  8693 00 05 00 00
+1104  8697 05 05 05 05
+1104  869B 00 05 00 00
+1105  869F 00 00 00 00      db 0,0,0,0, 0,5,0,0, 0,0,0,0, 0,5,0,0
+1105  86A3 00 05 00 00
+1105  86A7 00 00 00 00
+1105  86AB 00 05 00 00
+1106  86AF 00 00 00 00      db 0,0,0,0, 0,5,0,0, 0,0,0,0, 0,5,0,0
+1106  86B3 00 05 00 00
+1106  86B7 00 00 00 00
+1106  86BB 00 05 00 00
+1107  86BF              ; 'J':
+1108  86BF 06 00 00 00      db 6,0,0,0,	0,6,0,0, 6,6,6,0, 6,6,0,0
+1108  86C3 00 06 00 00
+1108  86C7 06 06 06 00
+1108  86CB 06 06 00 00
+1109  86CF 06 06 06 00      db 6,6,6,0,	0,6,0,0, 0,0,6,0, 6,0,0,0
+1109  86D3 00 06 00 00
+1109  86D7 00 00 06 00
+1109  86DB 06 00 00 00
+1110  86DF 00 00 00 00      db 0,0,0,0,	6,6,0,0, 0,0,0,0, 6,0,0,0
+1110  86E3 06 06 00 00
+1110  86E7 00 00 00 00
+1110  86EB 06 00 00 00
+1111  86EF 00 00 00 00  	db 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+1111  86F3 00 00 00 00
+1111  86F7 00 00 00 00
+1111  86FB 00 00 00 00
+1112  86FF              ; 'L':
+1113  86FF 00 00 03 00      db 0,0,3,0,	3,3,0,0, 3,3,3,0, 3,0,0,0
+1113  8703 03 03 00 00
+1113  8707 03 03 03 00
+1113  870B 03 00 00 00
+1114  870F 03 03 03 00      db 3,3,3,0,	0,3,0,0, 3,0,0,0, 3,0,0,0
+1114  8713 00 03 00 00
+1114  8717 03 00 00 00
+1114  871B 03 00 00 00
+1115  871F 00 00 00 00      db 0,0,0,0,	0,3,0,0, 0,0,0,0, 3,3,0,0
+1115  8723 00 03 00 00
+1115  8727 00 00 00 00
+1115  872B 03 03 00 00
+1116  872F 00 00 00 00  	db 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+1116  8733 00 00 00 00
+1116  8737 00 00 00 00
+1116  873B 00 00 00 00
+1117  873F              ; 'O':
+1118  873F 04 04 00 00      db 4,4,0,0,	4,4,0,0, 4,4,0,0, 4,4,0,0
+1118  8743 04 04 00 00
+1118  8747 04 04 00 00
+1118  874B 04 04 00 00
+1119  874F 04 04 00 00      db 4,4,0,0,	4,4,0,0, 4,4,0,0, 4,4,0,0
+1119  8753 04 04 00 00
+1119  8757 04 04 00 00
+1119  875B 04 04 00 00
+1120  875F 00 00 00 00      db 0,0,0,0,	0,0,0,0, 0,0,0,0, 0,0,0,0
+1120  8763 00 00 00 00
+1120  8767 00 00 00 00
+1120  876B 00 00 00 00
+1121  876F 00 00 00 00  	db 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+1121  8773 00 00 00 00
+1121  8777 00 00 00 00
+1121  877B 00 00 00 00
+1122  877F              ; 'S':
+1123  877F 00 02 02 00      db 0,2,2,0,	2,0,0,0, 0,2,2,0, 2,0,0,0
+1123  8783 02 00 00 00
+1123  8787 00 02 02 00
+1123  878B 02 00 00 00
+1124  878F 02 02 00 00      db 2,2,0,0,	2,2,0,0, 2,2,0,0, 2,2,0,0
+1124  8793 02 02 00 00
+1124  8797 02 02 00 00
+1124  879B 02 02 00 00
+1125  879F 00 00 00 00      db 0,0,0,0,	0,2,0,0, 0,0,0,0, 0,2,0,0
+1125  87A3 00 02 00 00
+1125  87A7 00 00 00 00
+1125  87AB 00 02 00 00
+1126  87AF 00 00 00 00  	db 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+1126  87B3 00 00 00 00
+1126  87B7 00 00 00 00
+1126  87BB 00 00 00 00
+1127  87BF              ; 'Z':
+1128  87BF 01 01 00 00      db 1,1,0,0,	0,1,0,0, 1,1,0,0, 0,1,0,0
+1128  87C3 00 01 00 00
+1128  87C7 01 01 00 00
+1128  87CB 00 01 00 00
+1129  87CF 00 01 01 00      db 0,1,1,0,	1,1,0,0, 0,1,1,0, 1,1,0,0
+1129  87D3 01 01 00 00
+1129  87D7 00 01 01 00
+1129  87DB 01 01 00 00
+1130  87DF 00 00 00 00      db 0,0,0,0,	1,0,0,0, 0,0,0,0, 1,0,0,0
+1130  87E3 01 00 00 00
+1130  87E7 00 00 00 00
+1130  87EB 01 00 00 00
+1131  87EF 00 00 00 00  	db 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+1131  87F3 00 00 00 00
+1131  87F7 00 00 00 00
+1131  87FB 00 00 00 00
+1132  87FF
+1133  87FF              ; 'T':
+1134  87FF 00 07 00 00      db 0,7,0,0,	0,7,0,0, 7,7,7,0, 7,0,0,0
+1134  8803 00 07 00 00
+1134  8807 07 07 07 00
+1134  880B 07 00 00 00
+1135  880F 07 07 07 00      db 7,7,7,0,	7,7,0,0, 0,7,0,0, 7,7,0,0
+1135  8813 07 07 00 00
+1135  8817 00 07 00 00
+1135  881B 07 07 00 00
+1136  881F 00 00 00 00      db 0,0,0,0,	0,7,0,0, 0,0,0,0, 7,0,0,0
+1136  8823 00 07 00 00
+1136  8827 00 00 00 00
+1136  882B 07 00 00 00
+1137  882F 00 00 00 00  	db 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0
+1137  8833 00 00 00 00
+1137  8837 00 00 00 00
+1137  883B 00 00 00 00
+1138  883F
+1139  883F              ;цвета
+1140  883F              ;figure_color db 5,6,3,4,2,1,7
+1141  883F
+1142  883F
+1143  883F              base_orig ;база игрового поля, со стенками стакана
+1144  883F              	dup 20
+1145  883F 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8843 00 00 00 00 >
+1145  8847 00 00 00 00 >
+1145  884B 00 00 04 04 >
+1145  884F 04 04       >
+1145  8851 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8855 00 00 00 00 >
+1145  8859 00 00 00 00 >
+1145  885D 00 00 04 04 >
+1145  8861 04 04       >
+1145  8863 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8867 00 00 00 00 >
+1145  886B 00 00 00 00 >
+1145  886F 00 00 04 04 >
+1145  8873 04 04       >
+1145  8875 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8879 00 00 00 00 >
+1145  887D 00 00 00 00 >
+1145  8881 00 00 04 04 >
+1145  8885 04 04       >
+1145  8887 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  888B 00 00 00 00 >
+1145  888F 00 00 00 00 >
+1145  8893 00 00 04 04 >
+1145  8897 04 04       >
+1145  8899 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  889D 00 00 00 00 >
+1145  88A1 00 00 00 00 >
+1145  88A5 00 00 04 04 >
+1145  88A9 04 04       >
+1145  88AB 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  88AF 00 00 00 00 >
+1145  88B3 00 00 00 00 >
+1145  88B7 00 00 04 04 >
+1145  88BB 04 04       >
+1145  88BD 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  88C1 00 00 00 00 >
+1145  88C5 00 00 00 00 >
+1145  88C9 00 00 04 04 >
+1145  88CD 04 04       >
+1145  88CF 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  88D3 00 00 00 00 >
+1145  88D7 00 00 00 00 >
+1145  88DB 00 00 04 04 >
+1145  88DF 04 04       >
+1145  88E1 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  88E5 00 00 00 00 >
+1145  88E9 00 00 00 00 >
+1145  88ED 00 00 04 04 >
+1145  88F1 04 04       >
+1145  88F3 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  88F7 00 00 00 00 >
+1145  88FB 00 00 00 00 >
+1145  88FF 00 00 04 04 >
+1145  8903 04 04       >
+1145  8905 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8909 00 00 00 00 >
+1145  890D 00 00 00 00 >
+1145  8911 00 00 04 04 >
+1145  8915 04 04       >
+1145  8917 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  891B 00 00 00 00 >
+1145  891F 00 00 00 00 >
+1145  8923 00 00 04 04 >
+1145  8927 04 04       >
+1145  8929 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  892D 00 00 00 00 >
+1145  8931 00 00 00 00 >
+1145  8935 00 00 04 04 >
+1145  8939 04 04       >
+1145  893B 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  893F 00 00 00 00 >
+1145  8943 00 00 00 00 >
+1145  8947 00 00 04 04 >
+1145  894B 04 04       >
+1145  894D 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8951 00 00 00 00 >
+1145  8955 00 00 00 00 >
+1145  8959 00 00 04 04 >
+1145  895D 04 04       >
+1145  895F 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8963 00 00 00 00 >
+1145  8967 00 00 00 00 >
+1145  896B 00 00 04 04 >
+1145  896F 04 04       >
+1145  8971 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8975 00 00 00 00 >
+1145  8979 00 00 00 00 >
+1145  897D 00 00 04 04 >
+1145  8981 04 04       >
+1145  8983 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8987 00 00 00 00 >
+1145  898B 00 00 00 00 >
+1145  898F 00 00 04 04 >
+1145  8993 04 04       >
+1145  8995 04 04 04 04 >	db 4,4,4,4,0,0,0,0,0,0,0,0,0,0,4,4,4,4
+1145  8999 00 00 00 00 >
+1145  899D 00 00 00 00 >
+1145  89A1 00 00 04 04 >
+1145  89A5 04 04       >
+1146  89A7              	edup
+1147  89A7              	dup 4
+1148  89A7 04 04 04 04 >	db 4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+1148  89AB 04 04 04 04 >
+1148  89AF 04 04 04 04 >
+1148  89B3 04 04 04 04 >
+1148  89B7 04 04       >
+1148  89B9 04 04 04 04 >	db 4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+1148  89BD 04 04 04 04 >
+1148  89C1 04 04 04 04 >
+1148  89C5 04 04 04 04 >
+1148  89C9 04 04       >
+1148  89CB 04 04 04 04 >	db 4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+1148  89CF 04 04 04 04 >
+1148  89D3 04 04 04 04 >
+1148  89D7 04 04 04 04 >
+1148  89DB 04 04       >
+1148  89DD 04 04 04 04 >	db 4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4
+1148  89E1 04 04 04 04 >
+1148  89E5 04 04 04 04 >
+1148  89E9 04 04 04 04 >
+1148  89ED 04 04       >
+1149  89EF              	edup
+1150  89EF              base_orig_end
+1151  89EF
+1152  89EF
+1153  89EF
+1154  89EF              table_addr_scr	;адреса строк текста
+1155  89EF 00 00        	defw	00000h ;0
+1156  89F1 80 02        	defw	00280h
+1157  89F3 00 05        	defw	00500h
+1158  89F5 80 07        	defw	00780h
+1159  89F7 00 0A        	defw	00a00h
+1160  89F9 80 0C        	defw	00c80h
+1161  89FB 00 0F        	defw	00f00h
+1162  89FD 80 11        	defw	01180h
+1163  89FF
+1164  89FF 00 14        	defw	01400h ;8
+1165  8A01 80 16        	defw	01680h
+1166  8A03 00 19        	defw	01900h
+1167  8A05 80 1B        	defw	01b80h
+1168  8A07 00 1E        	defw	01e00h
+1169  8A09 80 20        	defw	02080h
+1170  8A0B 00 23        	defw	02300h
+1171  8A0D 80 25        	defw	02580h
+1172  8A0F
+1173  8A0F 00 28        	defw	02800h ;16
+1174  8A11 80 2A        	defw	02a80h
+1175  8A13 00 2D        	defw	02d00h
+1176  8A15 80 2F        	defw	02f80h
+1177  8A17 00 32        	defw	03200h
+1178  8A19 80 34        	defw	03480h
+1179  8A1B 00 37        	defw	03700h
+1180  8A1D 80 39        	defw	03980h
+1181  8A1F
+1182  8A1F 00 3C        	defw	03c00h ;24
+1183  8A21 80 3E        	defw	03e80h ;25 вне экрана
+1184  8A23
+1185  8A23 00 00 00...  base ds base_x_size*base_y_size ;база рабочая
+1186  8BD3
+1187  8BD3              msg_title_tetris
+1188  8BD3 54 65 74 72  	db "Tetris ver 2025.02.12",10,13,0
+1188  8BD7 69 73 20 76
+1188  8BDB 65 72 20 32
+1188  8BDF 30 32 35 2E
+1188  8BE3 30 32 2E 31
+1188  8BE7 32 0A 0D 00
+1189  8BEB
+1190  8BEB
+1191  8BEB              end_tetris
+1192  8BEB              	savebin "tetris.apg",start_tetris,$-start_tetris
+# file closed: tetris.asm

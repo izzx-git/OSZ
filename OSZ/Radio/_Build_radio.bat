@@ -1,4 +1,4 @@
 ..\sjasmplus.exe radio.asm --lst=radio.lst
-copy radio.com ..\osz\radio.com 
-..\"dmimg.exe" ..\..\Unreal\wc.img put ..\osz\radio.com \osz\radio.com
+copy radio.apg ..\osz\radio.apg 
+..\"dmimg.exe" ..\..\Unreal\wc.img put ..\osz\radio.apg \osz\radio.apg
 pause

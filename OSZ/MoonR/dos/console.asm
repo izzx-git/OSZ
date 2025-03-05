@@ -9,7 +9,7 @@ keyCode db 0
 ;BASIC_KEY = #5C08
 
 waitForKeyUp:
-	halt
+	OS_WAIT
 	OS_GET_CHAR
    cp 255
    jr nz, waitForKeyUp
@@ -18,7 +18,7 @@ waitForKeyUp:
    ret
 
 getC:
-	halt
+	OS_WAIT
 	OS_GET_CHAR
    ;ld a,(BASIC_KEY)
    ;and a : jr z, getC

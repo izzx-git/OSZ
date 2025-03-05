@@ -22,7 +22,7 @@ play:
 	ld (last_song_position),a
 
 .loop
-    halt : 
+    OS_WAIT : 
     OS_GET_CHAR
 	cp " " ;пробел
 	jp z, .stopKey

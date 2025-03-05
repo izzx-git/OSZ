@@ -1,0 +1,1234 @@
+# file opened: nc.asm
+  1   0000              ;None Commander - приложение для OS GMX
+  2   0000                 device ZXSPECTRUM128
+  3   0000              	include "../os_defs.asm"
+# file opened: ../os_defs.asm
+  1+  0000              ;Список всех вызовов (функций) ОС GMX
+  2+  0000
+  3+  0000              ;Включить в свой код (в начале файла):
+  4+  0000              	; include os_defs.asm
+  5+  0000
+  6+  0000              ;Использовать только имена функций, коды могут поменяться
+  7+  0000
+  8+  0000              ;например:
+  9+  0000              	; org PROGSTART
+ 10+  0000              	; ../include os_defs.asm
+ 11+  0000              	; ld hl,text
+ 12+  0000              	; OS_PRINTZ ;печать	до кода 0
+ 13+  0000
+ 14+  0000              ;сохранность регистров не гарантируется
+ 15+  0000              ;на выходе обычно (но не всегда) CY=1 = ошибка
+ 16+  0000
+ 17+  0000              PROGSTART equ #8000 ;адрес старта приложений
+ 18+  0000
+ 19+  0000
+ 20+  0000              ;короткие вызовы (именные RST) -------------------------
+ 21+  0000
+ 22+  0000              ;печать символа в консоль (ускоренная)
+ 23+  0000              	MACRO OS_PRINT_CHARF ;a=char
+ 24+  0000 ~            	rst #10
+ 25+  0000              	ENDM
+ 26+  0000
+ 27+  0000
+ 28+  0000              ;передача управления ОС до следующего прерывания (когда придёт очередь процесса в следующий раз);
+ 29+  0000              ;все регистры сохраняются
+ 30+  0000              ;рекомендуется использовать вместо обычного halt
+ 31+  0000              	MACRO OS_WAIT
+ 32+  0000 ~            	rst #18
+ 33+  0000              	ENDM
+ 34+  0000
+ 35+  0000              	; MACRO OS_
+ 36+  0000              	; rst #28
+ 37+  0000              	; ENDM
+ 38+  0000
+ 39+  0000              	; MACRO OS_
+ 40+  0000              	; rst #30
+ 41+  0000              	; ENDM
+ 42+  0000
+ 43+  0000
+ 44+  0000
+ 45+  0000              ;вызовы через единую точку входа RST #20 ----------------
+ 46+  0000
+ 47+  0000              ;вывод в консоль --------------------
+ 48+  0000
+ 49+  0000              ;очистить консоль
+ 50+  0000              	macro OS_CLS ;clear visible area of terminal
+ 51+  0000 ~                ld c,#00
+ 52+  0000 ~                rst #20
+ 53+  0000                  endm
+ 54+  0000
+ 55+  0000              ;установить позицию курсора в консоли
+ 56+  0000                  macro OS_SET_XY ;de=yx ;SET CURSOR POSITION
+ 57+  0000 ~                ld c,#01
+ 58+  0000 ~                rst #20
+ 59+  0000                  endm
+ 60+  0000
+ 61+  0000              ;печать символа в консоль
+ 62+  0000                  macro OS_PRINT_CHAR ;a=char
+ 63+  0000 ~                ld c,#02
+ 64+  0000 ~                rst #20
+ 65+  0000                  endm
+ 66+  0000
+ 67+  0000              ;заполнение строки одним символом
+ 68+  0000                  macro OS_FILL_LINE ;; H - line ; A - char
+ 69+  0000 ~                ld c,#03
+ 70+  0000 ~                rst #20
+ 71+  0000                  endm
+ 72+  0000
+ 73+  0000              ;покрасить строку цветом
+ 74+  0000                  macro OS_PAINT_LINE ;a - line, b - color
+ 75+  0000 ~                ld c,#04
+ 76+  0000 ~                rst #20
+ 77+  0000                  endm
+ 78+  0000
+ 79+  0000
+ 80+  0000                  ; macro OS_ ;
+ 81+  0000                  ; ld c,#05
+ 82+  0000                  ; rst #20
+ 83+  0000                  ; endm
+ 84+  0000
+ 85+  0000              ;установить цвет текста в консоли;
+ 86+  0000                  macro OS_SET_COLOR ;a = color, b = color 2 (highlight)
+ 87+  0000 ~                ld c,#06
+ 88+  0000 ~                rst #20
+ 89+  0000                  endm
+ 90+  0000
+ 91+  0000                  ; macro OS_ ;
+ 92+  0000                  ; ld c,#07
+ 93+  0000                  ; rst #20
+ 94+  0000                  ; endm
+ 95+  0000
+ 96+  0000                  ; macro OS_ ;
+ 97+  0000                  ; ld c,#08
+ 98+  0000                  ; rst #20
+ 99+  0000                  ; endm
+100+  0000
+101+  0000
+102+  0000
+103+  0000              ;печать в консоль до кода 0
+104+  0000                  macro OS_PRINTZ ;hl=text ;PRINT to 0
+105+  0000 ~                ld c,#09
+106+  0000 ~                rst #20
+107+  0000                  endm
+108+  0000
+109+  0000
+110+  0000                  ; macro OS_
+111+  0000                  ; ld c,#0a
+112+  0000                  ; rst #20
+113+  0000                  ; endm
+114+  0000
+115+  0000                  ; macro OS_
+116+  0000                  ; ld c,#0b
+117+  0000                  ; rst #20
+118+  0000                  ; endm
+119+  0000
+120+  0000              ;закрыть соединение ESP
+121+  0000              ;вх:
+122+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+123+  0000                  macro OS_ESP_CLOSE
+124+  0000 ~                ld c,#0c
+125+  0000 ~                rst #20
+126+  0000                  endm
+127+  0000
+128+  0000              ;установить соединение ESP (CIPSTART);
+129+  0000              ;вх: a - тип соединения 0-tcp, 1-udp, 2-ssl; hl - строка адрес, de - строка порт
+130+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+131+  0000              ;вых: ix - адрес в таблице соединений (ix+2 - флаг открытия =1 - открыто, 255 - ошибка);
+132+  0000                  macro OS_ESP_OPEN
+133+  0000 ~                ld c,#0d
+134+  0000 ~                rst #20
+135+  0000                  endm
+136+  0000
+137+  0000              ;послать запрос ESP (CIPSEND);
+138+  0000              ;вх: hl - адрес данных, de - длина данных
+139+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+140+  0000              ;вых: ix - адрес в таблице соединений (ix+4 - флаг =1 - отправлено, 255 - ошибка)
+141+  0000                  macro OS_ESP_SEND
+142+  0000 ~                ld c,#0e
+143+  0000 ~                rst #20
+144+  0000                  endm
+145+  0000
+146+  0000              ;получить пакет ESP (+IPD);
+147+  0000              ;вх: hl - адрес для данных
+148+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+149+  0000              ;вых: ix - адрес в таблице соединений (ix+6 - флаг =1 - принято, 255 - ошибка)
+150+  0000                  macro OS_ESP_GET
+151+  0000 ~                ld c,#0f
+152+  0000 ~                rst #20
+153+  0000                  endm
+154+  0000
+155+  0000              ;ввод с консоли ----------------------
+156+  0000
+157+  0000              ;получить код нажатой клавиши
+158+  0000                  macro OS_GET_CHAR ;read char from stdin (out: A=char, 255-no char)
+159+  0000 ~                ld c,#10
+160+  0000 ~                rst #20
+161+  0000                  endm
+162+  0000
+163+  0000
+164+  0000              ;процессы ----------------------------
+165+  0000
+166+  0000              ;запустить процесс
+167+  0000              ;вх: hl - имя файла (заканчивается на 0)
+168+  0000                  macro OS_PROC_RUN ;
+169+  0000 ~                ld c,#11
+170+  0000 ~                rst #20
+171+  0000                  endm
+172+  0000
+173+  0000              ;установить фокус
+174+  0000              ;вх: a - id процесса
+175+  0000                  macro OS_PROC_SET_FOCUS ;
+176+  0000 ~                ld c,#12
+177+  0000 ~                rst #20
+178+  0000                  endm
+179+  0000
+180+  0000              ;закрыть процесс
+181+  0000              ;вх: A - ID процесса. Если A=0, закрыть текущий (себя)
+182+  0000              ;останавливается процесс и освобождаются все его страницы памяти, файлы, соединения
+183+  0000                  macro OS_PROC_CLOSE ;
+184+  0000 ~                ld c,#13
+185+  0000 ~                rst #20
+186+  0000                  endm
+187+  0000
+188+  0000
+189+  0000              ;прерывания --------------------------
+190+  0000
+191+  0000              ;установка адреса обработчика прерываний процесса;
+192+  0000                  ; macro OS_SET_INTER ;(HL - address, A = 1 - On, A = 0 - Off)
+193+  0000                  ; ld c,#14
+194+  0000                  ; rst #20
+195+  0000                  ; endm
+196+  0000
+197+  0000
+198+  0000              ;плеер AY ----------------------------
+199+  0000
+200+  0000              ;инициализация плеера AY;
+201+  0000                  macro OS_VTPL_INIT ;(HL - address music)
+202+  0000 ~                ld c,#15
+203+  0000 ~                rst #20
+204+  0000                  endm
+205+  0000
+206+  0000              ;запустить плеер AY (система будет сама вызывать его каждое прерывание);
+207+  0000                  macro OS_VTPL_PLAY ;()
+208+  0000 ~                ld c,#16
+209+  0000 ~                rst #20
+210+  0000                  endm
+211+  0000
+212+  0000              ;заглушить плеер AY;
+213+  0000                  macro OS_VTPL_MUTE ;()
+214+  0000 ~                ld c,#17
+215+  0000 ~                rst #20
+216+  0000                  endm
+217+  0000
+218+  0000              ;получить значение переменной плеера;
+219+  0000                  macro OS_GET_VTPL_SETUP ;(out: HL - setup address)
+220+  0000 ~                ld c,#18
+221+  0000 ~                rst #20
+222+  0000                  endm
+223+  0000
+224+  0000
+225+  0000              ;прочие ------------------------------
+226+  0000
+227+  0000
+228+  0000              ;скопировать данные из страницы в страницу
+229+  0000              ;вх: hl - откуда (абсолютный адрес 0-ffff); de - куда; ix - длина; a - страница слот2; b - страница слот3;
+230+  0000                  macro OS_RAM_COPY
+231+  0000 ~                ld c,#19
+232+  0000 ~                rst #20
+233+  0000                  endm
+234+  0000
+235+  0000              ;получить дополнительную страницу памяти;
+236+  0000                  macro OS_GET_PAGE ;(out A - number page)
+237+  0000 ~                ld c,#1a
+238+  0000 ~                rst #20
+239+  0000                  endm
+240+  0000
+241+  0000              ;включить страницу в слот 2 (#8000); предварительно зарезервировать страницу OS_GET_PAGE
+242+  0000                  macro OS_SET_PAGE_SLOT2 ;(A - page number)
+243+  0000 ~                ld c,#1b
+244+  0000 ~                rst #20
+245+  0000                  endm
+246+  0000
+247+  0000              ;включить страницу в слот 3 (#C000); предварительно зарезервировать страницу OS_GET_PAGE
+248+  0000                  macro OS_SET_PAGE_SLOT3 ;(A - page number)
+249+  0000 ~                ld c,#1c
+250+  0000 ~                rst #20
+251+  0000                  endm
+252+  0000
+253+  0000              ;включить экран N;
+254+  0000                  macro OS_SET_SCREEN ;(A - number screen 5, 7, 39, 3a)
+255+  0000 ~                ld c,#1d
+256+  0000 ~                rst #20
+257+  0000                  endm
+258+  0000
+259+  0000
+260+  0000              ;получить номера страниц процесса;
+261+  0000              ;вх:
+262+  0000              ;вых: b, c - страницы в слотах 2, 3
+263+  0000                  macro OS_GET_MAIN_PAGES ;
+264+  0000 ~                ld c,#1e
+265+  0000 ~                rst #20
+266+  0000                  endm
+267+  0000
+268+  0000              ;получить значение системного таймера
+269+  0000                  macro OS_GET_TIMER ;(out: HL, DE - timer)
+270+  0000 ~                ld c,#1F
+271+  0000 ~                rst #20
+272+  0000                  endm
+273+  0000
+274+  0000
+275+  0000
+276+  0000                  ; macro OS_ ;
+277+  0000                  ; ld c,#20
+278+  0000                  ; rst #20
+279+  0000                  ; endm
+280+  0000
+281+  0000
+282+  0000              ;дисковые операции -------------------
+283+  0000
+284+  0000              ;открыть файл для чтения или записи
+285+  0000                  macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size)
+286+  0000 ~                ld c,#21
+287+  0000 ~                rst #20
+288+  0000                  endm
+289+  0000
+290+  0000              ;создать файл
+291+  0000                  macro OS_FILE_CREATE ;HL - File name  (out: A - id file)
+292+  0000 ~                ld c,#22
+293+  0000 ~                rst #20
+294+  0000                  endm
+295+  0000
+296+  0000              ;прочитать из файла
+297+  0000                  macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
+298+  0000 ~                ld c,#23
+299+  0000 ~                rst #20
+300+  0000                  endm
+301+  0000
+302+  0000              ;записать в файл
+303+  0000                  macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
+304+  0000 ~                ld c,#24
+305+  0000 ~                rst #20
+306+  0000                  endm
+307+  0000
+308+  0000              ;закрыть файл
+309+  0000                  macro OS_FILE_CLOSE ;A - id file
+310+  0000 ~                ld c,#25
+311+  0000 ~                rst #20
+312+  0000                  endm
+313+  0000
+314+  0000              ;чтение секторов текущего каталога
+315+  0000              ; вх:
+316+  0000                   ; hl - буфер для чтения
+317+  0000                   ; de - относительный номер первого сектора каталога для чтения [0..nn]
+318+  0000                   ; b - максимальное количество секторов для чтения
+319+  0000              ; вых: cy=1, если были ошибки, код ошибки возвращается в аккумуляторе
+320+  0000                     ; a=errRWnum
+321+  0000                     ; a=errInvalidPart
+322+  0000                     ; a=errFileEmpty
+323+  0000                   ; cy=0, a=errEoF - каталог закончился
+324+  0000                     ; hl - следующий адрес в буфере
+325+  0000                     ; de - номер первого непрочитанного сектора
+326+  0000                     ; b - не прочитано секторов
+327+  0000                   ; cy=0 - считано успешно
+328+  0000                     ; hl - следующий адрес в буфере
+329+  0000                     ; de - номер первого непрочитанного сектора
+330+  0000                     ; b=#00
+331+  0000                  macro OS_READ_DIR ;
+332+  0000 ~                ld c,#26
+333+  0000 ~                rst #20
+334+  0000                  endm
+335+  0000
+336+  0000              ;вход в каталог/выход в родительский каталог
+337+  0000              	; Если путь не указан производится только настройка переменных драйвера,
+338+  0000              	; при этом если передан дескриптор файла, текущий каталог не изменится)
+339+  0000              	; Если пусть указан, в конец пути добавится название каталога (если это
+340+  0000              	; переход в родительский, последнее имя в пути удалится).
+341+  0000              	; Если передан дескриптор файла, текущий каталог не изменится, к пути
+342+  0000              	; добавится имя файла
+343+  0000              ; вх:
+344+  0000                   ; hl - адрес пути (=#0000 - путь отсутствует)
+345+  0000                   ; de - адрес дескриптора директории/файла
+346+  0000              ; вых: a - если путь был указан, новая длина пути
+347+  0000                  macro OS_OPEN_DIR ;
+348+  0000 ~                ld c,#27
+349+  0000 ~                rst #20
+350+  0000                  endm
+351+  0000
+352+  0000
+353+  0000                  ; macro OS_ ;
+354+  0000                  ; ld c,#28
+355+  0000                  ; rst #20
+356+  0000                  ; endm
+357+  0000
+358+  0000                  ; macro OS_ ;
+359+  0000                  ; ld c,#29
+360+  0000                  ; rst #20
+361+  0000                  ; endm
+362+  0000
+363+  0000
+# file closed: ../os_defs.asm
+  4   0000              	org PROGSTART
+  5   8000
+  6   8000              start_nc
+  7   8000 21 F8 85     	ld hl,msg_title_nc ;имя приложения
+  8   8003              	OS_PRINTZ ;печать
+  8   8003 0E 09       >    ld c,#09
+  8   8005 E7          >    rst #20
+  9   8006
+ 10   8006
+ 11   8006              	;узнать свои страницы
+ 12   8006              	OS_GET_MAIN_PAGES
+ 12   8006 0E 1E       >    ld c,#1e
+ 12   8008 E7          >    rst #20
+ 13   8009 38 09        	jr c,get_page_error
+ 14   800B
+ 15   800B ED 43 45 85  	ld (page_main),bc
+ 16   800F
+ 17   800F
+ 18   800F              	OS_GET_PAGE ;получить лишнюю страницу
+ 18   800F 0E 1A       >    ld c,#1a
+ 18   8011 E7          >    rst #20
+ 19   8012 30 0C        	jr nc,get_page_ok
+ 20   8014              get_page_error
+ 21   8014 21 E5 85     	ld hl,msg_mem_err ;нет памяти
+ 22   8017              	OS_PRINTZ ;печать
+ 22   8017 0E 09       >    ld c,#09
+ 22   8019 E7          >    rst #20
+ 23   801A
+ 24   801A CD 76 80     	call delay
+ 25   801D C3 90 81     	jp exit
+ 26   8020
+ 27   8020              get_page_ok
+ 28   8020 32 44 85     	ld (page_ext01),a ;запомнить
+ 29   8023
+ 30   8023
+ 31   8023
+ 32   8023              start_nc_warm ;тёплый старт
+ 33   8023
+ 34   8023              	;очистка буфера
+ 35   8023 CD 7C 80     	call clear_buf
+ 36   8026
+ 37   8026              	;загрузка каталога
+ 38   8026 21 00 C0     	ld hl,buffer_cat ;куда
+ 39   8029 11 00 00     	ld de,0 ;начиная с 0 сектора
+ 40   802C 06 20        	ld b,32 ; секторов
+ 41   802E              	OS_READ_DIR
+ 41   802E 0E 26       >    ld c,#26
+ 41   8030 E7          >    rst #20
+ 42   8031
+ 43   8031 21 00 00     	ld hl,0 ;обнулить переменные
+ 44   8034 22 40 85     	ld (file_r_num_cur),hl
+ 45   8037 22 24 83     	ld (file_r_all),hl
+ 46   803A
+ 47   803A CD 2C 82     	call format_dir
+ 48   803D
+ 49   803D 3E 0F        	ld a,color_backgr
+ 50   803F 06 0C        	ld b,#c
+ 51   8041              	OS_SET_COLOR
+ 51   8041 0E 06       >    ld c,#06
+ 51   8043 E7          >    rst #20
+ 52   8044
+ 53   8044 CD DB 82     	call print_rect_r ;рамка
+ 54   8047 CD A8 81     	call print_panel_r
+ 55   804A CD 10 83     	call print_menu_view
+ 56   804D
+ 57   804D 11 00 01     	ld de,#0100
+ 58   8050              	OS_SET_XY
+ 58   8050 0E 01       >    ld c,#01
+ 58   8052 E7          >    rst #20
+ 59   8053
+ 60   8053
+ 61   8053
+ 62   8053              nc_wait
+ 63   8053              	OS_WAIT ;ждать прерывание
+ 63   8053 DF          >	rst #18
+ 64   8054
+ 65   8054              	OS_GET_CHAR ;клавиша
+ 65   8054 0E 10       >    ld c,#10
+ 65   8056 E7          >    rst #20
+ 66   8057 32 42 85     	ld (key_pressed),a ;запомнить
+ 67   805A FE 0D        	cp 13
+ 68   805C CA 0B 81     	jp z,key_enter ;
+ 69   805F FE 0A        	cp 10 ;вниз
+ 70   8061 CA 54 81     	jp z,key_down
+ 71   8064 FE 0B        	cp 11 ;вверх
+ 72   8066 CA 77 81     	jp z,key_up
+ 73   8069 FE 18        	cp 24 ;break
+ 74   806B CA 90 81     	jp z,exit
+ 75   806E FE 33        	cp "3" ;просмотр файла
+ 76   8070 CA 8A 80     	jp z,view_file
+ 77   8073
+ 78   8073 C3 53 80     	jp nc_wait ;на цикл ожидания
+ 79   8076
+ 80   8076
+ 81   8076              delay ;задержка
+ 82   8076 06 96        	ld b,50*3 ;
+ 83   8078              delay1
+ 84   8078              	OS_WAIT
+ 84   8078 DF          >	rst #18
+ 85   8079 10 FD        	djnz delay1
+ 86   807B C9           	ret
+ 87   807C
+ 88   807C
+ 89   807C              clear_buf
+ 90   807C 21 00 C0     	ld hl,buffer_cat
+ 91   807F 11 01 C0     	ld de,buffer_cat+1
+ 92   8082 01 FF 3F     	ld bc,#4000-1
+ 93   8085 36 00        	ld (hl),0
+ 94   8087 ED B0        	ldir
+ 95   8089 C9           	ret
+ 96   808A
+ 97   808A              view_file
+ 98   808A              	;просмотр файла
+ 99   808A 2A 24 83     	ld hl,(file_r_all)
+100   808D 7D           	ld a,l
+101   808E B4           	or h
+102   808F CA FF 80     	jp z,view_file_ex ;защита
+103   8092 CD 44 81     	call calc_deskr
+104   8095 DD 7E 0B     	ld a,(ix+#0b)
+105   8098 FE 10        	cp #10 ;признак каталога
+106   809A CA FF 80     	jp z,view_file_ex
+107   809D
+108   809D CD A6 82     	call format_name ;обработать имя файла
+109   80A0
+110   80A0
+111   80A0
+112   80A0              	OS_CLS ;почистить экран
+112   80A0 0E 00       >    ld c,#00
+112   80A2 E7          >    rst #20
+113   80A3
+114   80A3 21 26 83     	ld hl,file_name_cur		;строка с именем
+115   80A6              	OS_FILE_OPEN
+115   80A6 0E 21       >    ld c,#21
+115   80A8 E7          >    rst #20
+116   80A9 30 09        	jr nc,view_file_open_ok
+117   80AB              view_file_file_error
+118   80AB 21 C9 85     	ld hl,msg_file_error
+119   80AE              	OS_PRINTZ
+119   80AE 0E 09       >    ld c,#09
+119   80B0 E7          >    rst #20
+120   80B1 C3 FF 80     	jp view_file_ex
+121   80B4
+122   80B4              view_file_open_ok
+123   80B4 32 43 85     	ld (file_id_cur_r),a
+124   80B7              	;проверка длины файла не больше #4000
+125   80B7 7A           	ld	a,d ;самые старшие байты длины
+126   80B8 B3           	or e
+127   80B9 28 09        	jr z,view_file_size_ok ;если не слищком большой
+128   80BB              view_file_too_big
+129   80BB 21 D6 85     	ld hl,msg_file_too_big
+130   80BE              	OS_PRINTZ
+130   80BE 0E 09       >    ld c,#09
+130   80C0 E7          >    rst #20
+131   80C1 C3 23 80     	jp start_nc_warm ;перезагрузить папку
+132   80C4
+133   80C4
+134   80C4              view_file_size_ok
+135   80C4 78           	ld	a,b ;младший старший байт длины
+136   80C5 FE 41        	cp #40+1
+137   80C7 30 F2        	jr nc,view_file_too_big
+138   80C9
+139   80C9 C5           	push bc
+140   80CA CD 7C 80     	call clear_buf
+141   80CD C1           	pop bc
+142   80CE
+143   80CE              	;размер нормальный, прочитаем
+144   80CE 50           	ld d,b ;размер
+145   80CF 59           	ld e,c
+146   80D0 21 00 C0     	ld hl,buffer_cat
+147   80D3 3A 43 85     	ld a,(file_id_cur_r)
+148   80D6              	OS_FILE_READ ;загрузить
+148   80D6 0E 23       >    ld c,#23
+148   80D8 E7          >    rst #20
+149   80D9 38 D0        	jr c,view_file_file_error
+150   80DB
+151   80DB
+152   80DB              	;печать файла в консоль
+153   80DB 3E 04        	ld a,4 ;цвет
+154   80DD 06 0C        	ld b,#c
+155   80DF              	OS_SET_COLOR
+155   80DF 0E 06       >    ld c,#06
+155   80E1 E7          >    rst #20
+156   80E2 11 00 00     	ld de,0000 ;xy
+157   80E5              	OS_SET_XY
+157   80E5 0E 01       >    ld c,#01
+157   80E7 E7          >    rst #20
+158   80E8 21 00 C0     	ld hl,buffer_cat
+159   80EB              	OS_PRINTZ
+159   80EB 0E 09       >    ld c,#09
+159   80ED E7          >    rst #20
+160   80EE
+161   80EE CD 02 81     	call release_key
+162   80F1
+163   80F1              view_file_wait
+164   80F1              	OS_WAIT
+164   80F1 DF          >	rst #18
+165   80F2              	OS_GET_CHAR
+165   80F2 0E 10       >    ld c,#10
+165   80F4 E7          >    rst #20
+166   80F5 FE FF        	cp 255
+167   80F7 28 F8        	jr z,view_file_wait
+168   80F9              	;почистить экран
+169   80F9              	OS_CLS
+169   80F9 0E 00       >    ld c,#00
+169   80FB E7          >    rst #20
+170   80FC C3 23 80     	jp start_nc_warm ;перезагрузить папку
+171   80FF
+172   80FF              view_file_ex
+173   80FF C3 53 80     	jp nc_wait
+174   8102
+175   8102
+176   8102              release_key ;ждать отпускания клавиши
+177   8102              	OS_WAIT
+177   8102 DF          >	rst #18
+178   8103              	OS_GET_CHAR
+178   8103 0E 10       >    ld c,#10
+178   8105 E7          >    rst #20
+179   8106 FE FF        	cp 255
+180   8108 20 F8        	jr nz,release_key
+181   810A C9           	ret
+182   810B
+183   810B
+184   810B              key_enter
+185   810B              	;нажата Enter
+186   810B 2A 24 83     	ld hl,(file_r_all)
+187   810E 7D           	ld a,l
+188   810F B4           	or h
+189   8110 CA 34 81     	jp z,key_enter_ex ;защита
+190   8113 CD 44 81     	call calc_deskr
+191   8116 DD 7E 0B     	ld a,(ix+#0b)
+192   8119 FE 10        	cp #10 ;признак каталога
+193   811B 28 1A        	jr z,key_enter_dir
+194   811D
+195   811D              	;проверка расширения ;APG
+196   811D CD 94 81     	call check_apg
+197   8120 C2 34 81     	jp nz,key_enter_ex
+198   8123              	;тут запуск приложения
+199   8123 CD A6 82     	call format_name
+200   8126
+201   8126 21 26 83     	ld hl,file_name_cur		;строка с именем
+202   8129              	OS_PROC_RUN ;запустить прогу
+202   8129 0E 11       >    ld c,#11
+202   812B E7          >    rst #20
+203   812C              	;обработка ошибки
+204   812C 38 06        	jr c,key_enter_ex
+205   812E
+206   812E DD 7E 00     	ld a,(ix)
+207   8131              	OS_PROC_SET_FOCUS ;на передний план
+207   8131 0E 12       >    ld c,#12
+207   8133 E7          >    rst #20
+208   8134
+209   8134              key_enter_ex
+210   8134 C3 53 80     	jp nc_wait
+211   8137
+212   8137              key_enter_dir
+213   8137              	;тут открытие папки
+214   8137
+215   8137              	;call format_name_dir
+216   8137 EB           	ex de,hl ;de - дескриптор для открытия
+217   8138 21 26 84     	ld hl,dir_name_cur
+218   813B              	OS_OPEN_DIR
+218   813B 0E 27       >    ld c,#27
+218   813D E7          >    rst #20
+219   813E 38 F4        	jr c,key_enter_ex ;если ошибка, ничего не делаем
+220   8140
+221   8140 E1           	pop hl ;отменить возврат
+222   8141 C3 23 80     	jp start_nc_warm ;перезагрузить папку
+223   8144
+224   8144
+225   8144              ; format_name_dir
+226   8144              	; push hl
+227   8144              	; ld hl,file_name_cur
+228   8144              	; ld de,file_name_cur+1 ;почистить
+229   8144              	; ld bc,256-1
+230   8144              	; ld (hl),0
+231   8144              	; ldir
+232   8144
+233   8144              	; pop hl
+234   8144
+235   8144              	; ld de,file_name_cur ;куда
+236   8144              	; ld bc,#08ff
+237   8144              ; format_name_dir_cl
+238   8144              	; ld a,(hl)
+239   8144              	; cp " "+1
+240   8144              	; jr c,format_name_dir_skip
+241   8144              	; ldi
+242   8144              	; djnz format_name_dir_cl
+243   8144              ; format_name_dir_skip
+244   8144              	; ld a,'/'
+245   8144              	; ld (de),a
+246   8144              	; ret
+247   8144
+248   8144              calc_deskr ;вычислить дескриптор текущего элемента справа
+249   8144 11 00 C0     	ld de,buffer_cat
+250   8147 2A 40 85     	ld hl,(file_r_num_cur)
+251   814A 29           	add hl,hl ;*2
+252   814B 29           	add hl,hl ;*4
+253   814C 29           	add hl,hl ;*8
+254   814D 29           	add hl,hl ;*16
+255   814E 29           	add hl,hl ;*32
+256   814F 19           	add hl,de
+257   8150 E5           	push hl
+258   8151 DD E1        	pop ix ;указатель на файл в каталоге
+259   8153 C9           	ret
+260   8154
+261   8154
+262   8154              key_down
+263   8154 2A 24 83     	ld hl,(file_r_all)
+264   8157 7D           	ld a,l
+265   8158 B4           	or h
+266   8159 CA 74 81     	jp z,key_down_ex ;защита
+267   815C 2A 40 85     	ld hl,(file_r_num_cur)
+268   815F 23           	inc hl
+269   8160 ED 4B 24 83  	ld bc,(file_r_all)
+270   8164              	;если не больше чем всего
+271   8164 E5           	push hl
+272   8165 A7           	and a
+273   8166 ED 42        	sbc hl,bc
+274   8168 E1           	pop hl
+275   8169 30 06        	jr nc,key_down_skip
+276   816B 22 40 85     	ld (file_r_num_cur),hl
+277   816E CD A8 81     	call print_panel_r ;обновить каталог
+278   8171              key_down_skip
+279   8171 3A 42 85     	ld a,(key_pressed)
+280   8174              key_down_ex
+281   8174 C3 53 80     	jp nc_wait
+282   8177
+283   8177
+284   8177
+285   8177              key_up
+286   8177 2A 24 83     	ld hl,(file_r_all)
+287   817A 7D           	ld a,l
+288   817B B4           	or h
+289   817C CA 8D 81     	jp z,key_up_ex ;защита
+290   817F 2A 40 85     	ld hl,(file_r_num_cur)
+291   8182 7D           	ld a,l
+292   8183 B4           	or h
+293   8184 28 07        	jr z,key_up_skip
+294   8186 2B           	dec hl
+295   8187 22 40 85     	ld (file_r_num_cur),hl
+296   818A CD A8 81     	call print_panel_r ;обновить каталог
+297   818D              key_up_skip
+298   818D
+299   818D              key_up_ex
+300   818D C3 53 80     	jp nc_wait
+301   8190
+302   8190
+303   8190              exit ;выход в DOS
+304   8190 AF           	xor a
+305   8191              	OS_PROC_CLOSE
+305   8191 0E 13       >    ld c,#13
+305   8193 E7          >    rst #20
+306   8194
+307   8194
+308   8194
+309   8194              check_apg ;проверка на расширение APG
+310   8194 DD 7E 08     	ld a,(ix+8)
+311   8197 FE 41        	cp "A"
+312   8199 C0           	ret nz
+313   819A DD 7E 09     	ld a,(ix+9)
+314   819D FE 50        	cp "P"
+315   819F C0           	ret nz
+316   81A0 DD 7E 0A     	ld a,(ix+10)
+317   81A3 FE 47        	cp "G"
+318   81A5 C0           	ret nz
+319   81A6 AF           	xor a ;равен
+320   81A7 C9           	ret
+321   81A8
+322   81A8
+323   81A8
+324   81A8              print_panel_r ;печать правой панели
+325   81A8 DD 21 00 C0  	ld ix,buffer_cat
+326   81AC 11 29 01     	ld de,panel_r_xy ;координаты yx
+327   81AF 06 16        	ld b,panel_hight ;высота панели
+328   81B1 FD 21 00 00  	ld iy,0
+329   81B5              print_panel_r_cl ;цикл
+330   81B5 C5           	push bc
+331   81B6 D5           	push de ;xy
+332   81B7              	OS_SET_XY
+332   81B7 0E 01       >    ld c,#01
+332   81B9 E7          >    rst #20
+333   81BA DD E5        	push ix ;адрес элемента
+334   81BC E1           	pop hl
+335   81BD 7E           	ld a,(hl)
+336   81BE B7           	or a ;конец каталога
+337   81BF 28 10        	jr z,print_panel_r_ex
+338   81C1 CD D4 81     	call print_file_info
+339   81C4              print_panel_r_skip
+340   81C4 D1           	pop de
+341   81C5 14           	inc d ;y++
+342   81C6 FD 23        	inc iy ;текущий файл
+343   81C8 01 20 00     	ld bc,32 ;на другой элемент каталога
+344   81CB DD 09        	add ix,bc
+345   81CD C1           	pop bc
+346   81CE 10 E5        	djnz print_panel_r_cl
+347   81D0 C9           	ret
+348   81D1              print_panel_r_ex
+349   81D1 D1           	pop de
+350   81D2 C1           	pop bc
+351   81D3
+352   81D3              	;здесь почистить остаток каталога
+353   81D3 C9           	ret
+354   81D4
+355   81D4
+356   81D4
+357   81D4              print_file_info ;печать строчки о файле
+358   81D4 11 26 85     	ld de,file_info_string ;скопировать
+359   81D7 01 0B 00     	ld bc,file_info_lenght
+360   81DA ED B0        	ldir
+361   81DC
+362   81DC CD EB 81     	call get_color_item
+363   81DF
+364   81DF 06 0C        	ld b,#c
+365   81E1              	OS_SET_COLOR
+365   81E1 0E 06       >    ld c,#06
+365   81E3 E7          >    rst #20
+366   81E4 21 26 85     	ld hl,file_info_string
+367   81E7              	OS_PRINTZ
+367   81E7 0E 09       >    ld c,#09
+367   81E9 E7          >    rst #20
+368   81EA C9           	ret
+369   81EB
+370   81EB
+371   81EB
+372   81EB              get_color_item ;получить цвет элемента
+373   81EB              ;вх: IX - адрес в каталоге, IY - порядковый номер (0-511)
+374   81EB              ;вых: A - цвет
+375   81EB ED 4B 40 85  	ld bc,(file_r_num_cur) ;позиция курсора справа
+376   81EF FD E5        	push iy
+377   81F1 E1           	pop hl
+378   81F2 A7           	and a
+379   81F3 ED 42        	sbc hl,bc ;сравнить
+380   81F5 28 11        	jr z,get_color_item_no_cursor
+381   81F7              	;цвета курсора
+382   81F7 3E 0E        	ld a,color_dir ;простая
+383   81F9 32 1F 82     	ld (get_color_item_dir+1),a
+384   81FC 3E 0C        	ld a,color_apg ;простая
+385   81FE 32 27 82     	ld (get_color_item_apg+1),a
+386   8201 3E 0F        	ld a,color_backgr ;простая
+387   8203 32 2A 82     	ld (get_color_item_backgr+1),a
+388   8206 18 0F        	jr get_color_item_set
+389   8208
+390   8208              get_color_item_no_cursor
+391   8208              	;цвета обычные
+392   8208 3E 28        	ld a,color_dir_hi ;под курсором
+393   820A 32 1F 82     	ld (get_color_item_dir+1),a
+394   820D 3E 28        	ld a,color_apg_hi ;под курсором
+395   820F 32 27 82     	ld (get_color_item_apg+1),a
+396   8212 3E 28        	ld a,color_backgr_hi ;под курсором
+397   8214 32 2A 82     	ld (get_color_item_backgr+1),a
+398   8217
+399   8217              get_color_item_set
+400   8217              	;задать цвет
+401   8217 DD 7E 0B     	ld a,(ix+#0b)
+402   821A FE 10        	cp #10 ;признак каталога
+403   821C 20 03        	jr nz,get_color_item_no_dir
+404   821E              	;если папка
+405   821E              get_color_item_dir
+406   821E 3E 00        	ld a,0
+407   8220 C9           	ret
+408   8221
+409   8221              get_color_item_no_dir
+410   8221 CD 94 81     	call check_apg ;расширение apg
+411   8224 20 03        	jr nz,get_color_item_no_apg
+412   8226              	;если приложение
+413   8226              get_color_item_apg
+414   8226 3E 00        	ld a,0
+415   8228 C9           	ret
+416   8229
+417   8229              get_color_item_no_apg
+418   8229              	;если обычный файл
+419   8229              get_color_item_backgr
+420   8229 3E 00        	ld a,0
+421   822B C9           	ret
+422   822C
+423   822C
+424   822C
+425   822C              format_dir ;подготовить каталог, убрать лишнее
+426   822C              	; ld a,2
+427   822C              	; out (254),a
+428   822C FD 21 00 00  	ld iy,0 ;счётчик файлов
+429   8230              	;найти конец каталога
+430   8230 21 00 C0     	ld hl,buffer_cat
+431   8233 7E           	ld a,(hl)
+432   8234 B7           	or a
+433   8235 C8           	ret z ;защита
+434   8236 01 20 00     	ld bc,32
+435   8239              format_dir_prep_cl
+436   8239 7E           	ld a,(hl)
+437   823A B7           	or a
+438   823B 28 07        	jr z,format_dir_prep_ex
+439   823D 09           	add hl,bc
+440   823E 7C           	ld a,h
+441   823F B7           	or a ;если вышли за границу
+442   8240 28 02        	jr z,format_dir_prep_ex
+443   8242 18 F5        	jr format_dir_prep_cl
+444   8244              format_dir_prep_ex
+445   8244 01 20 00     	ld bc,32
+446   8247 A7           	and a
+447   8248 ED 42        	sbc hl,bc
+448   824A 22 A4 82     	ld (format_dir_top),hl ;конец каталога
+449   824D
+450   824D
+451   824D
+452   824D DD 21 00 C0  	ld ix,buffer_cat
+453   8251              	;ld b,panel_hight ;высота панели
+454   8251              format_dir_cl ;цикл
+455   8251 DD 7E 00     	ld a,(ix)
+456   8254 B7           	or a ;конец каталога
+457   8255 28 48        	jr z,format_dir_ex
+458   8257 FE E5        	cp #e5 ;удалённый
+459   8259 28 27        	jr z,format_dir_skip
+460   825B FE 05        	cp #05 ;удалённый
+461   825D 28 23        	jr z,format_dir_skip
+462   825F DD 7E 0B     	ld a,(ix+#0b)
+463   8262 FE 0F        	cp #0f ;длинный
+464   8264 28 1C        	jr z,format_dir_skip
+465   8266
+466   8266              	;проверка на папку "." (этот же каталог)
+467   8266 DD 7E 00     	ld a,(ix+#00)
+468   8269 FE 2E        	cp "." ;
+469   826B 20 07        	jr nz,format_dir_add
+470   826D DD 7E 01     	ld a,(ix+#01)
+471   8270 FE 20        	cp " " ;
+472   8272 28 0E        	jr z,format_dir_skip
+473   8274
+474   8274
+475   8274              format_dir_add
+476   8274 FD 23        	inc iy ;++
+477   8276 01 20 00     	ld bc,32 ;на другой элемент каталога
+478   8279 DD 09        	add ix,bc
+479   827B DD 7C        	ld a,ixh
+480   827D B7           	or a ;если вышли за границу
+481   827E 28 1F        	jr z,format_dir_ex
+482   8280 18 CF        	jr format_dir_cl
+483   8282              format_dir_skip
+484   8282              	;сдвинуть элементы вниз
+485   8282 DD E5        	push ix
+486   8284 DD E5        	push ix
+487   8286 E1           	pop hl
+488   8287 D1           	pop de ;куда
+489   8288 2A A4 82     	ld hl,(format_dir_top) ;0-32
+490   828B A7           	and a
+491   828C ED 52        	sbc hl,de
+492   828E 44           	ld b,h
+493   828F 4D           	ld c,l ;длина
+494   8290 C5           	push bc
+495   8291
+496   8291 DD E5        	push ix
+497   8293 E1           	pop hl ;откуда
+498   8294 01 20 00     	ld bc,32 ;на другой элемент каталога
+499   8297 09           	add hl,bc ;откуда
+500   8298
+501   8298 C1           	pop bc
+502   8299 ED B0        	ldir
+503   829B
+504   829B AF           	xor a
+505   829C 12           	ld (de),a ;очистить ненужный элемент
+506   829D
+507   829D 18 B2        	jr format_dir_cl
+508   829F
+509   829F              format_dir_ex
+510   829F FD 22 24 83  	ld (file_r_all),iy
+511   82A3              	;здесь почистить остаток каталога
+512   82A3              	; ld a,0
+513   82A3              	; out (254),a
+514   82A3 C9           	ret
+515   82A4 00 00        format_dir_top	dw 0 ;временно конец гаталога
+516   82A6
+517   82A6
+518   82A6              format_name ;подогнать имя под стандарт filename.ext
+519   82A6              ;вх: HL - имя в каталоге
+520   82A6 E5           	push hl
+521   82A7 21 26 83     	ld hl,file_name_cur
+522   82AA 11 27 83     	ld de,file_name_cur+1 ;почистить
+523   82AD 01 FF 00     	ld bc,256-1
+524   82B0 36 00        	ld (hl),0
+525   82B2 ED B0        	ldir
+526   82B4
+527   82B4 E1           	pop hl
+528   82B5 E5           	push hl
+529   82B6
+530   82B6 11 26 83     	ld de,file_name_cur ;куда
+531   82B9 01 FF 08     	ld bc,#08ff
+532   82BC              format_name_cl
+533   82BC 7E           	ld a,(hl)
+534   82BD FE 21        	cp " "+1
+535   82BF 38 04        	jr c,format_name_skip
+536   82C1 ED A0        	ldi
+537   82C3 10 F7        	djnz format_name_cl
+538   82C5              format_name_skip
+539   82C5 3E 2E        	ld a,"."
+540   82C7 12           	ld (de),a
+541   82C8
+542   82C8 13           	inc de
+543   82C9 E1           	pop hl
+544   82CA 01 08 00     	ld bc,8 ;перейти на расширение
+545   82CD 09           	add hl,bc
+546   82CE
+547   82CE 01 FF 03     	ld bc,#03ff
+548   82D1              format_name_cl2
+549   82D1 7E           	ld a,(hl)
+550   82D2 FE 21        	cp " "+1
+551   82D4 38 04        	jr c,format_name_skip2
+552   82D6 ED A0        	ldi
+553   82D8 10 F7        	djnz format_name_cl2
+554   82DA              format_name_skip2
+555   82DA C9           	ret
+556   82DB
+557   82DB              print_rect_r ;печать рамки правой
+558   82DB 3E 0F        	ld a,color_backgr ;цвет
+559   82DD 06 0C        	ld b,#c
+560   82DF              	OS_SET_COLOR
+560   82DF 0E 06       >    ld c,#06
+560   82E1 E7          >    rst #20
+561   82E2 11 28 00     	ld de,#0028 ;xy
+562   82E5              	OS_SET_XY
+562   82E5 0E 01       >    ld c,#01
+562   82E7 E7          >    rst #20
+563   82E8 21 47 85     	ld hl,rect_1
+564   82EB              	OS_PRINTZ
+564   82EB 0E 09       >    ld c,#09
+564   82ED E7          >    rst #20
+565   82EE
+566   82EE 11 28 01     	ld de,#0128 ;xy
+567   82F1 06 16        	ld b,24-2 ;цикл
+568   82F3              print_rect_r_cl
+569   82F3 C5           	push bc
+570   82F4 D5           	push de
+571   82F5              	OS_SET_XY
+571   82F5 0E 01       >    ld c,#01
+571   82F7 E7          >    rst #20
+572   82F8 21 70 85     	ld hl,rect_2
+573   82FB              	OS_PRINTZ
+573   82FB 0E 09       >    ld c,#09
+573   82FD E7          >    rst #20
+574   82FE D1           	pop de
+575   82FF 14           	inc d
+576   8300 C1           	pop bc
+577   8301 10 F0        	djnz print_rect_r_cl
+578   8303
+579   8303
+580   8303 11 28 17     	ld de,#1728 ;xy
+581   8306              	OS_SET_XY
+581   8306 0E 01       >    ld c,#01
+581   8308 E7          >    rst #20
+582   8309 21 99 85     	ld hl,rect_3
+583   830C              	OS_PRINTZ
+583   830C 0E 09       >    ld c,#09
+583   830E E7          >    rst #20
+584   830F C9           	ret
+585   8310
+586   8310              print_menu_view ;печать основного меню
+587   8310 3E 28        	ld a,color_backgr_hi ;цвет
+588   8312 06 0C        	ld b,#c
+589   8314              	OS_SET_COLOR
+589   8314 0E 06       >    ld c,#06
+589   8316 E7          >    rst #20
+590   8317 11 18 18     	ld de,#1800+3*8
+591   831A              	OS_SET_XY
+591   831A 0E 01       >    ld c,#01
+591   831C E7          >    rst #20
+592   831D 21 C2 85     	ld hl,msg_menu_view
+593   8320              	OS_PRINTZ
+593   8320 0E 09       >    ld c,#09
+593   8322 E7          >    rst #20
+594   8323 C9           	ret
+595   8324
+596   8324
+597   8324
+598   8324              color_backgr equ 1*8+7 ;цвет фона
+599   8324              color_apg equ 1*8+4 ;цвет приложений
+600   8324              color_dir equ 1*8+6 ;цвет папок
+601   8324
+602   8324              color_backgr_hi equ 5*8+0 ;цвет фона курсор
+603   8324              color_apg_hi equ 5*8+0 ;цвет приложений курсор
+604   8324              color_dir_hi equ 5*8+0 ;цвет папок курсор
+605   8324
+606   8324              file_info_lenght equ 11 ;длина инфо о файле
+607   8324              panel_hight equ 22;высота панели
+608   8324              panel_r_xy equ #0129
+609   8324              buffer_cat equ #c000 ;адрес буфера каталога
+610   8324
+611   8324 00 00        file_r_all dw 0;всего файлов справа
+612   8326 00 00 00...  file_name_cur ds 256 ;имя файла текущее
+613   8426 00 00 00...  dir_name_cur ds 256 ;имя файла текущее
+614   8526 00 00 00...  file_info_string ds file_info_lenght+1 ;буфер инфо
+615   8532 20 20 20 20  file_info_clear db "            ",0 ;для очистки
+615   8536 20 20 20 20
+615   853A 20 20 20 20
+615   853E 00
+616   853F 00           buffer_cat_page_r db 0 ;страница буфера каталога правый
+617   8540
+618   8540 00 00        file_r_num_cur dw 0 ;текущий файл справа
+619   8542 00           key_pressed db 0 ;последняя клавиша
+620   8543 00           file_id_cur_r db 0 ;id файла справа
+621   8544
+622   8544
+623   8544 00           page_ext01 db 0 ;номер дополнительной страницы
+624   8545 00 00        page_main dw 0 ;основные номера страниц слота 2,3
+625   8547
+626   8547              rect_1
+627   8547 C9           	db #c9
+628   8548              	dup 40-2
+629   8548 CD          >	db #cd
+629   8549 CD          >	db #cd
+629   854A CD          >	db #cd
+629   854B CD          >	db #cd
+629   854C CD          >	db #cd
+629   854D CD          >	db #cd
+629   854E CD          >	db #cd
+629   854F CD          >	db #cd
+629   8550 CD          >	db #cd
+629   8551 CD          >	db #cd
+629   8552 CD          >	db #cd
+629   8553 CD          >	db #cd
+629   8554 CD          >	db #cd
+629   8555 CD          >	db #cd
+629   8556 CD          >	db #cd
+629   8557 CD          >	db #cd
+629   8558 CD          >	db #cd
+629   8559 CD          >	db #cd
+629   855A CD          >	db #cd
+629   855B CD          >	db #cd
+629   855C CD          >	db #cd
+629   855D CD          >	db #cd
+629   855E CD          >	db #cd
+629   855F CD          >	db #cd
+629   8560 CD          >	db #cd
+629   8561 CD          >	db #cd
+629   8562 CD          >	db #cd
+629   8563 CD          >	db #cd
+629   8564 CD          >	db #cd
+629   8565 CD          >	db #cd
+629   8566 CD          >	db #cd
+629   8567 CD          >	db #cd
+629   8568 CD          >	db #cd
+629   8569 CD          >	db #cd
+629   856A CD          >	db #cd
+629   856B CD          >	db #cd
+629   856C CD          >	db #cd
+629   856D CD          >	db #cd
+630   856E              	edup
+631   856E BB 00        	db #bb,0
+632   8570
+633   8570              rect_2
+634   8570 BA           	db #ba
+635   8571              	dup 40-2
+636   8571 20          >	db " "
+636   8572 20          >	db " "
+636   8573 20          >	db " "
+636   8574 20          >	db " "
+636   8575 20          >	db " "
+636   8576 20          >	db " "
+636   8577 20          >	db " "
+636   8578 20          >	db " "
+636   8579 20          >	db " "
+636   857A 20          >	db " "
+636   857B 20          >	db " "
+636   857C 20          >	db " "
+636   857D 20          >	db " "
+636   857E 20          >	db " "
+636   857F 20          >	db " "
+636   8580 20          >	db " "
+636   8581 20          >	db " "
+636   8582 20          >	db " "
+636   8583 20          >	db " "
+636   8584 20          >	db " "
+636   8585 20          >	db " "
+636   8586 20          >	db " "
+636   8587 20          >	db " "
+636   8588 20          >	db " "
+636   8589 20          >	db " "
+636   858A 20          >	db " "
+636   858B 20          >	db " "
+636   858C 20          >	db " "
+636   858D 20          >	db " "
+636   858E 20          >	db " "
+636   858F 20          >	db " "
+636   8590 20          >	db " "
+636   8591 20          >	db " "
+636   8592 20          >	db " "
+636   8593 20          >	db " "
+636   8594 20          >	db " "
+636   8595 20          >	db " "
+636   8596 20          >	db " "
+637   8597              	edup
+638   8597 BA 00        	db #ba,0
+639   8599
+640   8599              rect_3
+641   8599 C8           	db #c8
+642   859A              	dup 40-2
+643   859A CD          >	db #cd
+643   859B CD          >	db #cd
+643   859C CD          >	db #cd
+643   859D CD          >	db #cd
+643   859E CD          >	db #cd
+643   859F CD          >	db #cd
+643   85A0 CD          >	db #cd
+643   85A1 CD          >	db #cd
+643   85A2 CD          >	db #cd
+643   85A3 CD          >	db #cd
+643   85A4 CD          >	db #cd
+643   85A5 CD          >	db #cd
+643   85A6 CD          >	db #cd
+643   85A7 CD          >	db #cd
+643   85A8 CD          >	db #cd
+643   85A9 CD          >	db #cd
+643   85AA CD          >	db #cd
+643   85AB CD          >	db #cd
+643   85AC CD          >	db #cd
+643   85AD CD          >	db #cd
+643   85AE CD          >	db #cd
+643   85AF CD          >	db #cd
+643   85B0 CD          >	db #cd
+643   85B1 CD          >	db #cd
+643   85B2 CD          >	db #cd
+643   85B3 CD          >	db #cd
+643   85B4 CD          >	db #cd
+643   85B5 CD          >	db #cd
+643   85B6 CD          >	db #cd
+643   85B7 CD          >	db #cd
+643   85B8 CD          >	db #cd
+643   85B9 CD          >	db #cd
+643   85BA CD          >	db #cd
+643   85BB CD          >	db #cd
+643   85BC CD          >	db #cd
+643   85BD CD          >	db #cd
+643   85BE CD          >	db #cd
+643   85BF CD          >	db #cd
+644   85C0              	edup
+645   85C0 BC 00        	db #bc,0
+646   85C2
+647   85C2              msg_menu_view
+648   85C2 33 20 56 69  	db "3 View",0
+648   85C6 65 77 00
+649   85C9              msg_file_error
+650   85C9 46 69 6C 65  	db "File error",10,13,0
+650   85CD 20 65 72 72
+650   85D1 6F 72 0A 0D
+650   85D5 00
+651   85D6              msg_file_too_big
+652   85D6 46 69 6C 65  	db "File too big",10,13,0
+652   85DA 20 74 6F 6F
+652   85DE 20 62 69 67
+652   85E2 0A 0D 00
+653   85E5              msg_mem_err
+654   85E5 47 65 74 20  	db "Get memory error",10,13,0
+654   85E9 6D 65 6D 6F
+654   85ED 72 79 20 65
+654   85F1 72 72 6F 72
+654   85F5 0A 0D 00
+655   85F8              msg_title_nc
+656   85F8 4E 6F 6E 65  	db "None Commander ver 2025.01.28",10,13,0
+656   85FC 20 43 6F 6D
+656   8600 6D 61 6E 64
+656   8604 65 72 20 76
+656   8608 65 72 20 32
+656   860C 30 32 35 2E
+656   8610 30 31 2E 32
+656   8614 38 0A 0D 00
+657   8618
+658   8618              end_nc
+659   8618              	savebin "nc.apg",start_nc,$-start_nc
+# file closed: nc.asm
