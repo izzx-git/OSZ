@@ -29,7 +29,7 @@ start_sys
 	jp c,sys_loop
 	ld (sys_file_autorun_id_tmp),a ;запомнить id
 	
-	;проверка длины файла не больше #4000
+	;проверка длины файла не больше #8000
 	ld	a,d ;самые старшие байты длины
 	or e
 	jr z,sys_file_size_ok ;если не слищком большой
@@ -41,7 +41,7 @@ sys_file_too_big
 
 sys_file_size_ok	
 	ld	a,b ;младший старший байт длины
-	cp #40+1
+	cp #80
 	jr nc,sys_file_too_big
 	;размер нормальный, прочитаем
 	ld (sys_file_autorun_lenght),bc
@@ -180,6 +180,8 @@ sys_loop_skip
 	call release_key
 	xor a	
 	ld (key_proc_switch_flag),a
+	ld a,255
+	ld (key_cur),a ;очистить буфер
 	jr sys_loop_skip_key
 		
 sys_loop_skip_key_focus
@@ -1416,6 +1418,9 @@ file_load_ok ;загрузился нормально
 	ld a,(ix+5)
 	ld (con_atr_cur),a
 	call drvgmx.cls	
+	ld hl,0
+	ld (ix+#08),hl ;позиция скрола
+	ld (ix+#0a),hl ;позиция курсора	
 	;вернуть
 	ld hl,(proc_run_attr_screen_tmp)
 	ld (drvgmx.attr_screen),hl
@@ -1733,6 +1738,8 @@ esp_send ;послать запрос ESP (CIPSEND);
 	ld (ix+4),0 ;флаг результат отправки
 	ld (ix+3),1 ;флаг запрос отправки
 	xor a
+	ld (ix+6),a ;флаг результат приёма
+	ld (ix+5),a ;флаг запрос на приём	
 	ret
 
 esp_send_err	
@@ -1754,6 +1761,10 @@ esp_get ;получить пакет ESP (+IPD);
 	ld (ix+6),0 ;флаг результат приёма
 	ld (ix+5),1 ;флаг запрос на приём
 	xor a
+	ld (ix+4),a ;флаг результат отправки
+	ld (ix+3),a ;флаг запрос отправки	
+	ld (ix+9),a  ;длина
+	ld (ix+10),a
 	ret
 
 ;проверка есть ли порт и кто владелец в данный момент
@@ -1854,9 +1865,7 @@ copyZ ;копировать данные до кода 0
 	ld a,(hl)
 	or a
 	jr z,copyZ_ex
-	ld (de),a
-	inc de
-	inc hl
+	ldi
 	jr copyZ
 copyZ_ex
 	xor a
@@ -2585,7 +2594,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.02.07",13,10,0
+	db "OS ver 2025.05.23",13,10,0
 	
 
 

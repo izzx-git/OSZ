@@ -136,7 +136,7 @@ fopen_r	;открытие существующего файла на чтени�
 	R8FAT r8f05_OpenDir	;открыть текущий каталог
 	exx
 	
-	ld a,(file_fat_id_cur)
+	;ld a,(file_fat_id_cur)
 	R8FAT r8f07_FileOpen ;открыть
 	jp 	c,file_error
 
@@ -163,7 +163,7 @@ fopen_c	;создание нового файла
 	R8FAT r8f05_OpenDir	;открыть текущий каталог
 	exx	
 	
-	ld a,(file_fat_id_cur)
+	;ld a,(file_fat_id_cur)
 	R8FAT	r8f0E_CreateFileLFN	;создание файла
 	jp 	c,file_error
 	
@@ -499,7 +499,7 @@ fread: ;(id=1)
 
 
 ; A - file stream id
-; BC - length
+; DE - length
 ; HL - buffer
 ; Returns:
 ;   BC - actually written bytes

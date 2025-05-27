@@ -35,13 +35,7 @@ start_radio
 ; radio_get_link_ok ;ID получили
 	; ld (link_id),a 
 	
-start_radio_warm		
-	ld hl,start_request ;очистить номер первого трека
-	ld de,start_request+1
-	ld bc,5-1
-	ld (hl),"0"
-	ldir
-	
+start_radio_warm	
 	ld hl,format_pt3 ;формат 
 	ld de,request_format
 	ld bc,3
@@ -50,6 +44,19 @@ start_radio_warm
 	;настроить плеер
 	ld a,%00100001 ;pt3 auto
 	ld (player_setup),a
+
+
+start_radio_warm2
+	
+	ld hl,start_request ;очистить номер первого трека
+	ld de,start_request+1
+	ld bc,5-1
+	ld (hl),"0"
+	ldir
+	
+	ld hl,0
+	ld (cur_track),hl ;первый трек
+	ld (total_track),hl ;всего
 	
 	ld a,r
 	ld (seed+1),a ;элемент случайности
@@ -171,13 +178,13 @@ loop_radio
 	cp "R"
 	jp z,restart ;всё сначала
 	cp "s" ;останов
-	jp z, .stopKey
+	jp z,stopKey
 	cp "S" ;останов
-	jp z, .stopKey
+	jp z,stopKey
 	; cp "n" ;следующий случайный
-	; jp z, next_track_rnd
+	; jp z, next_track
 	cp " " ;слудующий случайный
-	jp z, next_track_rnd
+	jp z, next_track
 	cp "1" ;формат
 	jp z, select_pt2
 	cp "2" ;формат
@@ -186,13 +193,17 @@ loop_radio
 	; jp z, select_ts
 	; cp "4" ;формат
 	; jp z, select_tfc
+	cp "Q" ;порядок
+	jp z, select_order
+	cp "q" ;порядок
+	jp z, select_order	
 	cp 24 ;break
 	jp z,exit
 	OS_GET_VTPL_SETUP
     ld a, (hl) : 
 	rla : jr nc, loop_radio
-	jp next_track_rnd
-.stopKey
+	jp next_track
+stopKey
 	OS_VTPL_MUTE
 	ld hl,msg_stop
 	OS_PRINTZ
@@ -212,13 +223,14 @@ exit ;выход в ДОС
 
 	
 ;следующий трек
-next_track_rnd
+next_track
 	;получить случайный номер трека 
 	; nop
 	; nop
 	OS_VTPL_MUTE
-	ld hl,(total_track)
-	call rnd
+
+	call get_next ;узнать следующий
+	jp c,stopKey ;если 0, то останов
 	;подставить номер
 	call toDecimal
 	;ld (start_track),hl
@@ -238,7 +250,7 @@ select_pt2 ;выбор типа
 	;настроить плеер
 	ld a,%00000011 ;pt2
 	ld (player_setup),a
-	jp loop_radio
+	jp start_radio_warm2
 	
 select_pt3 ;выбор типа 
 	OS_VTPL_MUTE
@@ -250,7 +262,8 @@ select_pt3 ;выбор типа
 	;настроить плеер
 	ld a,%00100001 ;pt3
 	ld (player_setup),a
-	jp loop_radio
+	call radio_download_info ;загрузка информации сколько треков
+	jp start_radio_warm2
 	
 ; select_ts ;выбор типа 
 	; OS_VTPL_MUTE
@@ -285,6 +298,118 @@ select_format_print
 	pop hl
 	ret
 	
+
+
+
+
+
+	
+	
+get_next ;выбор следующего трека
+	ld hl,(total_track)
+	ld a,l
+	or h
+	scf ;ошибка
+	ret z ;если всего 0, то вернуть 0
+	ld a,(order_val)
+	or a
+	jr z,get_next_random
+	cp 1
+	jr z,get_next_from_new_to_old
+	
+
+get_next_from_old_to_new
+	;от старых к новым
+	ld hl,(cur_track)
+	ld de,1
+	and a
+	sbc hl,de
+	jr nc,get_next_from_old_to_new1
+	ld hl,(total_track) ;с конца
+	dec hl ;фикс потому что счёт с 0
+	jr get_next_from_old_to_new2
+get_next_from_old_to_new1
+	ld hl,(cur_track)
+	dec hl
+get_next_from_old_to_new2
+	ld (cur_track),hl ;запомним
+	xor a ;нет ошибок
+	ret		
+	
+	
+get_next_from_new_to_old
+	;от новых к старым
+	ld de,(cur_track)
+	inc de
+	ld hl,(total_track)
+	dec hl ;фикс потому что счёт с 0	
+	and a
+	sbc hl,de
+	jr nc,get_next_from_new_to_old1
+	ld hl,0 ;сначала
+	jr get_next_from_new_to_old2
+get_next_from_new_to_old1
+	ld hl,(cur_track)
+	inc hl
+get_next_from_new_to_old2
+	ld (cur_track),hl ;запомним
+	xor a ;нет ошибок
+	ret	
+
+
+	
+get_next_random	
+	;случайный
+	ld hl,(total_track)
+	call rnd
+	ld (cur_track),hl ;запомним
+	xor a ;нет ошибок
+	ret
+	
+	
+	
+	
+select_order ;выбор порядка
+	ld a,(order_val)
+	inc a
+	cp 3 ;макс
+	jr c,select_order1
+	xor a
+select_order1
+	ld (order_val),a
+	call print_order
+	jp loop_radio
+	
+print_order ;печать порядка
+	ld hl,msg_order
+	OS_PRINTZ
+	
+	ld a,5;цвет
+	ld b,#c
+	OS_SET_COLOR
+
+	ld a,(order_val)
+	or a
+	jr nz,select_order_from_new
+	ld hl,msg_order_random
+	OS_PRINTZ
+	jr select_order_ex
+select_order_from_new
+	cp 1
+	jr nz,select_order_from_old
+	ld hl,msg_order_from_new
+	OS_PRINTZ
+	jr select_order_ex
+select_order_from_old
+	ld hl,msg_order_from_old
+	OS_PRINTZ
+select_order_ex	
+	ld a,7 ;цвет
+	ld b,#c
+	OS_SET_COLOR
+	ret
+	
+
 	
 radio_main_error ;печать ошибка
 	;какая-то ошибка
@@ -645,7 +770,14 @@ radio_download_track1_skip
 	; and a
 	; sbc hl,de
 	; ;узнали начало пакета
-
+	ld hl,msg_download_size ;печать размера
+	OS_PRINTZ
+	ld hl,(data_length)
+	call toDecimal
+	OS_PRINTZ
+	ld hl,msg_B
+	OS_PRINTZ
+	
 	ld hl,(data_start) ;начало данных
 	or a
 	ret
@@ -661,6 +793,9 @@ print_sys_info ;печать меню управления
 	OS_SET_COLOR
 	ld hl,msg_sys_info
 	OS_PRINTZ
+	
+	call print_order
+	
 	ld a,7 ;цвет
 	ld b,#c
 	OS_SET_COLOR
@@ -668,6 +803,12 @@ print_sys_info ;печать меню управления
 
 
 print_info_track ;печать инфо о треке
+	ld hl,msg_cur_number
+	OS_PRINTZ
+	ld hl,(cur_track)
+	call toDecimal
+	OS_PRINTZ
+	
 	ld hl,Content_Total_Amount ;всего таких треков
 	call print_info_track_one
 	ret c
@@ -952,7 +1093,7 @@ toDecimal0001k
 			add hl,de
 			add a,48
 			ld (decimalS+4),a		
-			
+			ld hl,decimalS
 			ret
 	
 decimalS	ds 6 ;десятичные цифры
@@ -981,7 +1122,7 @@ buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
 ;link_id db 0; номер соединения
 data_start dw 0 ;начало данных
 data_end dw 0 ;конец данных
-data_length dw 0 ;конец данных
+data_length dw 0 ;длина данных
 buffer_pointer dw 0 ;указатель на буфер
 rnrn db 13,10,13,10,0 ;окончание заголовка
 site_name db "zxart.ee",0 ;имя сайта
@@ -1008,15 +1149,24 @@ msg_play_track db "Play track...",13,0
 msg_stop db "Stop",13,0
 msg_restart db "Restart...",13,0
 ;msg_get_link_id db "Get link ID...",13,0
-msg_sys_info db "S - stop, R - restart, 1-2 - Format (pt2, pt3)",13
-	db "Sp - Next, Break - exit",13,0
+msg_sys_info db "S - Stop, R - Restart, 1-2 - Format (pt2, pt3)",13
+	db "Sp - Next, Break - Exit",13,0
+msg_order 	db "Q - Order: ",0
+msg_cur_number	db 13,"Current number: ",0
 
+msg_order_random db "random",13,0
+msg_order_from_new db "from new to old",13,0
+msg_order_from_old db "from old to new",13,0
+msg_download_size db "Size: ",0
+msg_B db "B",13,0
 total_track dw 0;
 start_track dw 0;
+cur_track dw 0;
 format_pt2 db "pt2",0
 format_pt3 db "pt3",0
 format_ts db " ts",0
 format_tfc db "tfc",0
+order_val db 1 ;тип сортировки
 
 player_setup db 0;настройки плеера
 
@@ -1057,7 +1207,7 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_radio
-	db "Radio ver 2025.01.16",10,13,0
+	db "Radio ver 2025.05.27",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки

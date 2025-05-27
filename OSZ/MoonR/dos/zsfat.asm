@@ -172,8 +172,10 @@ fopen_c	;создание нового файла (id=2-4,6)
 	; ld 	(prev_drive),a ;запомним
 
 	;call format_name ;
+	OS_FILE_OPEN ;если есть, откроем
+	ret nc
 	
-	OS_FILE_CREATE
+	OS_FILE_CREATE ;или создадим
 	ret
 	
 	; call select_drive
