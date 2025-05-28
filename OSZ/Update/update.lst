@@ -1,0 +1,1377 @@
+# file opened: update.asm
+  1   0000              ;OS Update - приложение для OS GMX
+  2   0000                 device ZXSPECTRUM128
+  3   0000              	include "../os_defs.asm"
+# file opened: ../os_defs.asm
+  1+  0000              ;Список всех вызовов (функций) ОС GMX
+  2+  0000
+  3+  0000              ;Включить в свой код (в начале файла):
+  4+  0000              	; include os_defs.asm
+  5+  0000
+  6+  0000              ;Использовать только имена функций, коды могут поменяться
+  7+  0000
+  8+  0000              ;например:
+  9+  0000              	; org PROGSTART
+ 10+  0000              	; ../include os_defs.asm
+ 11+  0000              	; ld hl,text
+ 12+  0000              	; OS_PRINTZ ;печать	до кода 0
+ 13+  0000
+ 14+  0000              ;сохранность регистров не гарантируется
+ 15+  0000              ;на выходе обычно (но не всегда) CY=1 = ошибка
+ 16+  0000
+ 17+  0000              PROGSTART equ #8000 ;адрес старта приложений
+ 18+  0000
+ 19+  0000
+ 20+  0000              ;короткие вызовы (именные RST) -------------------------
+ 21+  0000
+ 22+  0000              ;печать символа в консоль (ускоренная)
+ 23+  0000              	MACRO OS_PRINT_CHARF ;a=char
+ 24+  0000 ~            	rst #10
+ 25+  0000              	ENDM
+ 26+  0000
+ 27+  0000
+ 28+  0000              ;передача управления ОС до следующего прерывания (когда придёт очередь процесса в следующий раз);
+ 29+  0000              ;все регистры сохраняются
+ 30+  0000              ;рекомендуется использовать вместо обычного halt
+ 31+  0000              	MACRO OS_WAIT
+ 32+  0000 ~            	rst #18
+ 33+  0000              	ENDM
+ 34+  0000
+ 35+  0000              	; MACRO OS_
+ 36+  0000              	; rst #28
+ 37+  0000              	; ENDM
+ 38+  0000
+ 39+  0000              	; MACRO OS_
+ 40+  0000              	; rst #30
+ 41+  0000              	; ENDM
+ 42+  0000
+ 43+  0000
+ 44+  0000
+ 45+  0000              ;вызовы через единую точку входа RST #20 ----------------
+ 46+  0000
+ 47+  0000              ;вывод в консоль --------------------
+ 48+  0000
+ 49+  0000              ;очистить консоль
+ 50+  0000              	macro OS_CLS ;clear visible area of terminal
+ 51+  0000 ~                ld c,#00
+ 52+  0000 ~                rst #20
+ 53+  0000                  endm
+ 54+  0000
+ 55+  0000              ;установить позицию курсора в консоли
+ 56+  0000                  macro OS_SET_XY ;de=yx ;SET CURSOR POSITION
+ 57+  0000 ~                ld c,#01
+ 58+  0000 ~                rst #20
+ 59+  0000                  endm
+ 60+  0000
+ 61+  0000              ;печать символа в консоль
+ 62+  0000                  macro OS_PRINT_CHAR ;a=char
+ 63+  0000 ~                ld c,#02
+ 64+  0000 ~                rst #20
+ 65+  0000                  endm
+ 66+  0000
+ 67+  0000              ;заполнение строки одним символом
+ 68+  0000                  macro OS_FILL_LINE ;; H - line ; A - char
+ 69+  0000 ~                ld c,#03
+ 70+  0000 ~                rst #20
+ 71+  0000                  endm
+ 72+  0000
+ 73+  0000              ;покрасить строку цветом
+ 74+  0000                  macro OS_PAINT_LINE ;a - line, b - color
+ 75+  0000 ~                ld c,#04
+ 76+  0000 ~                rst #20
+ 77+  0000                  endm
+ 78+  0000
+ 79+  0000
+ 80+  0000                  ; macro OS_ ;
+ 81+  0000                  ; ld c,#05
+ 82+  0000                  ; rst #20
+ 83+  0000                  ; endm
+ 84+  0000
+ 85+  0000              ;установить цвет текста в консоли;
+ 86+  0000                  macro OS_SET_COLOR ;a = color, b = color 2 (highlight)
+ 87+  0000 ~                ld c,#06
+ 88+  0000 ~                rst #20
+ 89+  0000                  endm
+ 90+  0000
+ 91+  0000                  ; macro OS_ ;
+ 92+  0000                  ; ld c,#07
+ 93+  0000                  ; rst #20
+ 94+  0000                  ; endm
+ 95+  0000
+ 96+  0000                  ; macro OS_ ;
+ 97+  0000                  ; ld c,#08
+ 98+  0000                  ; rst #20
+ 99+  0000                  ; endm
+100+  0000
+101+  0000
+102+  0000
+103+  0000              ;печать в консоль до кода 0
+104+  0000                  macro OS_PRINTZ ;hl=text ;PRINT to 0
+105+  0000 ~                ld c,#09
+106+  0000 ~                rst #20
+107+  0000                  endm
+108+  0000
+109+  0000
+110+  0000              ;прочитать байт из порта uart
+111+  0000              ;вх:
+112+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart или нет данных для приёма
+113+  0000              ;вых: A - считанный байт
+114+  0000                  macro OS_UART_READ
+115+  0000 ~                ld c,#0a
+116+  0000 ~                rst #20
+117+  0000                  endm
+118+  0000
+119+  0000              ;записать байт в порт uart
+120+  0000              ;вх: A -байт
+121+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+122+  0000                  macro OS_UART_WRITE
+123+  0000 ~                ld c,#0b
+124+  0000 ~                rst #20
+125+  0000                  endm
+126+  0000
+127+  0000              ;закрыть соединение ESP
+128+  0000              ;вх:
+129+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+130+  0000                  macro OS_ESP_CLOSE
+131+  0000 ~                ld c,#0c
+132+  0000 ~                rst #20
+133+  0000                  endm
+134+  0000
+135+  0000              ;установить соединение ESP (CIPSTART);
+136+  0000              ;вх: a - тип соединения 0-tcp, 1-udp, 2-ssl; 3-прямое соединение с портом; hl - строка адрес, de - строка порт
+137+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+138+  0000              ;вых: ix - адрес в таблице соединений (ix+2 - флаг открытия =1 - открыто, 255 - ошибка);
+139+  0000                  macro OS_ESP_OPEN
+140+  0000 ~                ld c,#0d
+141+  0000 ~                rst #20
+142+  0000                  endm
+143+  0000
+144+  0000              ;послать запрос ESP (CIPSEND);
+145+  0000              ;вх: hl - адрес данных, de - длина данных
+146+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+147+  0000              ;вых: ix - адрес в таблице соединений (ix+4 - флаг =1 - отправлено, 255 - ошибка)
+148+  0000                  macro OS_ESP_SEND
+149+  0000 ~                ld c,#0e
+150+  0000 ~                rst #20
+151+  0000                  endm
+152+  0000
+153+  0000              ;получить пакет ESP (+IPD);
+154+  0000              ;вх: hl - адрес для данных
+155+  0000              ;вых: CY=0 - OK; CY=1 - занято другим процессом или нет uart
+156+  0000              ;вых: ix - адрес в таблице соединений (ix+6 - флаг =1 - принято, 255 - ошибка)
+157+  0000                  macro OS_ESP_GET
+158+  0000 ~                ld c,#0f
+159+  0000 ~                rst #20
+160+  0000                  endm
+161+  0000
+162+  0000              ;ввод с консоли ----------------------
+163+  0000
+164+  0000              ;получить код нажатой клавиши
+165+  0000                  macro OS_GET_CHAR ;read char from stdin (out: A=char, 255-no char)
+166+  0000 ~                ld c,#10
+167+  0000 ~                rst #20
+168+  0000                  endm
+169+  0000
+170+  0000
+171+  0000              ;процессы ----------------------------
+172+  0000
+173+  0000              ;запустить процесс
+174+  0000              ;вх: hl - имя файла (заканчивается на 0)
+175+  0000                  macro OS_PROC_RUN ;
+176+  0000 ~                ld c,#11
+177+  0000 ~                rst #20
+178+  0000                  endm
+179+  0000
+180+  0000              ;установить фокус
+181+  0000              ;вх: a - id процесса
+182+  0000                  macro OS_PROC_SET_FOCUS ;
+183+  0000 ~                ld c,#12
+184+  0000 ~                rst #20
+185+  0000                  endm
+186+  0000
+187+  0000              ;закрыть процесс
+188+  0000              ;вх: A - ID процесса. Если A=0, закрыть текущий (себя)
+189+  0000              ;останавливается процесс и освобождаются все его страницы памяти, файлы, соединения
+190+  0000                  macro OS_PROC_CLOSE ;
+191+  0000 ~                ld c,#13
+192+  0000 ~                rst #20
+193+  0000                  endm
+194+  0000
+195+  0000
+196+  0000              ;прерывания --------------------------
+197+  0000
+198+  0000              ;установка адреса обработчика прерываний процесса;
+199+  0000                  ; macro OS_SET_INTER ;(HL - address, A = 1 - On, A = 0 - Off)
+200+  0000                  ; ld c,#14
+201+  0000                  ; rst #20
+202+  0000                  ; endm
+203+  0000
+204+  0000
+205+  0000              ;плеер AY ----------------------------
+206+  0000
+207+  0000              ;инициализация плеера AY;
+208+  0000                  macro OS_VTPL_INIT ;(HL - address music)
+209+  0000 ~                ld c,#15
+210+  0000 ~                rst #20
+211+  0000                  endm
+212+  0000
+213+  0000              ;запустить плеер AY (система будет сама вызывать его каждое прерывание);
+214+  0000                  macro OS_VTPL_PLAY ;()
+215+  0000 ~                ld c,#16
+216+  0000 ~                rst #20
+217+  0000                  endm
+218+  0000
+219+  0000              ;заглушить плеер AY;
+220+  0000                  macro OS_VTPL_MUTE ;()
+221+  0000 ~                ld c,#17
+222+  0000 ~                rst #20
+223+  0000                  endm
+224+  0000
+225+  0000              ;получить значение переменной плеера;
+226+  0000                  macro OS_GET_VTPL_SETUP ;(out: HL - setup address)
+227+  0000 ~                ld c,#18
+228+  0000 ~                rst #20
+229+  0000                  endm
+230+  0000
+231+  0000
+232+  0000              ;прочие ------------------------------
+233+  0000
+234+  0000
+235+  0000              ;скопировать данные из страницы в страницу
+236+  0000              ;вх: hl - откуда (абсолютный адрес 0-ffff); de - куда; ix - длина; a - страница слот2; b - страница слот3;
+237+  0000                  macro OS_RAM_COPY
+238+  0000 ~                ld c,#19
+239+  0000 ~                rst #20
+240+  0000                  endm
+241+  0000
+242+  0000              ;получить дополнительную страницу памяти;
+243+  0000                  macro OS_GET_PAGE ;(out A - number page)
+244+  0000 ~                ld c,#1a
+245+  0000 ~                rst #20
+246+  0000                  endm
+247+  0000
+248+  0000              ;включить страницу в слот 2 (#8000); предварительно зарезервировать страницу OS_GET_PAGE
+249+  0000                  macro OS_SET_PAGE_SLOT2 ;(A - page number)
+250+  0000 ~                ld c,#1b
+251+  0000 ~                rst #20
+252+  0000                  endm
+253+  0000
+254+  0000              ;включить страницу в слот 3 (#C000); предварительно зарезервировать страницу OS_GET_PAGE
+255+  0000                  macro OS_SET_PAGE_SLOT3 ;(A - page number)
+256+  0000 ~                ld c,#1c
+257+  0000 ~                rst #20
+258+  0000                  endm
+259+  0000
+260+  0000              ;включить экран N;
+261+  0000              ;вх: A - номер экрана (5, 7, #39, #3a; 0 = текстовый)
+262+  0000              ;переключать может только приложение в фокусе
+263+  0000              ;если режим не текстовый, то приложение работает только когда в фокусе. Иначе временно останавливается.
+264+  0000              ;при переключении процессов сохраняется только экран #39
+265+  0000                  macro OS_SET_SCREEN ;
+266+  0000 ~                ld c,#1d
+267+  0000 ~                rst #20
+268+  0000                  endm
+269+  0000
+270+  0000
+271+  0000              ;получить номера страниц процесса;
+272+  0000              ;вх:
+273+  0000              ;вых: b, c - страницы в слотах 2, 3
+274+  0000                  macro OS_GET_MAIN_PAGES ;
+275+  0000 ~                ld c,#1e
+276+  0000 ~                rst #20
+277+  0000                  endm
+278+  0000
+279+  0000              ;получить значение системного таймера
+280+  0000                  macro OS_GET_TIMER ;(out: HL, DE - timer)
+281+  0000 ~                ld c,#1F
+282+  0000 ~                rst #20
+283+  0000                  endm
+284+  0000
+285+  0000
+286+  0000
+287+  0000                  ; macro OS_ ;
+288+  0000                  ; ld c,#20
+289+  0000                  ; rst #20
+290+  0000                  ; endm
+291+  0000
+292+  0000
+293+  0000              ;дисковые операции -------------------
+294+  0000
+295+  0000              ;открыть файл для чтения или записи
+296+  0000                  macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size)
+297+  0000 ~                ld c,#21
+298+  0000 ~                rst #20
+299+  0000                  endm
+300+  0000
+301+  0000              ;создать файл
+302+  0000                  macro OS_FILE_CREATE ;HL - File name  (out: A - id file)
+303+  0000 ~                ld c,#22
+304+  0000 ~                rst #20
+305+  0000                  endm
+306+  0000
+307+  0000              ;прочитать из файла
+308+  0000                  macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
+309+  0000 ~                ld c,#23
+310+  0000 ~                rst #20
+311+  0000                  endm
+312+  0000
+313+  0000              ;записать в файл
+314+  0000                  macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
+315+  0000 ~                ld c,#24
+316+  0000 ~                rst #20
+317+  0000                  endm
+318+  0000
+319+  0000              ;закрыть файл
+320+  0000                  macro OS_FILE_CLOSE ;A - id file
+321+  0000 ~                ld c,#25
+322+  0000 ~                rst #20
+323+  0000                  endm
+324+  0000
+325+  0000              ;чтение секторов текущего каталога
+326+  0000              ; вх:
+327+  0000                   ; hl - буфер для чтения
+328+  0000                   ; de - относительный номер первого сектора каталога для чтения [0..nn]
+329+  0000                   ; b - максимальное количество секторов для чтения
+330+  0000              ; вых: cy=1, если были ошибки, код ошибки возвращается в аккумуляторе
+331+  0000                     ; a=errRWnum
+332+  0000                     ; a=errInvalidPart
+333+  0000                     ; a=errFileEmpty
+334+  0000                   ; cy=0, a=errEoF - каталог закончился
+335+  0000                     ; hl - следующий адрес в буфере
+336+  0000                     ; de - номер первого непрочитанного сектора
+337+  0000                     ; b - не прочитано секторов
+338+  0000                   ; cy=0 - считано успешно
+339+  0000                     ; hl - следующий адрес в буфере
+340+  0000                     ; de - номер первого непрочитанного сектора
+341+  0000                     ; b=#00
+342+  0000                  macro OS_READ_DIR ;
+343+  0000 ~                ld c,#26
+344+  0000 ~                rst #20
+345+  0000                  endm
+346+  0000
+347+  0000              ;вход в каталог/выход в родительский каталог
+348+  0000              	; Если путь не указан производится только настройка переменных драйвера,
+349+  0000              	; при этом если передан дескриптор файла, текущий каталог не изменится)
+350+  0000              	; Если пусть указан, в конец пути добавится название каталога (если это
+351+  0000              	; переход в родительский, последнее имя в пути удалится).
+352+  0000              	; Если передан дескриптор файла, текущий каталог не изменится, к пути
+353+  0000              	; добавится имя файла
+354+  0000              ; вх:
+355+  0000                   ; hl - адрес пути (=#0000 - путь отсутствует)
+356+  0000                   ; de - адрес дескриптора директории/файла
+357+  0000              ; вых: a - если путь был указан, новая длина пути
+358+  0000                  macro OS_OPEN_DIR ;
+359+  0000 ~                ld c,#27
+360+  0000 ~                rst #20
+361+  0000                  endm
+362+  0000
+363+  0000
+364+  0000                  ; macro OS_ ;
+365+  0000                  ; ld c,#28
+366+  0000                  ; rst #20
+367+  0000                  ; endm
+368+  0000
+369+  0000                  ; macro OS_ ;
+370+  0000                  ; ld c,#29
+371+  0000                  ; rst #20
+372+  0000                  ; endm
+373+  0000
+374+  0000
+# file closed: ../os_defs.asm
+  4   0000              	org PROGSTART
+  5   8000
+  6   8000              start_update
+  7   8000              	; ld a,13 ;новая строка
+  8   8000              	; OS_PRINT_CHARF
+  9   8000 21 59 86     	ld hl,msg_title_update ;имя приложения
+ 10   8003              	OS_PRINTZ ;печать
+ 10   8003 0E 09       >    ld c,#09
+ 10   8005 E7          >    rst #20
+ 11   8006
+ 12   8006              ;запрос подтверждения
+ 13   8006 21 1C 86     	ld hl,msg_update_confim ;
+ 14   8009              	OS_PRINTZ ;печать
+ 14   8009 0E 09       >    ld c,#09
+ 14   800B E7          >    rst #20
+ 15   800C              	;jr start_loop
+ 16   800C              loop_confim
+ 17   800C              	OS_WAIT
+ 17   800C DF          >	rst #18
+ 18   800D              	OS_GET_CHAR
+ 18   800D 0E 10       >    ld c,#10
+ 18   800F E7          >    rst #20
+ 19   8010 FE 79        	cp "y"
+ 20   8012 CA 3D 80     	jp z,start_loop
+ 21   8015 FE 59        	cp "Y"
+ 22   8017 CA 3D 80     	jp z,start_loop
+ 23   801A
+ 24   801A FE 6E        	cp 'n' ;n
+ 25   801C CA 2B 80     	jp z,exit
+ 26   801F FE 4E        	cp 'N' ;n
+ 27   8021 CA 2B 80     	jp z,exit
+ 28   8024 FE 18        	cp 24 ;break
+ 29   8026 CA 2B 80     	jp z,exit
+ 30   8029
+ 31   8029 18 E1        	jr loop_confim
+ 32   802B
+ 33   802B
+ 34   802B
+ 35   802B              exit ;выход в ДОС
+ 36   802B 21 B7 85     	ld hl,msg_exit
+ 37   802E              	OS_PRINTZ ;печать
+ 37   802E 0E 09       >    ld c,#09
+ 37   8030 E7          >    rst #20
+ 38   8031              exit_wait
+ 39   8031              	OS_WAIT
+ 39   8031 DF          >	rst #18
+ 40   8032              	OS_GET_CHAR
+ 40   8032 0E 10       >    ld c,#10
+ 40   8034 E7          >    rst #20
+ 41   8035 FE FF        	cp 255
+ 42   8037 28 F8        	jr z,exit_wait
+ 43   8039 AF           	xor a ;закрыть себя
+ 44   803A              	OS_PROC_CLOSE
+ 44   803A 0E 13       >    ld c,#13
+ 44   803C E7          >    rst #20
+ 45   803D
+ 46   803D
+ 47   803D
+ 48   803D
+ 49   803D              start_loop ;начало
+ 50   803D              	;загрузить адрес сайта обновлений из файла
+ 51   803D 21 07 85     	ld hl,file_list_name
+ 52   8040 11 80 8A     	ld de,list_buffer ;место для списка
+ 53   8043 CD B3 82     	call load_file
+ 54   8046 DA 2B 80     	jp c,exit
+ 55   8049
+ 56   8049 01 03 00     	ld bc,3 ;в 3 строке имя списка файлов
+ 57   804C CD 65 81     	call make_request_string ;подготовить запрос
+ 58   804F DA 2B 80     	jp c,exit
+ 59   8052
+ 60   8052
+ 61   8052
+ 62   8052              start_loop_list
+ 63   8052              	OS_WAIT
+ 63   8052 DF          >	rst #18
+ 64   8053 FE 18        	cp 24 ;break
+ 65   8055 CA 2B 80     	jp z,exit
+ 66   8058 CD A6 81     	call request_file ;загрузка списка файлов с сервера
+ 67   805B 30 05        	jr nc,request_file_ok
+ 68   805D CD 4B 84     	call print_main_error
+ 69   8060 18 F0        	jr start_loop_list ;повторить, если ошибка
+ 70   8062
+ 71   8062
+ 72   8062              request_file_ok
+ 73   8062 CD FD 81     	call download_file
+ 74   8065 30 05        	jr nc,download_file_ok
+ 75   8067 CD 4B 84     	call print_main_error
+ 76   806A 18 E6        	jr start_loop_list ;повторить, если ошибка
+ 77   806C
+ 78   806C              download_file_ok
+ 79   806C              	;Проверить сигнатуру (в первой строке слово Update)
+ 80   806C 2A 12 85     	ld hl,(data_start)
+ 81   806F 3E 55        	ld a,"U"
+ 82   8071 BE           	cp (hl)
+ 83   8072 28 08        	jr z,download_file_sign_ok
+ 84   8074 21 ED 85     	ld hl,msg_bad_list_file
+ 85   8077              	OS_PRINTZ
+ 85   8077 0E 09       >    ld c,#09
+ 85   8079 E7          >    rst #20
+ 86   807A 18 AF        	jr exit
+ 87   807C
+ 88   807C
+ 89   807C              download_file_sign_ok
+ 90   807C              	;скопировать файл список в его буфер
+ 91   807C 11 80 8A     	ld de,list_buffer
+ 92   807F 01 00 08     	ld bc,max_list_size
+ 93   8082 ED B0        	ldir
+ 94   8084 AF           	xor a
+ 95   8085 12           	ld (de),a ;в конце 0
+ 96   8086
+ 97   8086              	;call rename_folder	;переименовать текущую папку ОС и создать новую
+ 98   8086
+ 99   8086
+100   8086              	;сейчас качаем и записываем файлы
+101   8086 01 03 00     	ld bc,3 ;цикл все файлы с этой строки
+102   8089 ED 43 A4 81  	ld (make_request_string_num),bc
+103   808D              start_loop_general_cl
+104   808D CD 65 81     	call make_request_string ;подготовить запрос
+105   8090 DA 15 81     	jp c,exit_ok
+106   8093
+107   8093              	;получить имя файла без пути
+108   8093 ED 4B A4 81  	ld bc,(make_request_string_num)
+109   8097 21 80 8A     	ld hl,list_buffer
+110   809A CD 13 83     	call split_text_on_string ;получить строку N
+111   809D DA 1E 81     	jp c,exit_err
+112   80A0 CD 24 81     	call format_name_delete_path ;убрать пути
+113   80A3 E5           	push hl
+114   80A4 21 0F 86     	ld hl,msg_open_file
+115   80A7              	OS_PRINTZ ;печать
+115   80A7 0E 09       >    ld c,#09
+115   80A9 E7          >    rst #20
+116   80AA
+117   80AA 3E 04        	ld a,4;цвет
+118   80AC 06 0C        	ld b,#c
+119   80AE              	OS_SET_COLOR
+119   80AE 0E 06       >    ld c,#06
+119   80B0 E7          >    rst #20
+120   80B1
+121   80B1 E1           	pop hl
+122   80B2 E5           	push hl
+123   80B3              	OS_PRINTZ ;печать имени файла
+123   80B3 0E 09       >    ld c,#09
+123   80B5 E7          >    rst #20
+124   80B6 3E 0D        	ld a,13
+125   80B8              	OS_PRINT_CHARF
+125   80B8 D7          >	rst #10
+126   80B9
+127   80B9 3E 07        	ld a,7 ;цвет
+128   80BB 06 0C        	ld b,#c
+129   80BD              	OS_SET_COLOR
+129   80BD 0E 06       >    ld c,#06
+129   80BF E7          >    rst #20
+130   80C0
+131   80C0 E1           	pop hl
+132   80C1              	OS_FILE_OPEN ;открыть файл
+132   80C1 0E 21       >    ld c,#21
+132   80C3 E7          >    rst #20
+133   80C4 32 A1 82     	ld (download_write_file_id),a
+134   80C7 30 09        	jr nc,start_loop_general_file_ok
+135   80C9
+136   80C9              	OS_FILE_CREATE ;создать, если нет
+136   80C9 0E 22       >    ld c,#22
+136   80CB E7          >    rst #20
+137   80CC 32 A1 82     	ld (download_write_file_id),a
+138   80CF DA 1E 81     	jp c,exit_err
+139   80D2              start_loop_general_file_ok
+140   80D2              	;тут файл успешно создали или открыли тот, что есть
+141   80D2
+142   80D2              start_loop_general
+143   80D2              	OS_WAIT
+143   80D2 DF          >	rst #18
+144   80D3 FE 18        	cp 24 ;break
+145   80D5 CA 2B 80     	jp z,exit
+146   80D8 CD A6 81     	call request_file ;загрузка файлов с сервера
+147   80DB 30 05        	jr nc,request_file_general_ok
+148   80DD CD 4B 84     	call print_main_error
+149   80E0 18 F0        	jr start_loop_general ;повторить, если ошибка
+150   80E2
+151   80E2
+152   80E2              request_file_general_ok
+153   80E2 CD FD 81     	call download_file
+154   80E5 30 02        	jr nc,download_file_general_ok
+155   80E7 18 35        	jr exit_err
+156   80E9
+157   80E9              download_file_general_ok
+158   80E9              	;записать файл
+159   80E9 EB           	ex de,hl
+160   80EA CD A2 82     	call print_download_size	;печать инфы размер
+161   80ED 21 00 86     	ld hl,msg_write_file
+162   80F0              	OS_PRINTZ
+162   80F0 0E 09       >    ld c,#09
+162   80F2 E7          >    rst #20
+163   80F3 2A 12 85     	ld hl,(data_start) ;начало данных
+164   80F6 ED 5B 16 85  	ld de,(data_length) ;длина
+165   80FA 3A A1 82     	ld a,(download_write_file_id)
+166   80FD              	OS_FILE_WRITE
+166   80FD 0E 24       >    ld c,#24
+166   80FF E7          >    rst #20
+167   8100 DA 1E 81     	jp c,exit_err
+168   8103 3A A1 82     	ld a,(download_write_file_id)
+169   8106              	OS_FILE_CLOSE
+169   8106 0E 25       >    ld c,#25
+169   8108 E7          >    rst #20
+170   8109 ED 4B A4 81  	ld bc,(make_request_string_num)
+171   810D 03           	inc bc
+172   810E ED 43 A4 81  	ld (make_request_string_num),bc
+173   8112 C3 8D 80     	jp start_loop_general_cl
+174   8115
+175   8115
+176   8115              exit_ok
+177   8115              	;всё успешно, выход
+178   8115 21 CC 85     	ld hl,msg_ok
+179   8118              	OS_PRINTZ
+179   8118 0E 09       >    ld c,#09
+179   811A E7          >    rst #20
+180   811B C3 2B 80     	jp exit
+181   811E
+182   811E              exit_err
+183   811E              	;какая-то ошибка
+184   811E CD 4B 84     	call print_main_error
+185   8121 C3 2B 80     	jp exit
+186   8124
+187   8124
+188   8124
+189   8124              ; HL - name (path/name.ext)
+190   8124              ; Returns:
+191   8124              ; HL - name (name.ext)
+192   8124              format_name_delete_path ;убирает пути из имени файла
+193   8124
+194   8124              	;сначала попробуем убрать из пути подпапку, если она есть
+195   8124 22 63 81     	ld (temp_hl),hl ;сохраним адрес исходного имени
+196   8127 06 00        	ld b,#00 ;не больше 255 символов
+197   8129              format_name5
+198   8129 7E           	ld a,(hl)
+199   812A FE 2F        	cp "/" ;если есть подпапка
+200   812C 28 0D        	jr z,format_name_path_yep
+201   812E 7E           	ld a,(hl)
+202   812F FE 2E        	cp "." ;если ещё не дошли до расширения
+203   8131 20 05        	jr nz,format_name6
+204   8133 2A 63 81     	ld hl,(temp_hl) ;если дошли до расширения, вернёмся на начало имени
+205   8136 18 09        	jr format_name_7 ;на выход
+206   8138              format_name6
+207   8138 23           	inc hl
+208   8139 10 EE        	djnz format_name5
+209   813B
+210   813B              format_name_path_yep ;нашли
+211   813B 23           	inc hl ;пропустим знак "/"
+212   813C 22 63 81     	ld (temp_hl),hl ;сохраним адрес
+213   813F 18 E8        	jr format_name5
+214   8141
+215   8141              format_name_7
+216   8141 01 FF 0C     	ld bc,#0cff ;длина имени макс 12 символов
+217   8144 11 56 81     	ld de,f_name ;куда
+218   8147              format_name2
+219   8147 7E           	ld a,(hl)
+220   8148 FE 20        	cp " "
+221   814A 38 04        	jr c,format_name_e
+222   814C ED A0        	ldi
+223   814E 10 F7        	djnz format_name2
+224   8150
+225   8150              format_name_e
+226   8150 AF           	xor a
+227   8151 12           	ld (de),a
+228   8152 21 56 81     	ld hl,f_name ;вернём результат
+229   8155 C9           	ret
+230   8156
+231   8156 00 00 00...  f_name ds 8+3+1+1
+232   8163 00 00        temp_hl dw 0;
+233   8165
+234   8165
+235   8165
+236   8165
+237   8165
+238   8165
+239   8165              ; rename_folder
+240   8165              	; ;переименовать папку ОС
+241   8165              	; ld hl,msg_rename_folder
+242   8165              	; OS_PRINTZ
+243   8165
+244   8165
+245   8165              	; ret
+246   8165
+247   8165
+248   8165
+249   8165
+250   8165              make_request_string ;подготовить запрос
+251   8165              ;вх: hl - адрес строки имени файла
+252   8165 ED 43 A4 81  	ld (make_request_string_num),bc
+253   8169 21 33 85     	ld hl,request_string1
+254   816C 11 7D 86     	ld de,request_buffer
+255   816F CD 40 84     	call copyZ ;отправить в строку запроса
+256   8172
+257   8172 D5           	push de
+258   8173 ED 4B A4 81  	ld bc,(make_request_string_num)
+259   8177 21 80 8A     	ld hl,list_buffer
+260   817A CD 13 83     	call split_text_on_string ;получить строку N (2я -имя файла списка)
+261   817D D1           	pop de
+262   817E
+263   817E 38 22        	jr c,make_request_string_err
+264   8180              	; push hl
+265   8180              	; OS_PRINTZ ;напечатать имя файла
+266   8180              	; ld a,13
+267   8180              	; OS_PRINT_CHARF
+268   8180              	; pop hl
+269   8180
+270   8180 CD 40 84     	call copyZ ;отправить в строку запроса
+271   8183
+272   8183 21 38 85     	ld hl,request_string2
+273   8186 CD 40 84     	call copyZ ;отправить в строку запроса
+274   8189
+275   8189 D5           	push de
+276   818A 01 02 00     	ld bc,2
+277   818D 21 80 8A     	ld hl,list_buffer
+278   8190 CD 13 83     	call split_text_on_string ;получить строку (адрес сайта)
+279   8193 D1           	pop de
+280   8194
+281   8194 38 0C        	jr c,make_request_string_err
+282   8196
+283   8196 CD 40 84     	call copyZ ;отправить в строку запроса
+284   8199
+285   8199
+286   8199 21 4A 85     	ld hl,request_string3
+287   819C CD 40 84     	call copyZ ;отправить в строку запроса
+288   819F
+289   819F
+290   819F AF           	xor a
+291   81A0 12           	ld (de),a ;в конце 0
+292   81A1 C9           	ret
+293   81A2
+294   81A2              make_request_string_err
+295   81A2 37           	scf
+296   81A3 C9           	ret
+297   81A4
+298   81A4 00 00        make_request_string_num dw 0 ;номер строки текущей
+299   81A6
+300   81A6
+301   81A6              request_file ;запрос инфы
+302   81A6 CD CC 81     	call open_site ;открыть сайт
+303   81A9 D8           	ret c
+304   81AA
+305   81AA 21 89 85     	ld hl,msg_request_file ;
+306   81AD              	OS_PRINTZ
+306   81AD 0E 09       >    ld c,#09
+306   81AF E7          >    rst #20
+307   81B0 11 7D 86     	ld de,request_buffer
+308   81B3 CD 6B 84     	call strLen ;узнать длину
+309   81B6 EB           	ex de,hl
+310   81B7 21 7D 86     	ld hl,request_buffer
+311   81BA              	;call Wifi.tcpSendZ ;послать запрос
+312   81BA              	OS_ESP_SEND
+312   81BA 0E 0E       >    ld c,#0e
+312   81BC E7          >    rst #20
+313   81BD D8           	ret c;сразу не удалось (может, очередь)
+314   81BE              	;ждём когда запрос пройдёт
+315   81BE 06 64        	ld b,wait_count ;
+316   81C0              radio_request_info_wait2
+317   81C0              	OS_WAIT
+317   81C0 DF          >	rst #18
+318   81C1 DD 7E 04     	ld a,(ix+4) ;флаг
+319   81C4 07           	rlca
+320   81C5 D8           	ret c ;если ошибка (=255)
+321   81C6 B7           	or a
+322   81C7 C0           	ret nz
+323   81C8 10 F6        	djnz radio_request_info_wait2
+324   81CA 37           	scf ;ощибка
+325   81CB C9           	ret
+326   81CC
+327   81CC
+328   81CC
+329   81CC              open_site ;открыть сайт
+330   81CC              	OS_ESP_CLOSE ;на всякий случай сначала закрыть
+330   81CC 0E 0C       >    ld c,#0c
+330   81CE E7          >    rst #20
+331   81CF 21 68 85     	ld hl,msg_open ;печать инфы
+332   81D2              	OS_PRINTZ
+332   81D2 0E 09       >    ld c,#09
+332   81D4 E7          >    rst #20
+333   81D5 21 80 8A     	ld hl,list_buffer
+334   81D8 01 02 00     	ld bc,2
+335   81DB CD 13 83     	call split_text_on_string
+336   81DE D8           	ret c ;если не мог распознать строку в файле
+337   81DF E5           	push hl ;имя сайта
+338   81E0              	OS_PRINTZ
+338   81E0 0E 09       >    ld c,#09
+338   81E2 E7          >    rst #20
+339   81E3 3E 0D        	ld a,13 ;новая строка
+340   81E5              	OS_PRINT_CHARF
+340   81E5 D7          >	rst #10
+341   81E6 E1           	pop hl ;имя сайта
+342   81E7 11 1F 85     	ld de,port_number
+343   81EA AF           	xor a ;открыть TCP
+344   81EB              	OS_ESP_OPEN
+344   81EB 0E 0D       >    ld c,#0d
+344   81ED E7          >    rst #20
+345   81EE D8           	ret c ;сразу не удалось (может, очередь)
+346   81EF              	;или подождём открытия
+347   81EF 06 64        	ld b,wait_count ;
+348   81F1              open_site_wait
+349   81F1              	OS_WAIT
+349   81F1 DF          >	rst #18
+350   81F2 DD 7E 02     	ld a,(ix+2) ;флаг
+351   81F5 07           	rlca
+352   81F6 D8           	ret c ;если ошибка (=255)
+353   81F7 B7           	or a ;если флаг !=0
+354   81F8 C0           	ret nz
+355   81F9 10 F6        	djnz open_site_wait
+356   81FB 37           	scf ;ощибка
+357   81FC C9           	ret
+358   81FD
+359   81FD
+360   81FD
+361   81FD
+362   81FD
+363   81FD
+364   81FD
+365   81FD
+366   81FD
+367   81FD              download_file ;загрузить файл
+368   81FD 21 76 85     	ld hl,msg_download_file
+369   8200              	OS_PRINTZ
+369   8200 0E 09       >    ld c,#09
+369   8202 E7          >    rst #20
+370   8203
+371   8203 CD 93 82     	call clear_input_Buffer ;очистить
+372   8206
+373   8206 21 8A 92     	ld hl,input_Buffer ;буфер для загрузки
+374   8209 22 18 85     	ld (buffer_pointer),hl
+375   820C              	;call Wifi.getPacket ;получить ответ
+376   820C              	OS_ESP_GET
+376   820C 0E 0F       >    ld c,#0f
+376   820E E7          >    rst #20
+377   820F D8           	ret c ;сразу не удалось (может, очередь)
+378   8210 06 64        	ld b,wait_count ;
+379   8212              download_file_wait1
+380   8212              	OS_WAIT
+380   8212 DF          >	rst #18
+381   8213 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
+382   8216 07           	rlca
+383   8217 D8           	ret c ;если ошибка (=255)
+384   8218 B7           	or a
+385   8219 20 04        	jr nz,download_file_wait1_skip
+386   821B 10 F5        	djnz download_file_wait1
+387   821D 37           	scf
+388   821E C9           	ret
+389   821F
+390   821F              download_file_wait1_skip
+391   821F              	;подготовка к приёму дальше
+392   821F 2A 18 85     	ld hl,(buffer_pointer)
+393   8222 DD 4E 09     	ld c,(ix+9) ; длина принятого
+394   8225 DD 46 0A     	ld b,(ix+10)
+395   8228 09           	add hl,bc
+396   8229 22 18 85     	ld (buffer_pointer),hl ;продолжить загружать с этого места
+397   822C
+398   822C              	;попробуем найти начало данных
+399   822C 11 22 85     	ld de,Content_Length ;найти запись о длине данных
+400   822F CD 8E 84     	call search_str
+401   8232 D8           	ret c
+402   8233
+403   8233 EB           	ex de,hl
+404   8234 CD 75 84     	call text_to_digit ;преобразовать в число
+405   8237 22 16 85     	ld (data_length),hl ;длина данных
+406   823A
+407   823A 11 1A 85     	ld de,rnrn ;найти конец заголовка
+408   823D CD 8E 84     	call search_str
+409   8240 D8           	ret c
+410   8241 22 12 85     	ld (data_start),hl ;начало данных
+411   8244
+412   8244 ED 5B 16 85  	ld de,(data_length)
+413   8248 19           	add hl,de ;узнали ожидаемый конец данных
+414   8249 22 14 85     	ld (data_end),hl
+415   824C
+416   824C              	;загрузка остатка
+417   824C              download_file1
+418   824C
+419   824C DD 7E 02     	ld a,(ix+2) ;!!! closed
+420   824F B7           	or a
+421   8250 28 35        	jr z,download_file1_skip ;если закрыто, больше не грузим
+422   8252
+423   8252 2A 18 85     	ld hl,(buffer_pointer)
+424   8255 ED 5B 14 85  	ld de,(data_end)
+425   8259 A7           	and a
+426   825A ED 52        	sbc hl,de
+427   825C 28 29        	jr z,download_file1_skip ;если уже всё загружено
+428   825E
+429   825E
+430   825E              	;ещё не всё
+431   825E 2A 18 85     	ld hl,(buffer_pointer)
+432   8261 7C           	ld a,h
+433   8262 FE FA        	cp buffer_top ;ограничение
+434   8264 30 21        	jr nc,download_file1_skip
+435   8266
+436   8266              	;call Wifi.getPacket
+437   8266              	OS_ESP_GET
+437   8266 0E 0F       >    ld c,#0f
+437   8268 E7          >    rst #20
+438   8269 06 64        	ld b,wait_count ;
+439   826B              download_file_wait2
+440   826B              	OS_WAIT
+440   826B DF          >	rst #18
+441   826C DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
+442   826F 07           	rlca
+443   8270 D8           	ret c ;если ошибка (=255)
+444   8271 B7           	or a
+445   8272 20 04        	jr nz,download_file_wait2_skip
+446   8274 10 F5        	djnz download_file_wait2
+447   8276 37           	scf
+448   8277 C9           	ret
+449   8278
+450   8278              download_file_wait2_skip
+451   8278 2A 18 85     	ld hl,(buffer_pointer)
+452   827B DD 4E 09     	ld c,(ix+9) ; длина принятого
+453   827E DD 46 0A     	ld b,(ix+10)
+454   8281 09           	add hl,bc
+455   8282 22 18 85     	ld (buffer_pointer),hl ;продолжить загружать с этого места
+456   8285
+457   8285 18 C5        	jr download_file1 ;получить ещё части до конца
+458   8287
+459   8287              download_file1_skip
+460   8287              	OS_ESP_CLOSE ;закрыть!
+460   8287 0E 0C       >    ld c,#0c
+460   8289 E7          >    rst #20
+461   828A
+462   828A 2A 12 85     	ld hl,(data_start) ;начало данных
+463   828D ED 5B 16 85  	ld de,(data_length) ;длина
+464   8291 B7           	or a
+465   8292 C9           	ret
+466   8293
+467   8293
+468   8293
+469   8293
+470   8293              clear_input_Buffer ;почистить буфер приёма
+471   8293 21 8A 92     	ld hl,input_Buffer
+472   8296 11 8B 92     	ld de,input_Buffer+1
+473   8299 01 74 6D     	ld bc,#ffff-input_Buffer-1
+474   829C 36 00        	ld (hl),0
+475   829E ED B0        	ldir
+476   82A0 C9           	ret
+477   82A1
+478   82A1
+479   82A1
+480   82A1 00           download_write_file_id db 0;
+481   82A2
+482   82A2
+483   82A2
+484   82A2
+485   82A2              print_download_size
+486   82A2              	;вх: hl - число для печати
+487   82A2 DD E5        	push ix
+488   82A4 CD A8 84     	call toDecimal
+489   82A7              	OS_PRINTZ
+489   82A7 0E 09       >    ld c,#09
+489   82A9 E7          >    rst #20
+490   82AA 21 FD 85     	ld hl,msg_B
+491   82AD              	OS_PRINTZ
+491   82AD 0E 09       >    ld c,#09
+491   82AF E7          >    rst #20
+492   82B0 DD E1        	pop ix
+493   82B2 C9           	ret
+494   82B3
+495   82B3
+496   82B3              load_file
+497   82B3              ;загрузка файла
+498   82B3              ;вх: hl - адрес имени
+499   82B3              ;вх: de - адрес куда
+500   82B3 22 0F 83     	ld (load_file_name),hl
+501   82B6 ED 53 11 83  	ld (load_file_address),de
+502   82BA 21 9A 85     	ld hl,msg_load_file ;печать инфы
+503   82BD              	OS_PRINTZ
+503   82BD 0E 09       >    ld c,#09
+503   82BF E7          >    rst #20
+504   82C0 2A 0F 83     	ld hl,(load_file_name)
+505   82C3              	OS_PRINTZ
+505   82C3 0E 09       >    ld c,#09
+505   82C5 E7          >    rst #20
+506   82C6 3E 0D        	ld a,13
+507   82C8              	OS_PRINT_CHARF
+507   82C8 D7          >	rst #10
+508   82C9 2A 0F 83     	ld hl,(load_file_name) ;имя списка
+509   82CC              	OS_FILE_OPEN ;откроем файл для чтения
+509   82CC 0E 21       >    ld c,#21
+509   82CE E7          >    rst #20
+510   82CF DA 4B 84     	jp c,print_main_error
+511   82D2 32 0C 83     	ld (load_file_id),a ;запомнить id
+512   82D5
+513   82D5              	;проверка длины файла не больше #4000
+514   82D5 7A           	ld	a,d ;самые старшие байты длины
+515   82D6 B3           	or e
+516   82D7 28 0A        	jr z,load_file_size_ok ;если не слищком большой
+517   82D9              load_file_too_big
+518   82D9              	;слишком большой
+519   82D9 21 A8 85     	ld hl,msg_file_too_big
+520   82DC              	OS_PRINTZ
+520   82DC 0E 09       >    ld c,#09
+520   82DE E7          >    rst #20
+521   82DF 37           	scf
+522   82E0 C3 4B 84     	jp print_main_error
+523   82E3
+524   82E3
+525   82E3              load_file_size_ok
+526   82E3 78           	ld	a,b ;младший старший байт длины
+527   82E4 FE 40        	cp #40 ;ограничение
+528   82E6 30 F1        	jr nc,load_file_too_big
+529   82E8              	;размер нормальный, прочитаем
+530   82E8 ED 43 0D 83  	ld (load_file_lenght),bc
+531   82EC 2A 11 83     	ld hl,(load_file_address)
+532   82EF 3A 0C 83     	ld a,(load_file_id)
+533   82F2 50           	ld d,b ;размер
+534   82F3 59           	ld e,c
+535   82F4              	OS_FILE_READ
+535   82F4 0E 23       >    ld c,#23
+535   82F6 E7          >    rst #20
+536   82F7 30 0B        	jr nc,load_file_size_ok2
+537   82F9              	;если ошибка
+538   82F9 CD 4B 84     	call print_main_error
+539   82FC 3A 0C 83     	ld a,(load_file_id)
+540   82FF              	OS_FILE_CLOSE ;закрыть файл
+540   82FF 0E 25       >    ld c,#25
+540   8301 E7          >    rst #20
+541   8302 37           	scf ;ошибка
+542   8303 C9           	ret
+543   8304              load_file_size_ok2
+544   8304 3A 0C 83     	ld a,(load_file_id)
+545   8307              	OS_FILE_CLOSE ;закрыть файл
+545   8307 0E 25       >    ld c,#25
+545   8309 E7          >    rst #20
+546   830A B7           	or a ;ok
+547   830B C9           	ret
+548   830C 00           load_file_id db 0 ;временно
+549   830D 00 00        load_file_lenght dw 0 ;
+550   830F 00 00        load_file_name dw 0;
+551   8311 00 00        load_file_address dw 0;
+552   8313
+553   8313
+554   8313
+555   8313              split_text_on_string
+556   8313              	;разбор текста на строки, текст заканчивается числом 0
+557   8313              	;всё, что меньше кода пробела, считается концом строки
+558   8313              	;вх: hl - адрес текста
+559   8313              	;вх: bc - номер строки (от 1 до ...), которую надо вернуть
+560   8313              	;вых: hl - адрес строки
+561   8313
+562   8313              	;цикл до 0
+563   8313 7E           	ld a,(hl)
+564   8314 B7           	or a
+565   8315 28 24        	jr z,split_text_on_string_not_found
+566   8317 FE 20        	cp " "
+567   8319 30 03        	jr nc,split_text_on_string_found
+568   831B 23           	inc hl
+569   831C 18 F5        	jr split_text_on_string
+570   831E
+571   831E              split_text_on_string_found
+572   831E              	;тут нашли первое имя
+573   831E C5           	push bc
+574   831F 11 40 83     	ld de,split_text_on_string_out ;куда
+575   8322 01 00 00     	ld bc,#0000 ;макс длина 255
+576   8325              split_text_on_string_cl2
+577   8325 7E           	ld a,(hl)
+578   8326 FE 20        	cp " "
+579   8328 38 04        	jr c,split_text_on_string_cl2_ex
+580   832A ED A0        	ldi
+581   832C 10 F7        	djnz split_text_on_string_cl2
+582   832E
+583   832E              split_text_on_string_cl2_ex
+584   832E AF           	xor a
+585   832F 12           	ld (de),a  ;в конце 0
+586   8330              	;какая строка нужна
+587   8330 C1           	pop bc
+588   8331 0B           	dec bc
+589   8332 78           	ld a,b
+590   8333 B1           	or c
+591   8334 20 DD        	jr nz, split_text_on_string
+592   8336
+593   8336 21 40 83     	ld hl,split_text_on_string_out
+594   8339 AF           	xor a ;ОК
+595   833A C9           	ret
+596   833B
+597   833B
+598   833B              split_text_on_string_not_found
+599   833B 21 40 83     	ld hl,split_text_on_string_out
+600   833E 37           	scf ;ошибка
+601   833F C9           	ret
+602   8340 00 00 00...  split_text_on_string_out ds 256 ;здесь строка на выходе
+603   8440
+604   8440
+605   8440
+606   8440
+607   8440              ;вх: hl - откуда de - куда
+608   8440              copyZ ;копировать данные до кода 0
+609   8440 7E           	ld a,(hl)
+610   8441 B7           	or a
+611   8442 28 04        	jr z,copyZ_ex
+612   8444 ED A0        	ldi
+613   8446 18 F8        	jr copyZ
+614   8448              copyZ_ex
+615   8448 AF           	xor a
+616   8449 12           	ld (de),a  ;в конце 0
+617   844A C9           	ret
+618   844B
+619   844B
+620   844B
+621   844B              print_main_error ;печать ошибка
+622   844B              	;какая-то ошибка
+623   844B F5           	push af
+624   844C 3E 02        	ld a,2 ;цвет
+625   844E 06 0C        	ld b,#c
+626   8450              	OS_SET_COLOR
+626   8450 0E 06       >    ld c,#06
+626   8452 E7          >    rst #20
+627   8453 21 6F 85     	ld hl,msg_error
+628   8456              	OS_PRINTZ
+628   8456 0E 09       >    ld c,#09
+628   8458 E7          >    rst #20
+629   8459 3E 07        	ld a,7 ;цвет
+630   845B 06 0C        	ld b,#c
+631   845D              	OS_SET_COLOR
+631   845D 0E 06       >    ld c,#06
+631   845F E7          >    rst #20
+632   8460 CD 65 84     	call delay ;задержка
+633   8463 F1           	pop af
+634   8464 C9           	ret
+635   8465
+636   8465
+637   8465
+638   8465
+639   8465              delay ;задержка между запросами
+640   8465 06 32        	ld b,50*1 ;
+641   8467              delay1
+642   8467              	OS_WAIT
+642   8467 DF          >	rst #18
+643   8468 10 FD        	djnz delay1
+644   846A C9           	ret
+645   846B
+646   846B
+647   846B              strLen: ;посчитать длину строки до 0
+648   846B 21 00 00         ld hl, 0
+649   846E              .loop
+650   846E 1A               ld a, (de)
+650   846F A7             and a
+650   8470 C8             ret z
+651   8471 13 23            inc de, hl
+652   8473 18 F9            jr .loop
+653   8475
+654   8475              text_to_digit ;тест в цифру
+655   8475              ;de - текст
+656   8475              ;вых: hl - цифра
+657   8475 21 00 00     		ld hl,0			; count lenght
+658   8478 1A           .cil1	ld a,(de)
+659   8479 13           		inc de
+660   847A FE 30        		cp "0"
+660   847C D8             ret c
+661   847D FE 3A        		cp "9"+1
+661   847F D0             ret nc
+662   8480 D6 30        		sub 0x30
+662   8482 4D             ld c,l
+662   8483 44             ld b,h
+662   8484 29             add hl,hl
+662   8485 29             add hl,hl
+662   8486 09             add hl,bc
+662   8487 29             add hl,hl
+662   8488 4F             ld c,a
+662   8489 06 00          ld b,0
+662   848B 09             add hl,bc
+663   848C 18 EA        		jr .cil1
+664   848E
+665   848E              ;поиск строки
+666   848E              ;de - образец, в конце 0
+667   848E              ;вых: hl - адрес после найденного
+668   848E              search_str
+669   848E 21 8A 92     	ld hl,input_Buffer
+670   8491 42           	ld b,d
+671   8492 4B           	ld c,e
+672   8493              search_str2
+673   8493 1A           	ld a,(de)
+674   8494 BE           	cp (hl)
+675   8495 20 0A        	jr nz,search_str1
+676   8497              	;нашли одну букву
+677   8497              search_str3
+678   8497 23           	inc hl
+679   8498 13           	inc de
+680   8499 1A           	ld a,(de)
+681   849A B7           	or a
+682   849B C8           	ret z ;нашли всю строку
+683   849C BE           	cp (hl)
+684   849D 28 F8        	jr z,search_str3
+685   849F              	;не вся строка совпала
+686   849F 50           	ld d,b ;в начало образца
+687   84A0 59           	ld e,c
+688   84A1              search_str1
+689   84A1 23           	inc hl ;дальше
+690   84A2 24           	inc h
+691   84A3 25           	dec h
+692   84A4 20 ED        	jr nz,search_str2
+693   84A6 37           	scf ;не нашли
+694   84A7 C9           	ret
+695   84A8
+696   84A8
+697   84A8              toDecimal		;конвертирует 2 байта в 5 десятичных цифр
+698   84A8              				;на входе в HL число
+699   84A8              				;на выходе в HL число
+700   84A8 11 10 27     			ld de,10000 ;десятки тысяч
+701   84AB 3E FF        			ld a,255
+702   84AD              toDecimal10k
+703   84AD A7           			and a
+704   84AE ED 52        			sbc hl,de
+705   84B0 3C           			inc a
+706   84B1 30 FA        			jr nc,toDecimal10k
+707   84B3 19           			add hl,de
+708   84B4 C6 30        			add a,48
+709   84B6 32 01 85     			ld (decimalS),a
+710   84B9 11 E8 03     			ld de,1000 ;тысячи
+711   84BC 3E FF        			ld a,255
+712   84BE              toDecimal1k
+713   84BE A7           			and a
+714   84BF ED 52        			sbc hl,de
+715   84C1 3C           			inc a
+716   84C2 30 FA        			jr nc,toDecimal1k
+717   84C4 19           			add hl,de
+718   84C5 C6 30        			add a,48
+719   84C7 32 02 85     			ld (decimalS+1),a
+720   84CA 11 64 00     			ld de,100 ;сотни
+721   84CD 3E FF        			ld a,255
+722   84CF              toDecimal01k
+723   84CF A7           			and a
+724   84D0 ED 52        			sbc hl,de
+725   84D2 3C           			inc a
+726   84D3 30 FA        			jr nc,toDecimal01k
+727   84D5 19           			add hl,de
+728   84D6 C6 30        			add a,48
+729   84D8 32 03 85     			ld (decimalS+2),a
+730   84DB 11 0A 00     			ld de,10 ;десятки
+731   84DE 3E FF        			ld a,255
+732   84E0              toDecimal001k
+733   84E0 A7           			and a
+734   84E1 ED 52        			sbc hl,de
+735   84E3 3C           			inc a
+736   84E4 30 FA        			jr nc,toDecimal001k
+737   84E6 19           			add hl,de
+738   84E7 C6 30        			add a,48
+739   84E9 32 04 85     			ld (decimalS+3),a
+740   84EC 11 01 00     			ld de,1 ;единицы
+741   84EF 3E FF        			ld a,255
+742   84F1              toDecimal0001k
+743   84F1 A7           			and a
+744   84F2 ED 52        			sbc hl,de
+745   84F4 3C           			inc a
+746   84F5 30 FA        			jr nc,toDecimal0001k
+747   84F7 19           			add hl,de
+748   84F8 C6 30        			add a,48
+749   84FA 32 05 85     			ld (decimalS+4),a
+750   84FD 21 01 85     			ld hl,decimalS
+751   8500 C9           			ret
+752   8501 00 00 00...  decimalS ds 6 ;здесь будет цифра
+753   8507
+754   8507              max_list_size equ 2048
+755   8507
+756   8507
+757   8507 75 70 64 61  file_list_name db "update.txt",0	;имя файла, в первой строке адрес сервера
+757   850B 74 65 2E 74
+757   850F 78 74 00
+758   8512              wait_count equ 2*50 ;задержка в кадрах
+759   8512              buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
+760   8512 00 00        data_start dw 0 ;начало данных
+761   8514 00 00        data_end dw 0 ;конец данных
+762   8516 00 00        data_length dw 0 ;конец данных
+763   8518 00 00        buffer_pointer dw 0 ;указатель на буфер
+764   851A 0D 0A 0D 0A  rnrn db 13,10,13,10,0 ;окончание заголовка
+764   851E 00
+765   851F              ;site_name db "w909591u.beget.tech",0 ;имя сайта
+766   851F 38 30 00     port_number db "80" ,0;
+767   8522 43 6F 6E 74  Content_Length db "Content-Length: ",0
+767   8526 65 6E 74 2D
+767   852A 4C 65 6E 67
+767   852E 74 68 3A 20
+767   8532 00
+768   8533
+769   8533
+770   8533              ;строки для составления запроса
+771   8533              request_string1 ;
+772   8533 47 45 54 20  	db "GET ",0
+772   8537 00
+773   8538              	;db /OSZ/update.txt ;тут имя файла
+774   8538              request_string2
+775   8538 20 48 54 54  	db " HTTP/1.1\r\nHost: ",0
+775   853C 50 2F 31 2E
+775   8540 31 0D 0A 48
+775   8544 6F 73 74 3A
+775   8548 20 00
+776   854A              request_string3
+777   854A              	;db "Host: w909591u.beget.tech\r\n" ;тут хост
+778   854A 0D 0A 55 73  	db "\r\nUser-Agent: Mozilla/5.0" ; (Macintosh; Intel Mac OS X 10.8; rv:21.0)"
+778   854E 65 72 2D 41
+778   8552 67 65 6E 74
+778   8556 3A 20 4D 6F
+778   855A 7A 69 6C 6C
+778   855E 61 2F 35 2E
+778   8562 30
+779   8563 0D 0A 0D 0A  	db "\r\n\r\n",0
+779   8567 00
+780   8568
+781   8568 4F 70 65 6E  msg_open db "Open: ",0
+781   856C 3A 20 00
+782   856F 45 72 72 6F  msg_error db "Error",13,0
+782   8573 72 0D 00
+783   8576 44 6F 77 6E  msg_download_file db "Download file... ",13,0
+783   857A 6C 6F 61 64
+783   857E 20 66 69 6C
+783   8582 65 2E 2E 2E
+783   8586 20 0D 00
+784   8589 52 65 71 75  msg_request_file db "Request file...",13,0
+784   858D 65 73 74 20
+784   8591 66 69 6C 65
+784   8595 2E 2E 2E 0D
+784   8599 00
+785   859A 4C 6F 61 64  msg_load_file db "Load file... ",0
+785   859E 20 66 69 6C
+785   85A2 65 2E 2E 2E
+785   85A6 20 00
+786   85A8 46 69 6C 65  msg_file_too_big db "File too big!",13,0
+786   85AC 20 74 6F 6F
+786   85B0 20 62 69 67
+786   85B4 21 0D 00
+787   85B7 50 72 65 73  msg_exit db "Press a key to Exit",13,0
+787   85BB 73 20 61 20
+787   85BF 6B 65 79 20
+787   85C3 74 6F 20 45
+787   85C7 78 69 74 0D
+787   85CB 00
+788   85CC              ;msg_rename_folder db "Rename OS folder...",13,0
+789   85CC 0D 4F 4B 21  msg_ok db 13,"OK! The system is now updated.",13,0
+789   85D0 20 54 68 65
+789   85D4 20 73 79 73
+789   85D8 74 65 6D 20
+789   85DC 69 73 20 6E
+789   85E0 6F 77 20 75
+789   85E4 70 64 61 74
+789   85E8 65 64 2E 0D
+789   85EC 00
+790   85ED 42 61 64 20  msg_bad_list_file db "Bad list file!",13,0
+790   85F1 6C 69 73 74
+790   85F5 20 66 69 6C
+790   85F9 65 21 0D 00
+791   85FD 42 0D 00     msg_B db "B",13,0
+792   8600 57 72 69 74  msg_write_file db "Write file...",13,0
+792   8604 65 20 66 69
+792   8608 6C 65 2E 2E
+792   860C 2E 0D 00
+793   860F 4F 70 65 6E  msg_open_file db "Open file...",0
+793   8613 20 66 69 6C
+793   8617 65 2E 2E 2E
+793   861B 00
+794   861C
+795   861C              msg_update_confim
+796   861C 50 6C 65 61  	db "Please close all apps, make backup.",13
+796   8620 73 65 20 63
+796   8624 6C 6F 73 65
+796   8628 20 61 6C 6C
+796   862C 20 61 70 70
+796   8630 73 2C 20 6D
+796   8634 61 6B 65 20
+796   8638 62 61 63 6B
+796   863C 75 70 2E 0D
+797   8640 55 70 64 61  	db "Update OS from net? Y/N",13,0
+797   8644 74 65 20 4F
+797   8648 53 20 66 72
+797   864C 6F 6D 20 6E
+797   8650 65 74 3F 20
+797   8654 59 2F 4E 0D
+797   8658 00
+798   8659
+799   8659              msg_title_update
+800   8659 4F 53 20 55  	db "OS Update ver 2025.05.23",13,13,0
+800   865D 70 64 61 74
+800   8661 65 20 76 65
+800   8665 72 20 32 30
+800   8669 32 35 2E 30
+800   866D 35 2E 32 33
+800   8671 0D 0D 00
+801   8674
+802   8674 52 65 71 75  request_buffer_title db "Request:",13
+802   8678 65 73 74 3A
+802   867C 0D
+803   867D
+804   867D              end_udate_code
+805   867D              ;ниже не включается в файл
+806   867D
+807   867D 00 00 00...  request_buffer ds 1024 ;буфер для запросов
+808   8A7D 00 00 00     	align 8
+809   8A80 00 00 00...  list_buffer ds max_list_size ;буфер для списка
+810   9280
+811   9280 52 65 73 70  input_Buffer_title db "Response:",13
+811   9284 6F 6E 73 65
+811   9288 3A 0D
+812   928A              input_Buffer equ $  ;буфер для загрузки
+813   928A
+814   928A              end_update
+815   928A              	savebin "update.apg",start_update,end_udate_code-start_update
+# file closed: update.asm
