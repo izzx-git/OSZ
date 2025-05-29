@@ -1,6 +1,7 @@
 Update list OSZ
 w909591u.beget.tech
 /Release/OSZ/update.txt
+/Release/OSZ/artview.apg
 /Release/OSZ/autorun.txt
 /Release/OSZ/moonr.apg
 /Release/OSZ/nc.apg
