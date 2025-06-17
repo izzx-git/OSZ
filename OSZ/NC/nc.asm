@@ -38,7 +38,7 @@ start_nc_warm ;тёплый старт
 	ld hl,buffer_cat ;куда
 	ld de,0 ;начиная с 0 сектора
 	ld b,32 ; секторов
-	OS_READ_DIR
+	OS_DIR_READ
 
 	ld hl,0 ;обнулить переменные
 	ld (file_r_num_cur),hl
@@ -52,7 +52,7 @@ start_nc_warm ;тёплый старт
 	
 	call print_rect_r ;рамка
 	call print_panel_r
-	call print_menu_view
+	call print_menu_main
 	
 	ld de,#0100
 	OS_SET_XY
@@ -94,83 +94,7 @@ clear_buf
 	ldir
 	ret
 
-view_file
-	;просмотр файла
-	ld hl,(file_r_all)
-	ld a,l
-	or h
-	jp z,view_file_ex ;защита
-	call calc_deskr
-	ld a,(ix+#0b) 
-	cp #10 ;признак каталога
-	jp z,view_file_ex
-	
-	call format_name ;обработать имя файла
-	
-	
-	
-	OS_CLS ;почистить экран
-	
-	ld hl,file_name_cur		;строка с именем	
-	OS_FILE_OPEN
-	jr nc,view_file_open_ok
-view_file_file_error
-	ld hl,msg_file_error
-	OS_PRINTZ	
-	jp view_file_ex
-	
-view_file_open_ok
-	ld (file_id_cur_r),a
-	;проверка длины файла не больше #4000
-	ld	a,d ;самые старшие байты длины
-	or e
-	jr z,view_file_size_ok ;если не слищком большой
-view_file_too_big
-	ld hl,msg_file_too_big
-	OS_PRINTZ
-	jp start_nc_warm ;перезагрузить папку
-	
 
-view_file_size_ok	
-	ld	a,b ;младший старший байт длины
-	cp #40+1
-	jr nc,view_file_too_big
-	
-	push bc
-	call clear_buf
-	pop bc
-	
-	;размер нормальный, прочитаем
-	ld d,b ;размер
-	ld e,c
-	ld hl,buffer_cat
-	ld a,(file_id_cur_r)
-	OS_FILE_READ ;загрузить
-	jr c,view_file_file_error
-
-	
-	;печать файла в консоль
-	ld a,4 ;цвет
-	ld b,#c	
-	OS_SET_COLOR
-	ld de,0000 ;xy
-	OS_SET_XY
-	ld hl,buffer_cat
-	OS_PRINTZ
-	
-	call release_key
-	
-view_file_wait
-	OS_WAIT
-	OS_GET_CHAR
-	cp 255
-	jr z,view_file_wait
-	;почистить экран
-	OS_CLS
-	jp start_nc_warm ;перезагрузить папку
-
-view_file_ex
-	jp nc_wait
 
 
 release_key ;ждать отпускания клавиши
@@ -215,7 +139,7 @@ key_enter_dir
 	;call format_name_dir
 	ex de,hl ;de - дескриптор для открытия
 	ld hl,dir_name_cur
-	OS_OPEN_DIR
+	OS_DIR_OPEN
 	jr c,key_enter_ex ;если ошибка, ничего не делаем
 	
 	pop hl ;отменить возврат
@@ -583,16 +507,18 @@ print_rect_r_cl
 	OS_PRINTZ
 	ret
 
-print_menu_view ;печать основного меню
+print_menu_main ;печать основного меню
 	ld a,color_backgr_hi ;цвет
 	ld b,#c
 	OS_SET_COLOR
 	ld de,#1800+3*8
 	OS_SET_XY
-	ld hl,msg_menu_view
+	ld hl,msg_menu_main
 	OS_PRINTZ
 	ret
 	
+	
+	include nc_view.asm ;просмотрщик
 
 
 color_backgr equ 1*8+7 ;цвет фона
@@ -644,7 +570,7 @@ rect_3
 	edup
 	db #bc,0	
 
-msg_menu_view
+msg_menu_main
 	db "3 View",0
 msg_file_error
 	db "File error",10,13,0
@@ -653,7 +579,7 @@ msg_file_too_big
 msg_mem_err
 	db "Get memory error",10,13,0
 msg_title_nc
-	db "None Commander ver 2025.01.28",10,13,0
+	db "None Commander ver 2025.06.17",10,13,0
 
 end_nc
 	savebin "nc.apg",start_nc,$-start_nc

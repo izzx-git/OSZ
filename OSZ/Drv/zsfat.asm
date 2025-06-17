@@ -625,6 +625,87 @@ calc_dir_deskr_ex
 
 
 
+
+; A - file stream id
+; DE - position hi
+; HL - position low
+; Returns:
+; 
+file_position: ;
+;установка/чтение указателя в файле (Переменная +#18-#1b fcb)
+	jr c,file_position_set
+	;чтение
+	call file_check_act ;проверка
+	jp c,file_error
+	;прочитаем позицию
+	ld l,(ix+#18)
+	ld h,(ix+#19)
+	ld e,(ix+#1a)
+	ld d,(ix+#1b)
+	or a
+	ret	
+	
+	
+file_position_set
+	;установка
+	push de
+	call file_check_act ;проверка
+	pop de
+	jp c,file_error
+	;установим позицию
+	ld (ix+#18),l
+	ld (ix+#19),h
+	ld (ix+#1a),e
+	ld (ix+#1b),d
+	or a
+	ret
+
+
+
+
+; поиск файла или каталога по заданному пути, начиная от корневого, со входом в подкаталоги
+;вх:   hl - путь к файлу в формате ASCIZ (не более 250 байт, заканчивается нулем)
+;	  формат пути: \[DIR\DIR\..\DIR\]filename.ext
+find_path
+	;сначала сделаем текущей папку активного приложения
+	push af
+	push hl
+	ld a,(proc_id_cur)
+	call calc_dir_deskr
+	ex de,hl
+	ld hl,0
+    ; hl - адрес пути (=#0000 - путь отсутствует)
+    ; de - адрес дескриптора директории/файла	
+	R8FAT r8f05_OpenDir	;открыть текущий каталог
+	
+	R8FAT r8f03_SetRoot ;перейти в корень диска
+	
+	pop hl
+	pop af
+	;поиск пути в разделе
+	; xor	a
+	; dec	a ;установить текущим
+	R8FAT	r8f04_FindPath
+
+; #04(04) (FindPath) поиск файла по заданному пути в текущем каталоге со входом в
+	; подкаталоги с проверкой синтаксиса (с установкой найденного каталога
+	; текущим)
+; вх:  c=#04(04)
+     ; hl - путь к файлу в формате ASCIZ (не более 250 байт, заканчивается нулем)
+	  ; формат пути: \[DIR\DIR\..\DIR\]filename.ext
+     ; de - адрес буфера (#20 байт) для дескриптора найденного файла/каталога
+     ; a=#00/#FF - без установки каталога/с установкой найденного каталога текущим
+	 
+	ret
+
+
+
+
+
+
+
+
+
 	
 ; A - file stream id
 ; fsync:
