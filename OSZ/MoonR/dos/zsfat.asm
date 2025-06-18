@@ -1622,7 +1622,7 @@ fwrite: ;
 	; nop
 ; ;конец секции SMUC и SD ----------------------------
 path_os db "\\OSZ",0
-path_download db "\\OSZ\\Download",0
+path_download db "\\OSZ\\Download\\MoonR",0
 ;path_deskr ds 32 ;дескриптор каталога
 	
 

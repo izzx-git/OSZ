@@ -1187,7 +1187,7 @@ save_file_prep_name_no
 	
 	
 save_file_name_max_lenght equ 250 ;максимальная длина имени
-path_download db "\\OSZ\\Download",0	
+path_download db "\\OSZ\\Download\\Radio",0	
 msg_save_file db 13,"Save file: "	
 save_file_name  ;тут имя файла
 	ds save_file_name_max_lenght+1 ;буфер для имени файла
