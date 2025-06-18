@@ -297,86 +297,115 @@
  292+ 0000
  293+ 0000              ;дисковые операции -------------------
  294+ 0000
- 295+ 0000              ;открыть файл для чтения или записи
- 296+ 0000                  macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size)
- 297+ 0000 ~                ld c,#21
- 298+ 0000 ~                rst #20
- 299+ 0000                  endm
- 300+ 0000
- 301+ 0000              ;создать файл
- 302+ 0000                  macro OS_FILE_CREATE ;HL - File name  (out: A - id file)
- 303+ 0000 ~                ld c,#22
- 304+ 0000 ~                rst #20
- 305+ 0000                  endm
- 306+ 0000
- 307+ 0000              ;прочитать из файла
- 308+ 0000                  macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
- 309+ 0000 ~                ld c,#23
- 310+ 0000 ~                rst #20
- 311+ 0000                  endm
- 312+ 0000
- 313+ 0000              ;записать в файл
- 314+ 0000                  macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
- 315+ 0000 ~                ld c,#24
- 316+ 0000 ~                rst #20
- 317+ 0000                  endm
- 318+ 0000
- 319+ 0000              ;закрыть файл
- 320+ 0000                  macro OS_FILE_CLOSE ;A - id file
- 321+ 0000 ~                ld c,#25
- 322+ 0000 ~                rst #20
- 323+ 0000                  endm
- 324+ 0000
- 325+ 0000              ;чтение секторов текущего каталога
- 326+ 0000              ; вх:
- 327+ 0000                   ; hl - буфер для чтения
- 328+ 0000                   ; de - относительный номер первого сектора каталога для чтения [0..nn]
- 329+ 0000                   ; b - максимальное количество секторов для чтения
- 330+ 0000              ; вых: cy=1, если были ошибки, код ошибки возвращается в аккумуляторе
- 331+ 0000                     ; a=errRWnum
- 332+ 0000                     ; a=errInvalidPart
- 333+ 0000                     ; a=errFileEmpty
- 334+ 0000                   ; cy=0, a=errEoF - каталог закончился
- 335+ 0000                     ; hl - следующий адрес в буфере
- 336+ 0000                     ; de - номер первого непрочитанного сектора
- 337+ 0000                     ; b - не прочитано секторов
- 338+ 0000                   ; cy=0 - считано успешно
- 339+ 0000                     ; hl - следующий адрес в буфере
- 340+ 0000                     ; de - номер первого непрочитанного сектора
- 341+ 0000                     ; b=#00
- 342+ 0000                  macro OS_READ_DIR ;
- 343+ 0000 ~                ld c,#26
- 344+ 0000 ~                rst #20
- 345+ 0000                  endm
- 346+ 0000
- 347+ 0000              ;вход в каталог/выход в родительский каталог
- 348+ 0000              	; Если путь не указан производится только настройка переменных драйвера,
- 349+ 0000              	; при этом если передан дескриптор файла, текущий каталог не изменится)
- 350+ 0000              	; Если пусть указан, в конец пути добавится название каталога (если это
- 351+ 0000              	; переход в родительский, последнее имя в пути удалится).
- 352+ 0000              	; Если передан дескриптор файла, текущий каталог не изменится, к пути
- 353+ 0000              	; добавится имя файла
- 354+ 0000              ; вх:
- 355+ 0000                   ; hl - адрес пути (=#0000 - путь отсутствует)
- 356+ 0000                   ; de - адрес дескриптора директории/файла
- 357+ 0000              ; вых: a - если путь был указан, новая длина пути
- 358+ 0000                  macro OS_OPEN_DIR ;
- 359+ 0000 ~                ld c,#27
- 360+ 0000 ~                rst #20
- 361+ 0000                  endm
- 362+ 0000
- 363+ 0000
- 364+ 0000                  ; macro OS_ ;
- 365+ 0000                  ; ld c,#28
- 366+ 0000                  ; rst #20
- 367+ 0000                  ; endm
- 368+ 0000
- 369+ 0000                  ; macro OS_ ;
- 370+ 0000                  ; ld c,#29
- 371+ 0000                  ; rst #20
- 372+ 0000                  ; endm
- 373+ 0000
- 374+ 0000
+ 295+ 0000              ; менять напрямую что-то в таблице fcb из приложения не рекомендуется, только для чтения
+ 296+ 0000
+ 297+ 0000              ; fcbFAT (из руководства к монитору)
+ 298+ 0000              ; формат fcb для работы с FAT
+ 299+ 0000
+ 300+ 0000              ; +#00 8 имя файла
+ 301+ 0000              ; +#08 3 расширение файла
+ 302+ 0000              ; +#0B 1 атрибуты файла
+ 303+ 0000              ; +#0C 4 номер первого кластера файла/каталога
+ 304+ 0000              ; +#10 4 номер первого кластера каталога с этим файлом/каталогом
+ 305+ 0000              ; +#14 4 размер файла/каталога в байтах
+ 306+ 0000              ; +#18 4 указатель в файле
+ 307+ 0000              ; +#1C 1 для внутренних нужд
+ 308+ 0000              ; +#1D 1 для внутренних нужд
+ 309+ 0000              ; +#1E 1 резерв
+ 310+ 0000              ; +#1F 1 номер винчестера и раздела на нем
+ 311+ 0000              	; 1-0,nn номер раздела
+ 312+ 0000              	; 3-2,=00/01/10 HDD master/HDD slave/SD
+ 313+ 0000              	    ; значение %11 недопустимо
+ 314+ 0000
+ 315+ 0000              ;открыть файл для чтения или записи
+ 316+ 0000                  macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size, IX - fcb)
+ 317+ 0000 ~                ld c,#21
+ 318+ 0000 ~                rst #20
+ 319+ 0000                  endm
+ 320+ 0000
+ 321+ 0000              ;создать файл
+ 322+ 0000                  macro OS_FILE_CREATE ;HL - File name  (out: A - id file, IX - fcb)
+ 323+ 0000 ~                ld c,#22
+ 324+ 0000 ~                rst #20
+ 325+ 0000                  endm
+ 326+ 0000
+ 327+ 0000              ;прочитать из файла
+ 328+ 0000                  macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
+ 329+ 0000 ~                ld c,#23
+ 330+ 0000 ~                rst #20
+ 331+ 0000                  endm
+ 332+ 0000
+ 333+ 0000              ;записать в файл
+ 334+ 0000                  macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
+ 335+ 0000 ~                ld c,#24
+ 336+ 0000 ~                rst #20
+ 337+ 0000                  endm
+ 338+ 0000
+ 339+ 0000              ;закрыть файл
+ 340+ 0000                  macro OS_FILE_CLOSE ;A - id file
+ 341+ 0000 ~                ld c,#25
+ 342+ 0000 ~                rst #20
+ 343+ 0000                  endm
+ 344+ 0000
+ 345+ 0000              ;чтение секторов текущего каталога
+ 346+ 0000              ; вх:
+ 347+ 0000                   ; hl - буфер для чтения
+ 348+ 0000                   ; de - относительный номер первого сектора каталога для чтения [0..nn]
+ 349+ 0000                   ; b - максимальное количество секторов для чтения
+ 350+ 0000              ; вых: cy=1, если были ошибки, код ошибки возвращается в аккумуляторе
+ 351+ 0000                     ; a=errRWnum
+ 352+ 0000                     ; a=errInvalidPart
+ 353+ 0000                     ; a=errFileEmpty
+ 354+ 0000                   ; cy=0, a=errEoF - каталог закончился
+ 355+ 0000                     ; hl - следующий адрес в буфере
+ 356+ 0000                     ; de - номер первого непрочитанного сектора
+ 357+ 0000                     ; b - не прочитано секторов
+ 358+ 0000                   ; cy=0 - считано успешно
+ 359+ 0000                     ; hl - следующий адрес в буфере
+ 360+ 0000                     ; de - номер первого непрочитанного сектора
+ 361+ 0000                     ; b=#00
+ 362+ 0000                  macro OS_DIR_READ ;
+ 363+ 0000 ~                ld c,#26
+ 364+ 0000 ~                rst #20
+ 365+ 0000                  endm
+ 366+ 0000
+ 367+ 0000              ;вход в каталог/выход в родительский каталог
+ 368+ 0000              	; Если путь не указан производится только настройка переменных драйвера,
+ 369+ 0000              	; при этом если передан дескриптор файла, текущий каталог не изменится)
+ 370+ 0000              	; Если пусть указан, в конец пути добавится название каталога (если это
+ 371+ 0000              	; переход в родительский, последнее имя в пути удалится).
+ 372+ 0000              	; Если передан дескриптор файла, текущий каталог не изменится, к пути
+ 373+ 0000              	; добавится имя файла
+ 374+ 0000              ; вх:
+ 375+ 0000                   ; hl - адрес пути (=#0000 - путь отсутствует)
+ 376+ 0000                   ; de - адрес дескриптора директории/файла
+ 377+ 0000              ; вых: a - если путь был указан, новая длина пути
+ 378+ 0000                  macro OS_DIR_OPEN ;
+ 379+ 0000 ~                ld c,#27
+ 380+ 0000 ~                rst #20
+ 381+ 0000                  endm
+ 382+ 0000
+ 383+ 0000              ;установка/чтение указателя в файле (Переменная +#18-#1b fcb)
+ 384+ 0000              ;проверки на допустимость значений не производится
+ 385+ 0000              ;вх: CY = 1 - установка; CY = 0 - чтение
+ 386+ 0000              ;вх: A - id файла
+ 387+ 0000              ;вх: de, hl - значения старшие быйты, младшие
+ 388+ 0000              ;вых: de, hl - значения старшие быйты, младшие
+ 389+ 0000                  macro OS_FILE_POSITION ;
+ 390+ 0000 ~                ld c,#28
+ 391+ 0000 ~                rst #20
+ 392+ 0000                  endm
+ 393+ 0000
+ 394+ 0000              ; поиск файла или каталога по заданному пути, начиная от корневого, со входом в подкаталоги
+ 395+ 0000              ;вх: hl - путь к файлу в формате ASCIZ (не более 250 байт, заканчивается нулем)
+ 396+ 0000              	 ;формат пути: \[DIR\DIR\..\DIR\]filename.ext	(можно без имени файла, только каталоги)
+ 397+ 0000              ;вх: a=#00/#FF - без установки каталога/с установкой найденного каталога текущим
+ 398+ 0000                  macro OS_FIND_PATH ;
+ 399+ 0000 ~                ld c,#29
+ 400+ 0000 ~                rst #20
+ 401+ 0000                  endm
+ 402+ 0000
+ 403+ 0000
 # file closed: ../os_defs.asm
    4  0000              	org PROGSTART
    5  8000
@@ -394,7 +423,7 @@
   17  8000              start_artview
   18  8000              	; ld a,13 ;новая строка
   19  8000              	; OS_PRINT_CHARF
-  20  8000 21 51 89     	ld hl,msg_title_artview ;имя приложения
+  20  8000 21 08 8B     	ld hl,msg_title_artview ;имя приложения
   21  8003              	OS_PRINTZ ;печать
   21  8003 0E 09       >    ld c,#09
   21  8005 E7          >    rst #20
@@ -427,23 +456,23 @@
   48  8006
   49  8006              start_artview_warm2
   50  8006
-  51  8006 21 44 87     	ld hl,start_request ;очистить номер первого арта
-  52  8009 11 45 87     	ld de,start_request+1
+  51  8006 21 FB 88     	ld hl,start_request ;очистить номер первого арта
+  52  8009 11 FC 88     	ld de,start_request+1
   53  800C 01 04 00     	ld bc,5-1
   54  800F 36 30        	ld (hl),"0"
   55  8011 ED B0        	ldir
   56  8013
   57  8013 21 00 00     	ld hl,0
-  58  8016 22 0E 87     	ld (cur_art),hl ;первый арт
-  59  8019 22 0A 87     	ld (total_art),hl ;всего
+  58  8016 22 C5 88     	ld (cur_art),hl ;первый арт
+  59  8019 22 C1 88     	ld (total_art),hl ;всего
   60  801C
   61  801C ED 5F        	ld a,r
-  62  801E 32 0F 85     	ld (seed+1),a ;элемент случайности
+  62  801E 32 1C 85     	ld (seed+1),a ;элемент случайности
   63  8021
   64  8021              artview_main
   65  8021              ;основной цикл
   66  8021 AF           	xor a
-  67  8022 32 10 87     	ld (stopKey_flag),a ;флаг останова
+  67  8022 32 C7 88     	ld (stopKey_flag),a ;флаг останова
   68  8025
   69  8025              	; OS_GET_CHAR
   70  8025              	; cp "r"
@@ -467,13 +496,13 @@
   86  802D FE 52        	cp "R"
   87  802F CA 00 80     	jp z,start_artview ;всё сначала
   88  8032 FE 18        	cp 24 ;break
-  89  8034 CA F4 80     	jp z,exit
+  89  8034 CA FE 80     	jp z,exit
   90  8037
   91  8037
-  92  8037 CD 32 82     	call artview_request_info ;запрос информации
+  92  8037 CD 3C 82     	call artview_request_info ;запрос информации
   93  803A
   94  803A 30 05        	jr nc,artview_request_info_ok
-  95  803C CD EF 81     	call artview_main_error
+  95  803C CD F9 81     	call artview_main_error
   96  803F 18 E4        	jr artview_main_open_ok
   97  8041
   98  8041
@@ -489,12 +518,12 @@
  106  8049 FE 52        	cp "R"
  107  804B CA 00 80     	jp z,start_artview ;всё сначала
  108  804E FE 18        	cp 24 ;break
- 109  8050 CA F4 80     	jp z,exit
+ 109  8050 CA FE 80     	jp z,exit
  110  8053
- 111  8053 CD 58 82     	call artview_download_info ;загрузка информации
+ 111  8053 CD 62 82     	call artview_download_info ;загрузка информации
  112  8056
  113  8056 30 05        	jr nc,artview_download_info_ok
- 114  8058 CD EF 81     	call artview_main_error
+ 114  8058 CD F9 81     	call artview_main_error
  115  805B 18 C8        	jr artview_main_open_ok
  116  805D
  117  805D
@@ -515,12 +544,12 @@
  130  8065 FE 52        	cp "R"
  131  8067 CA 00 80     	jp z,start_artview ;всё сначала
  132  806A FE 18        	cp 24 ;break
- 133  806C CA F4 80     	jp z,exit
+ 133  806C CA FE 80     	jp z,exit
  134  806F
- 135  806F CD 14 83     	call artview_request_art ;запрос арта
+ 135  806F CD 1E 83     	call artview_request_art ;запрос арта
  136  8072
  137  8072 30 05        	jr nc,artview_request_art_ok
- 138  8074 CD EF 81     	call artview_main_error
+ 138  8074 CD F9 81     	call artview_main_error
  139  8077 18 E4        	jr artview_download_info_ok
  140  8079
  141  8079              artview_request_art_ok
@@ -533,19 +562,19 @@
  146  8081 FE 52        	cp "R"
  147  8083 CA 00 80     	jp z,start_artview ;всё сначала
  148  8086 FE 18        	cp 24 ;break
- 149  8088 CA F4 80     	jp z,exit
+ 149  8088 CA FE 80     	jp z,exit
  150  808B
- 151  808B CD 3A 83     	call artview_download_art ;загрузка арта
+ 151  808B CD 44 83     	call artview_download_art ;загрузка арта
  152  808E
  153  808E 30 05        	jr nc,artview_download_art_ok
- 154  8090 CD EF 81     	call artview_main_error
+ 154  8090 CD F9 81     	call artview_main_error
  155  8093 18 C8        	jr artview_download_info_ok
  156  8095
  157  8095              artview_download_art_ok
  158  8095
  159  8095
  160  8095              	;начать просмотр
- 161  8095 22 0C 87     	ld (start_art),hl
+ 161  8095 22 C3 88     	ld (start_art),hl
  162  8098
  163  8098              	;ld hl, outputBuffer  :
  164  8098              	;OS_GET_VTPL_SETUP
@@ -556,14 +585,14 @@
  169  8098              	; OS_VTPL_INIT
  170  8098              	; OS_VTPL_PLAY
  171  8098
- 172  8098 21 6A 86     	ld hl,msg_play_art
+ 172  8098 21 12 88     	ld hl,msg_play_art
  173  809B              	OS_PRINTZ
  173  809B 0E 09       >    ld c,#09
  173  809D E7          >    rst #20
- 174  809E CD E1 83     	call print_sys_info ;печать менюшки
+ 174  809E CD EB 83     	call print_sys_info ;печать менюшки
  175  80A1
- 176  80A1 2A 0C 87     	ld hl,(start_art)
- 177  80A4 CD B9 81     	call scr_view ;
+ 176  80A1 2A C3 88     	ld hl,(start_art)
+ 177  80A4 CD C3 81     	call scr_view ;
  178  80A7 18 04        	jr loop_artview1
  179  80A9
  180  80A9              loop_artview
@@ -574,17 +603,17 @@
  182  80AC E7          >    rst #20
  183  80AD              loop_artview1
  184  80AD FE 72        	cp "r"
- 185  80AF CA EB 80     	jp z,restart ;всё сначала
+ 185  80AF CA F5 80     	jp z,restart ;всё сначала
  186  80B2 FE 52        	cp "R"
- 187  80B4 CA EB 80     	jp z,restart ;всё сначала
+ 187  80B4 CA F5 80     	jp z,restart ;всё сначала
  188  80B7 FE 73        	cp "s" ;останов
- 189  80B9 CA DE 80     	jp z,stopKey
+ 189  80B9 CA E8 80     	jp z,stopKey
  190  80BC FE 53        	cp "S" ;останов
- 191  80BE CA DE 80     	jp z,stopKey
+ 191  80BE CA E8 80     	jp z,stopKey
  192  80C1              	; cp "n" ;следующий случайный
  193  80C1              	; jp z, next_art
  194  80C1 FE 20        	cp " " ;слудующий случайный
- 195  80C3 CA F8 80     	jp z, next_art
+ 195  80C3 CA 02 81     	jp z, next_art
  196  80C6              	; cp "1" ;формат
  197  80C6              	; jp z, select_pt2
  198  80C6              	; cp "2" ;формат
@@ -594,1358 +623,1486 @@
  202  80C6              	; cp "4" ;формат
  203  80C6              	; jp z, select_tfc
  204  80C6 FE 51        	cp "Q" ;порядок
- 205  80C8 CA 72 81     	jp z, select_order
+ 205  80C8 CA 7C 81     	jp z, select_order
  206  80CB FE 71        	cp "q" ;порядок
- 207  80CD CA 72 81     	jp z, select_order
- 208  80D0 FE 18        	cp 24 ;break
- 209  80D2 CA F4 80     	jp z,exit
- 210  80D5              	; OS_GET_VTPL_SETUP
- 211  80D5                  ; ld a, (hl) :
- 212  80D5              	; rla : jr nc, loop_artview
- 213  80D5              	; ld a,(time_view) ;пауза
- 214  80D5              	; ld b,a
- 215  80D5              	; call delay1
- 216  80D5 3A 10 87     	ld a,(stopKey_flag)
- 217  80D8 B7           	or a
- 218  80D9 20 CE        	jr nz,loop_artview
- 219  80DB
- 220  80DB C3 F8 80     	jp next_art
- 221  80DE              stopKey
- 222  80DE              	;OS_VTPL_MUTE
- 223  80DE 21 77 86     	ld hl,msg_stop
- 224  80E1              	OS_PRINTZ
- 224  80E1 0E 09       >    ld c,#09
- 224  80E3 E7          >    rst #20
- 225  80E4 3E 01        	ld a,1
- 226  80E6 32 10 87     	ld (stopKey_flag),a
- 227  80E9 18 BE        	jr loop_artview
- 228  80EB              ; loop_artview2
- 229  80EB              	; jr loop_artview2
- 230  80EB
- 231  80EB              restart
- 232  80EB              	;OS_VTPL_MUTE
- 233  80EB 21 7D 86     	ld hl,msg_restart
- 234  80EE              	OS_PRINTZ
- 234  80EE 0E 09       >    ld c,#09
- 234  80F0 E7          >    rst #20
- 235  80F1 C3 06 80     	jp start_artview_warm
- 236  80F4
- 237  80F4              exit ;выход в ДОС
- 238  80F4 AF           	xor a
- 239  80F5              	OS_PROC_CLOSE
- 239  80F5 0E 13       >    ld c,#13
- 239  80F7 E7          >    rst #20
- 240  80F8
- 241  80F8
- 242  80F8              ;следующий арт
- 243  80F8              next_art
- 244  80F8              	;получить случайный номер арта
- 245  80F8              	; nop
- 246  80F8              	; nop
- 247  80F8              	;OS_VTPL_MUTE
- 248  80F8
- 249  80F8 CD 20 81     	call get_next ;узнать следующий
- 250  80FB DA DE 80     	jp c,stopKey ;если 0, то останов
- 251  80FE              	;подставить номер
- 252  80FE CD 32 85     	call toDecimal
- 253  8101              	;ld (start_art),hl
- 254  8101 21 8B 85     	ld hl,decimalS
- 255  8104 11 44 87     	ld de,start_request
- 256  8107 01 05 00     	ld bc,5
- 257  810A ED B0        	ldir
- 258  810C C3 21 80     	jp artview_main ;на загрузку нового арта
- 259  810F
- 260  810F              ; select_pt2 ;выбор типа
- 261  810F              	; ;OS_VTPL_MUTE
- 262  810F              	; ld hl,format_pt2
- 263  810F              	; call select_format_print
- 264  810F              	; ld de,request_format
- 265  810F              	; ld bc,3
- 266  810F              	; ldir
- 267  810F              	; ;настроить плеер
- 268  810F              	; ld a,%00000011 ;pt2
- 269  810F              	; ld (player_setup),a
- 270  810F              	; jp start_artview_warm2
- 271  810F
- 272  810F              ; select_pt3 ;выбор типа
- 273  810F              	; ;OS_VTPL_MUTE
- 274  810F              	; ld hl,format_pt3
- 275  810F              	; call select_format_print
- 276  810F              	; ld de,request_format
- 277  810F              	; ld bc,3
- 278  810F              	; ldir
- 279  810F              	; ;настроить плеер
- 280  810F              	; ld a,%00100001 ;pt3
- 281  810F              	; ld (player_setup),a
- 282  810F              	; call artview_download_info ;загрузка информации сколько артов
- 283  810F              	; jp start_artview_warm2
- 284  810F
- 285  810F              ; select_ts ;выбор типа
- 286  810F              	; OS_VTPL_MUTE
- 287  810F              	; ld hl,format_ts
- 288  810F              	; call select_format_print
- 289  810F              	; ld de,request_format
- 290  810F              	; ld bc,3
- 291  810F              	; ldir
- 292  810F              	; OS_GET_VTPL_SETUP ;настроить плеер
- 293  810F              	; ld a,%00100001 ;%00010001 ;2xPT3
- 294  810F              	; ld (hl),a
- 295  810F              	; jp loop_artview
- 296  810F
- 297  810F              ; select_tfc ;выбор типа
- 298  810F              	; OS_VTPL_MUTE
- 299  810F              	; ld hl,format_tfc
- 300  810F              	; call select_format_print
- 301  810F              	; ld de,request_format
- 302  810F              	; ld bc,3
- 303  810F              	; ldir
- 304  810F              	; jp loop_artview
- 305  810F
- 306  810F              select_format_print
- 307  810F E5           	push hl
- 308  8110 21 1D 86     	ld hl,msg_format
- 309  8113              	OS_PRINTZ
- 309  8113 0E 09       >    ld c,#09
- 309  8115 E7          >    rst #20
- 310  8116 E1           	pop hl
- 311  8117 E5           	push hl
- 312  8118              	OS_PRINTZ
- 312  8118 0E 09       >    ld c,#09
- 312  811A E7          >    rst #20
- 313  811B 3E 0D        	ld a,13
- 314  811D              	OS_PRINT_CHARF
- 314  811D D7          >	rst #10
- 315  811E E1           	pop hl
- 316  811F C9           	ret
- 317  8120
- 318  8120
- 319  8120
- 320  8120
- 321  8120
- 322  8120
- 323  8120
- 324  8120
- 325  8120              get_next ;выбор следующего арта
- 326  8120 2A 0A 87     	ld hl,(total_art)
- 327  8123 7D           	ld a,l
- 328  8124 B4           	or h
- 329  8125 37           	scf ;ошибка
- 330  8126 C8           	ret z ;если всего 0, то вернуть 0
- 331  8127 3A 11 87     	ld a,(order_val)
- 332  812A B7           	or a
- 333  812B 28 3A        	jr z,get_next_random
- 334  812D FE 01        	cp 1
- 335  812F 28 1A        	jr z,get_next_from_new_to_old
- 336  8131
- 337  8131
- 338  8131              get_next_from_old_to_new
- 339  8131              	;от старых к новым
- 340  8131 2A 0E 87     	ld hl,(cur_art)
- 341  8134 11 01 00     	ld de,1
- 342  8137 A7           	and a
- 343  8138 ED 52        	sbc hl,de
- 344  813A 30 06        	jr nc,get_next_from_old_to_new1
- 345  813C 2A 0A 87     	ld hl,(total_art) ;с конца
- 346  813F 2B           	dec hl ;фикс потому что счёт с 0
- 347  8140 18 04        	jr get_next_from_old_to_new2
- 348  8142              get_next_from_old_to_new1
- 349  8142 2A 0E 87     	ld hl,(cur_art)
- 350  8145 2B           	dec hl
- 351  8146              get_next_from_old_to_new2
- 352  8146 22 0E 87     	ld (cur_art),hl ;запомним
- 353  8149 AF           	xor a ;нет ошибок
- 354  814A C9           	ret
- 355  814B
- 356  814B
- 357  814B              get_next_from_new_to_old
- 358  814B              	;от новых к старым
- 359  814B ED 5B 0E 87  	ld de,(cur_art)
- 360  814F 13           	inc de
- 361  8150 2A 0A 87     	ld hl,(total_art)
- 362  8153 2B           	dec hl ;фикс потому что счёт с 0
- 363  8154 A7           	and a
- 364  8155 ED 52        	sbc hl,de
- 365  8157 30 05        	jr nc,get_next_from_new_to_old1
- 366  8159 21 00 00     	ld hl,0 ;сначала
- 367  815C 18 04        	jr get_next_from_new_to_old2
- 368  815E              get_next_from_new_to_old1
- 369  815E 2A 0E 87     	ld hl,(cur_art)
- 370  8161 23           	inc hl
- 371  8162              get_next_from_new_to_old2
- 372  8162 22 0E 87     	ld (cur_art),hl ;запомним
- 373  8165 AF           	xor a ;нет ошибок
- 374  8166 C9           	ret
- 375  8167
- 376  8167
- 377  8167
- 378  8167              get_next_random
- 379  8167              	;случайный
- 380  8167 2A 0A 87     	ld hl,(total_art)
- 381  816A CD E1 84     	call rnd
- 382  816D 22 0E 87     	ld (cur_art),hl ;запомним
- 383  8170 AF           	xor a ;нет ошибок
- 384  8171 C9           	ret
- 385  8172
- 386  8172
- 387  8172
- 388  8172
- 389  8172              select_order ;выбор порядка
- 390  8172 3A 11 87     	ld a,(order_val)
- 391  8175 3C           	inc a
- 392  8176 FE 03        	cp 3 ;макс
- 393  8178 38 01        	jr c,select_order1
- 394  817A AF           	xor a
- 395  817B              select_order1
- 396  817B 32 11 87     	ld (order_val),a
- 397  817E CD 84 81     	call print_order
- 398  8181 C3 A9 80     	jp loop_artview
- 399  8184
- 400  8184              print_order ;печать порядка
- 401  8184 21 B8 86     	ld hl,msg_order
- 402  8187              	OS_PRINTZ
- 402  8187 0E 09       >    ld c,#09
- 402  8189 E7          >    rst #20
- 403  818A
- 404  818A 3E 05        	ld a,5;цвет
- 405  818C 06 0C        	ld b,#c
- 406  818E              	OS_SET_COLOR
- 406  818E 0E 06       >    ld c,#06
- 406  8190 E7          >    rst #20
- 407  8191
- 408  8191 3A 11 87     	ld a,(order_val)
- 409  8194 B7           	or a
- 410  8195 20 08        	jr nz,select_order_from_new
- 411  8197 21 D6 86     	ld hl,msg_order_random
- 412  819A              	OS_PRINTZ
- 412  819A 0E 09       >    ld c,#09
- 412  819C E7          >    rst #20
- 413  819D 18 12        	jr select_order_ex
- 414  819F              select_order_from_new
- 415  819F FE 01        	cp 1
- 416  81A1 20 08        	jr nz,select_order_from_old
- 417  81A3 21 DE 86     	ld hl,msg_order_from_new
- 418  81A6              	OS_PRINTZ
- 418  81A6 0E 09       >    ld c,#09
- 418  81A8 E7          >    rst #20
- 419  81A9 18 06        	jr select_order_ex
- 420  81AB              select_order_from_old
- 421  81AB 21 EF 86     	ld hl,msg_order_from_old
- 422  81AE              	OS_PRINTZ
- 422  81AE 0E 09       >    ld c,#09
- 422  81B0 E7          >    rst #20
- 423  81B1              select_order_ex
- 424  81B1 3E 07        	ld a,7 ;цвет
- 425  81B3 06 0C        	ld b,#c
- 426  81B5              	OS_SET_COLOR
- 426  81B5 0E 06       >    ld c,#06
- 426  81B7 E7          >    rst #20
- 427  81B8 C9           	ret
- 428  81B9
- 429  81B9
- 430  81B9
- 431  81B9
- 432  81B9
- 433  81B9              scr_view ;просмотр картинки
- 434  81B9              ;вх: HL - адрес картинки (scr 6912 байт)
- 435  81B9 E5               push hl
- 436  81BA              scr_view_wait
- 437  81BA 3E 07        	ld a,7
- 438  81BC              	OS_SET_SCREEN ;включить экран
- 438  81BC 0E 1D       >    ld c,#1d
- 438  81BE E7          >    rst #20
- 439  81BF 30 03        	jr nc,scr_view_ok
- 440  81C1              	OS_WAIT
- 440  81C1 DF          >	rst #18
- 441  81C2 18 F6        	jr scr_view_wait
- 442  81C4              scr_view_ok
- 443  81C4              	;если успешно включили экран, перекинем картинку
- 444  81C4              	OS_GET_MAIN_PAGES
- 444  81C4 0E 1E       >    ld c,#1e
- 444  81C6 E7          >    rst #20
- 445  81C7 78           	ld a,b ; страница с буфером
- 446  81C8 06 07        	ld b,7 ;страница назначения
- 447  81CA              	;ld hl,outputBuffer
- 448  81CA E1           	pop hl
- 449  81CB 11 00 C0     	ld de,#c000
- 450  81CE DD 21 00 1B  	ld ix,6912
- 451  81D2              	OS_RAM_COPY ;скопировать картинку на экран
- 451  81D2 0E 19       >    ld c,#19
- 451  81D4 E7          >    rst #20
- 452  81D5
- 453  81D5 3A 12 87     	ld a,(time_view)
- 454  81D8 47           	ld b,a
- 455  81D9              scr_view_wait2 ;scr_view
- 456  81D9 C5           	push bc
- 457  81DA              	OS_WAIT
- 457  81DA DF          >	rst #18
- 458  81DB              	OS_GET_CHAR
- 458  81DB 0E 10       >    ld c,#10
- 458  81DD E7          >    rst #20
- 459  81DE FE FF        	cp 255
- 460  81E0 20 05        	jr nz,scr_view_wait3
- 461  81E2 C1           	pop bc
- 462  81E3 10 F4        	djnz scr_view_wait2
- 463  81E5 18 01        	jr scr_view_wait_ex
- 464  81E7              scr_view_wait3
- 465  81E7 C1           	pop bc
- 466  81E8
- 467  81E8              scr_view_wait_ex
- 468  81E8 F5           	push af ;сохраним клавишу
- 469  81E9 AF           	xor a ;текстовый
- 470  81EA              	OS_SET_SCREEN
- 470  81EA 0E 1D       >    ld c,#1d
- 470  81EC E7          >    rst #20
- 471  81ED F1           	pop af
- 472  81EE C9               ret
- 473  81EF
- 474  81EF
- 475  81EF
- 476  81EF
- 477  81EF
- 478  81EF              artview_main_error ;печать ошибка
- 479  81EF              	;какая-то ошибка
- 480  81EF 3E 02        	ld a,2 ;цвет
- 481  81F1 06 0C        	ld b,#c
- 482  81F3              	OS_SET_COLOR
- 482  81F3 0E 06       >    ld c,#06
- 482  81F5 E7          >    rst #20
- 483  81F6 21 16 86     	ld hl,msg_error
- 484  81F9              	OS_PRINTZ
- 484  81F9 0E 09       >    ld c,#09
- 484  81FB E7          >    rst #20
- 485  81FC 3E 07        	ld a,7 ;цвет
- 486  81FE 06 0C        	ld b,#c
- 487  8200              	OS_SET_COLOR
- 487  8200 0E 06       >    ld c,#06
- 487  8202 E7          >    rst #20
- 488  8203 CD 73 84     	call delay ;задержка
- 489  8206 C9           	ret
- 490  8207
- 491  8207              artview_open_site ;открыть сайт
- 492  8207              	OS_ESP_CLOSE ;на всякий случай сначала закрыть
- 492  8207 0E 0C       >    ld c,#0c
- 492  8209 E7          >    rst #20
- 493  820A 21 0F 86     	ld hl,msg_open ;печать инфы
- 494  820D              	OS_PRINTZ
- 494  820D 0E 09       >    ld c,#09
- 494  820F E7          >    rst #20
- 495  8210 21 9E 85     	ld hl,site_name
- 496  8213              	OS_PRINTZ
- 496  8213 0E 09       >    ld c,#09
- 496  8215 E7          >    rst #20
- 497  8216 3E 0D        	ld a,13 ;новая строка
- 498  8218              	OS_PRINT_CHARF
- 498  8218 D7          >	rst #10
- 499  8219 21 9E 85     	ld hl,site_name ;сайт
- 500  821C 11 A7 85     	ld de,port_number
- 501  821F              	;call Wifi.openTCP ;открыть сайт
- 502  821F AF           	xor a ;открыть TCP
- 503  8220              	OS_ESP_OPEN
- 503  8220 0E 0D       >    ld c,#0d
- 503  8222 E7          >    rst #20
- 504  8223 D8           	ret c ;сразу не удалось (может, очередь)
- 505  8224              	;или подождём открытия
- 506  8224 06 64        	ld b,wait_count ;
- 507  8226              artview_open_site_wait
- 508  8226              	OS_WAIT
- 508  8226 DF          >	rst #18
- 509  8227 DD 7E 02     	ld a,(ix+2) ;флаг
- 510  822A 07           	rlca
- 511  822B D8           	ret c ;если ошибка (=255)
- 512  822C B7           	or a ;если флаг !=0
- 513  822D C0           	ret nz
- 514  822E 10 F6        	djnz artview_open_site_wait
- 515  8230 37           	scf ;ощибка
- 516  8231 C9           	ret
- 517  8232
- 518  8232
- 519  8232
- 520  8232
- 521  8232
- 522  8232              artview_request_info ;запрос инфы
- 523  8232 CD 07 82     	call artview_open_site ;открыть сайт
- 524  8235 D8           	ret c
- 525  8236
- 526  8236 21 38 86     	ld hl,msg_request_info ;
- 527  8239              	OS_PRINTZ
- 527  8239 0E 09       >    ld c,#09
- 527  823B E7          >    rst #20
- 528  823C 11 1C 87     	ld de,requestbuffer
- 529  823F CD 96 84     	call strLen ;узнать длину
- 530  8242 EB           	ex de,hl
- 531  8243 21 1C 87     	ld hl,requestbuffer
- 532  8246              	;call Wifi.tcpSendZ ;послать запрос
- 533  8246              	OS_ESP_SEND
- 533  8246 0E 0E       >    ld c,#0e
- 533  8248 E7          >    rst #20
- 534  8249 D8           	ret c;сразу не удалось (может, очередь)
- 535  824A              	;ждём когда запрос пройдёт
- 536  824A 06 64        	ld b,wait_count ;
- 537  824C              artview_request_info_wait2
- 538  824C              	OS_WAIT
- 538  824C DF          >	rst #18
- 539  824D DD 7E 04     	ld a,(ix+4) ;флаг
- 540  8250 07           	rlca
- 541  8251 D8           	ret c ;если ошибка (=255)
- 542  8252 B7           	or a
- 543  8253 C0           	ret nz
- 544  8254 10 F6        	djnz artview_request_info_wait2
- 545  8256 37           	scf ;ощибка
- 546  8257 C9           	ret
- 547  8258
- 548  8258
- 549  8258              artview_download_info ;загрузить инфо
- 550  8258
- 551  8258 21 26 86     	ld hl,msg_download_info ;
- 552  825B              	OS_PRINTZ
- 552  825B 0E 09       >    ld c,#09
- 552  825D E7          >    rst #20
- 553  825E
- 554  825E CD D3 84     	call clear_outputBuffer ;очистить
- 555  8261
- 556  8261 21 74 89     	ld hl,outputBuffer ;буфер для загрузки
- 557  8264 22 97 85     	ld (buffer_pointer),hl
- 558  8267              	;call Wifi.getPacket ;получить ответ
- 559  8267              	OS_ESP_GET
- 559  8267 0E 0F       >    ld c,#0f
- 559  8269 E7          >    rst #20
- 560  826A D8           	ret c ;сразу не удалось (может, очередь)
- 561  826B 06 64        	ld b,wait_count ;
- 562  826D              artview_download_info_wait1
- 563  826D              	OS_WAIT
- 563  826D DF          >	rst #18
- 564  826E DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
- 565  8271 07           	rlca
- 566  8272 D8           	ret c ;если ошибка (=255)
- 567  8273 B7           	or a
- 568  8274 20 04        	jr nz,artview_download_info_wait1_skip
- 569  8276 10 F5        	djnz artview_download_info_wait1
- 570  8278 37           	scf ;ощибка
- 571  8279 C9           	ret
- 572  827A
- 573  827A              artview_download_info_wait1_skip
- 574  827A              	;подготовка к приёму дальше
- 575  827A 2A 97 85     	ld hl,(buffer_pointer)
- 576  827D DD 4E 09     	ld c,(ix+9) ; длина принятого
- 577  8280 DD 46 0A     	ld b,(ix+10)
- 578  8283 09           	add hl,bc
- 579  8284 22 97 85     	ld (buffer_pointer),hl ;продолжить загружать с этого места
- 580  8287
- 581  8287              	;попробуем найти начало данных
- 582  8287 11 AA 85     	ld de,Content_Length ;найти запись о длине данных
- 583  828A CD B9 84     	call search_str
- 584  828D D8           	ret c
- 585  828E
- 586  828E EB           	ex de,hl
- 587  828F CD A0 84     	call text_to_digit ;преобразовать в число
- 588  8292 22 95 85     	ld (data_length),hl ;длина данных
- 589  8295
- 590  8295 11 99 85     	ld de,rnrn ;найти конец заголовка
- 591  8298 CD B9 84     	call search_str
- 592  829B D8           	ret c
- 593  829C 22 91 85     	ld (data_start),hl ;начало данных
- 594  829F
- 595  829F ED 5B 95 85  	ld de,(data_length)
- 596  82A3 19           	add hl,de ;узнали ожидаемый конец данных
- 597  82A4 22 93 85     	ld (data_end),hl
- 598  82A7
- 599  82A7              ;загрузка остальных частей, если есть
- 600  82A7              artview_download_info1
- 601  82A7 DD 7E 02     	ld a,(ix+2) ;!!! closed
- 602  82AA B7           	or a
- 603  82AB 28 35        	jr z,artview_download_info1_skip ;если закрыто, больше не грузим
- 604  82AD
- 605  82AD 2A 97 85     	ld hl,(buffer_pointer)
- 606  82B0 ED 5B 93 85  	ld de,(data_end)
- 607  82B4 A7           	and a
- 608  82B5 ED 52        	sbc hl,de
- 609  82B7 28 29        	jr z,artview_download_info1_skip ;если уже всё загружено
- 610  82B9
- 611  82B9
- 612  82B9              	;ещё не всё
- 613  82B9 2A 97 85     	ld hl,(buffer_pointer)
- 614  82BC 7C           	ld a,h
- 615  82BD FE FA        	cp buffer_top ;ограничение
- 616  82BF 30 21        	jr nc,artview_download_info1_skip
- 617  82C1
- 618  82C1              	;call Wifi.getPacket
- 619  82C1              	OS_ESP_GET
- 619  82C1 0E 0F       >    ld c,#0f
- 619  82C3 E7          >    rst #20
- 620  82C4 06 64        	ld b,wait_count ;
- 621  82C6              artview_download_info_wait2
- 622  82C6              	OS_WAIT
- 622  82C6 DF          >	rst #18
- 623  82C7 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
- 624  82CA 07           	rlca
- 625  82CB D8           	ret c ;если ошибка (=255)
- 626  82CC B7           	or a
- 627  82CD 20 04        	jr nz,artview_download_info_wait2_skip
- 628  82CF 10 F5        	djnz artview_download_info_wait2
- 629  82D1 37           	scf
- 630  82D2 C9           	ret
- 631  82D3
- 632  82D3              artview_download_info_wait2_skip
- 633  82D3 2A 97 85     	ld hl,(buffer_pointer)
- 634  82D6 DD 4E 09     	ld c,(ix+9) ; длина принятого
- 635  82D9 DD 46 0A     	ld b,(ix+10)
- 636  82DC 09           	add hl,bc
- 637  82DD 22 97 85     	ld (buffer_pointer),hl ;продолжить загружать с этого места
- 638  82E0
- 639  82E0 18 C5        	jr artview_download_info1 ;получить ещё части до конца
- 640  82E2
- 641  82E2              artview_download_info1_skip
- 642  82E2
- 643  82E2              	OS_ESP_CLOSE ;закрыть соединение!
- 643  82E2 0E 0C       >    ld c,#0c
- 643  82E4 E7          >    rst #20
- 644  82E5
- 645  82E5
- 646  82E5 11 BB 85     	ld de,Content_Sucesfully ;найти запись об успешном запросе
- 647  82E8 CD B9 84     	call search_str
- 648  82EB D8           	ret c
- 649  82EC
- 650  82EC              	; ld de,Content_Length ;найти запись о длине
- 651  82EC              	; call search_str
- 652  82EC              	; ret c
- 653  82EC
- 654  82EC              	; ex de,hl
- 655  82EC              	; call text_to_digit ;преобразовать в число
- 656  82EC
- 657  82EC              	; ex de,hl
- 658  82EC              	; ld hl,(buffer_pointer) ;
- 659  82EC              	; and a
- 660  82EC              	; sbc hl,de
- 661  82EC              	; ;узнали начало пакета
- 662  82EC
- 663  82EC 2A 91 85     	ld hl,(data_start)
- 664  82EF
- 665  82EF 11 01 86     	ld de,Content_ID ;найти запись об ID файла
- 666  82F2 CD B9 84     	call search_str
- 667  82F5 D8           	ret c
- 668  82F6
- 669  82F6
- 670  82F6              	;инфа получена
- 671  82F6
- 672  82F6 E5           	push hl
- 673  82F7 CD F9 83     	call print_info_art ;инфо
- 674  82FA 3E 0D        	ld a,13
- 675  82FC              	OS_PRINT_CHARF
- 675  82FC D7          >	rst #10
- 676  82FD E1           	pop hl
- 677  82FE 11 EF 87     	ld de,requestbuffer2_file_id
- 678  8301
- 679  8301              ;WAITKEY	XOR A:IN A,(#FE):CPL:AND #1F:JR Z,WAITKEY
- 680  8301
- 681  8301 CD 79 84     	call id_copy ;скопировать в запрос id арта
- 682  8304
- 683  8304              	;запомнить сколько всего
- 684  8304 11 C2 85     	ld de,Content_Total_Amount ;всего таких артов
- 685  8307 CD B9 84     	call search_str
- 686  830A D8           	ret c
- 687  830B EB           	ex de,hl
- 688  830C CD A0 84     	call text_to_digit
- 689  830F 22 0A 87     	ld (total_art),hl
- 690  8312 B7           	or a
- 691  8313 C9           	ret
- 692  8314
- 693  8314
- 694  8314
- 695  8314
- 696  8314
- 697  8314
- 698  8314              artview_request_art	;запрос арта
- 699  8314 CD 07 82     	call artview_open_site ;открыть сайт
- 700  8317 D8           	ret c
- 701  8318
- 702  8318 21 49 86     	ld hl,msg_request_art
- 703  831B              	OS_PRINTZ
- 703  831B 0E 09       >    ld c,#09
- 703  831D E7          >    rst #20
- 704  831E
- 705  831E              	;ld hl,requestbuffer2_title
- 706  831E              	;OS_PRINTZ
- 707  831E 11 E2 87     	ld de,requestbuffer2
- 708  8321 CD 96 84     	call strLen ;узнать длину
- 709  8324 EB           	ex de,hl
- 710  8325 21 E2 87     	ld hl,requestbuffer2
- 711  8328              	OS_ESP_SEND
- 711  8328 0E 0E       >    ld c,#0e
- 711  832A E7          >    rst #20
- 712  832B D8           	ret c ;сразу не удалось (может, очередь)
- 713  832C              	;ждём когда запрос пройдёт
- 714  832C 06 64        	ld b,wait_count ;
- 715  832E              artview_request_art_wait2
- 716  832E              	OS_WAIT
- 716  832E DF          >	rst #18
- 717  832F DD 7E 04     	ld a,(ix+4) ;флаг
- 718  8332 07           	rlca
- 719  8333 D8           	ret c ;если ошибка (=255)
- 720  8334 B7           	or a
- 721  8335 C0           	ret nz
- 722  8336 10 F6        	djnz artview_request_art_wait2
- 723  8338 37           	scf
- 724  8339 C9           	ret
- 725  833A
- 726  833A
- 727  833A
- 728  833A
- 729  833A              artview_download_art ;загрузить арт
- 730  833A 21 59 86     	ld hl,msg_download_art
- 731  833D              	OS_PRINTZ
- 731  833D 0E 09       >    ld c,#09
- 731  833F E7          >    rst #20
- 732  8340
- 733  8340 CD D3 84     	call clear_outputBuffer ;очистить
- 734  8343
- 735  8343 21 74 89     	ld hl,outputBuffer ;буфер для загрузки
- 736  8346 22 97 85     	ld (buffer_pointer),hl
- 737  8349              	;call Wifi.getPacket ;получить ответ
- 738  8349              	OS_ESP_GET
- 738  8349 0E 0F       >    ld c,#0f
- 738  834B E7          >    rst #20
- 739  834C D8           	ret c ;сразу не удалось (может, очередь)
- 740  834D 06 64        	ld b,wait_count ;
- 741  834F              artview_download_art_wait1
- 742  834F              	OS_WAIT
- 742  834F DF          >	rst #18
- 743  8350 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
- 744  8353 07           	rlca
- 745  8354 D8           	ret c ;если ошибка (=255)
- 746  8355 B7           	or a
- 747  8356 20 04        	jr nz,artview_download_art_wait1_skip
- 748  8358 10 F5        	djnz artview_download_art_wait1
- 749  835A 37           	scf
- 750  835B C9           	ret
- 751  835C
- 752  835C              artview_download_art_wait1_skip
- 753  835C              	;подготовка к приёму дальше
- 754  835C 2A 97 85     	ld hl,(buffer_pointer)
- 755  835F DD 4E 09     	ld c,(ix+9) ; длина принятого
- 756  8362 DD 46 0A     	ld b,(ix+10)
- 757  8365 09           	add hl,bc
- 758  8366 22 97 85     	ld (buffer_pointer),hl ;продолжить загружать с этого места
- 759  8369
- 760  8369              	;попробуем найти начало данных
- 761  8369 11 AA 85     	ld de,Content_Length ;найти запись о длине данных
- 762  836C CD B9 84     	call search_str
- 763  836F D8           	ret c
- 764  8370
- 765  8370 EB           	ex de,hl
- 766  8371 CD A0 84     	call text_to_digit ;преобразовать в число
- 767  8374 22 95 85     	ld (data_length),hl ;длина данных
- 768  8377
- 769  8377 11 99 85     	ld de,rnrn ;найти конец заголовка
- 770  837A CD B9 84     	call search_str
- 771  837D D8           	ret c
- 772  837E 22 91 85     	ld (data_start),hl ;начало данных
- 773  8381
- 774  8381 ED 5B 95 85  	ld de,(data_length)
- 775  8385 19           	add hl,de ;узнали ожидаемый конец данных
- 776  8386 22 93 85     	ld (data_end),hl
- 777  8389
- 778  8389              	;загрузка остатка
- 779  8389              artview_download_art1
- 780  8389
- 781  8389 DD 7E 02     	ld a,(ix+2) ;!!! closed
- 782  838C B7           	or a
- 783  838D 28 35        	jr z,artview_download_art1_skip ;если закрыто, больше не грузим
- 784  838F
- 785  838F 2A 97 85     	ld hl,(buffer_pointer)
- 786  8392 ED 5B 93 85  	ld de,(data_end)
- 787  8396 A7           	and a
- 788  8397 ED 52        	sbc hl,de
- 789  8399 28 29        	jr z,artview_download_art1_skip ;если уже всё загружено
- 790  839B
- 791  839B
- 792  839B              	;ещё не всё
- 793  839B 2A 97 85     	ld hl,(buffer_pointer)
- 794  839E 7C           	ld a,h
- 795  839F FE FA        	cp buffer_top ;ограничение
- 796  83A1 30 21        	jr nc,artview_download_art1_skip
- 797  83A3
- 798  83A3              	;call Wifi.getPacket
- 799  83A3              	OS_ESP_GET
- 799  83A3 0E 0F       >    ld c,#0f
- 799  83A5 E7          >    rst #20
- 800  83A6 06 64        	ld b,wait_count ;
- 801  83A8              artview_download_art_wait2
- 802  83A8              	OS_WAIT
- 802  83A8 DF          >	rst #18
- 803  83A9 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
- 804  83AC 07           	rlca
- 805  83AD D8           	ret c ;если ошибка (=255)
- 806  83AE B7           	or a
- 807  83AF 20 04        	jr nz,artview_download_art_wait2_skip
- 808  83B1 10 F5        	djnz artview_download_art_wait2
- 809  83B3 37           	scf
- 810  83B4 C9           	ret
- 811  83B5
- 812  83B5              artview_download_art_wait2_skip
- 813  83B5 2A 97 85     	ld hl,(buffer_pointer)
- 814  83B8 DD 4E 09     	ld c,(ix+9) ; длина принятого
- 815  83BB DD 46 0A     	ld b,(ix+10)
- 816  83BE 09           	add hl,bc
- 817  83BF 22 97 85     	ld (buffer_pointer),hl ;продолжить загружать с этого места
- 818  83C2
- 819  83C2 18 C5        	jr artview_download_art1 ;получить ещё части до конца
- 820  83C4
- 821  83C4              artview_download_art1_skip
- 822  83C4              	OS_ESP_CLOSE ;закрыть!
- 822  83C4 0E 0C       >    ld c,#0c
- 822  83C6 E7          >    rst #20
- 823  83C7
- 824  83C7
- 825  83C7              	; ;определить длину
- 826  83C7              	; ld de,Content_Length ;найти запись о длине
- 827  83C7              	; call search_str
- 828  83C7              	; ret c
- 829  83C7              	; ex de,hl
- 830  83C7              	; call text_to_digit ;преобразовать в число
- 831  83C7
- 832  83C7              	; ex de,hl
- 833  83C7              	; ld hl,(buffer_pointer) ;
- 834  83C7              	; and a
- 835  83C7              	; sbc hl,de
- 836  83C7              	; ;узнали начало пакета
- 837  83C7 21 00 87     	ld hl,msg_download_size ;печать размера
- 838  83CA              	OS_PRINTZ
- 838  83CA 0E 09       >    ld c,#09
- 838  83CC E7          >    rst #20
- 839  83CD 2A 95 85     	ld hl,(data_length)
- 840  83D0 CD 32 85     	call toDecimal
- 841  83D3              	OS_PRINTZ
- 841  83D3 0E 09       >    ld c,#09
- 841  83D5 E7          >    rst #20
- 842  83D6 21 07 87     	ld hl,msg_B
- 843  83D9              	OS_PRINTZ
- 843  83D9 0E 09       >    ld c,#09
- 843  83DB E7          >    rst #20
- 844  83DC
- 845  83DC 2A 91 85     	ld hl,(data_start) ;начало данных
- 846  83DF B7           	or a
- 847  83E0 C9           	ret
- 848  83E1
- 849  83E1
- 850  83E1
- 851  83E1
- 852  83E1
- 853  83E1
- 854  83E1              print_sys_info ;печать меню управления
- 855  83E1 3E 47        	ld a,7+64 ;цвет
- 856  83E3 06 0C        	ld b,#c
- 857  83E5              	OS_SET_COLOR
- 857  83E5 0E 06       >    ld c,#06
- 857  83E7 E7          >    rst #20
- 858  83E8 21 89 86     	ld hl,msg_sys_info
- 859  83EB              	OS_PRINTZ
- 859  83EB 0E 09       >    ld c,#09
- 859  83ED E7          >    rst #20
- 860  83EE
- 861  83EE CD 84 81     	call print_order
- 862  83F1
- 863  83F1 3E 07        	ld a,7 ;цвет
- 864  83F3 06 0C        	ld b,#c
- 865  83F5              	OS_SET_COLOR
- 865  83F5 0E 06       >    ld c,#06
- 865  83F7 E7          >    rst #20
- 866  83F8 C9           	ret
- 867  83F9
- 868  83F9
- 869  83F9              print_info_art ;печать инфо о арте
- 870  83F9 21 C4 86     	ld hl,msg_cur_number
- 871  83FC              	OS_PRINTZ
- 871  83FC 0E 09       >    ld c,#09
- 871  83FE E7          >    rst #20
- 872  83FF 2A 0E 87     	ld hl,(cur_art)
- 873  8402 CD 32 85     	call toDecimal
- 874  8405              	OS_PRINTZ
- 874  8405 0E 09       >    ld c,#09
- 874  8407 E7          >    rst #20
- 875  8408
- 876  8408 21 C2 85     	ld hl,Content_Total_Amount ;всего таких артов
- 877  840B CD 54 84     	call print_info_art_one
- 878  840E D8           	ret c
- 879  840F
- 880  840F 21 01 86     	ld hl,Content_ID ;id арта
- 881  8412 CD 54 84     	call print_info_art_one
- 882  8415 D8           	ret c
- 883  8416
- 884  8416 21 07 86     	ld hl,Content_Type ;формат арта
- 885  8419 CD 54 84     	call print_info_art_one
- 886  841C D8           	ret c
- 887  841D
- 888  841D 3E 04        	ld a,4 ;цвет
- 889  841F 06 0C        	ld b,#c
- 890  8421              	OS_SET_COLOR
- 890  8421 0E 06       >    ld c,#06
- 890  8423 E7          >    rst #20
- 891  8424 21 D1 85     	ld hl,Content_Title ;название арта
- 892  8427 CD 54 84     	call print_info_art_one
- 893  842A F5           	push af
- 894  842B 3E 07        	ld a,7 ;цвет
- 895  842D 06 0C        	ld b,#c
- 896  842F              	OS_SET_COLOR
- 896  842F 0E 06       >    ld c,#06
- 896  8431 E7          >    rst #20
- 897  8432 F1           	pop af
- 898  8433 D8           	ret c
- 899  8434
- 900  8434 21 F1 85     	ld hl,Content_Year ;год арта
- 901  8437 CD 54 84     	call print_info_art_one
- 902  843A D8           	ret c
- 903  843B
- 904  843B 21 F9 85     	ld hl,Content_Time ;длина арта
- 905  843E CD 54 84     	call print_info_art_one
- 906  8441 D8           	ret c
- 907  8442
- 908  8442 21 E7 85     	ld hl,Content_Rating ;рейтинг арта
- 909  8445 CD 54 84     	call print_info_art_one
- 910  8448 D8           	ret c
- 911  8449
- 912  8449 21 DA 85     	ld hl,Content_AuthorIDs ;id автора арта
- 913  844C CD 54 84     	call print_info_art_one
- 914  844F D8           	ret c
- 915  8450
- 916  8450 3E 0D        	ld a,13
- 917  8452              	OS_PRINT_CHARF
- 917  8452 D7          >	rst #10
- 918  8453 C9           	ret
- 919  8454
- 920  8454
- 921  8454              print_info_art_one
- 922  8454 E5           	push hl
- 923  8455 3E 0D        	ld a,13
- 924  8457              	OS_PRINT_CHARF
- 924  8457 D7          >	rst #10
- 925  8458 E1           	pop hl
- 926  8459 E5           	push hl
- 927  845A              	OS_PRINTZ
- 927  845A 0E 09       >    ld c,#09
- 927  845C E7          >    rst #20
- 928  845D D1           	pop de
- 929  845E CD B9 84     	call search_str
- 930  8461 D8           	ret c
- 931  8462 CD 67 84     	call print_to_sym ;печать значения
- 932  8465 B7           	or a
- 933  8466 C9           	ret
- 934  8467
- 935  8467              print_to_sym ;печать до символа "," или 0
- 936  8467 7E           	ld a,(hl)
- 937  8468 FE 2C        	cp ","
- 938  846A C8           	ret z
- 939  846B B7           	or a
- 940  846C C8           	ret z
- 941  846D E5           	push hl
- 942  846E              	OS_PRINT_CHARF
- 942  846E D7          >	rst #10
- 943  846F E1           	pop hl
- 944  8470 23           	inc hl
- 945  8471 18 F4        	jr print_to_sym
- 946  8473
- 947  8473
- 948  8473              delay ;задержка между запросами
- 949  8473 06 32        	ld b,50*1 ;
- 950  8475              delay1
- 951  8475              	OS_WAIT
- 951  8475 DF          >	rst #18
- 952  8476 10 FD        	djnz delay1
- 953  8478 C9           	ret
- 954  8479
- 955  8479              ;hl - from
- 956  8479              ;de - to
- 957  8479              id_copy ;скопировать текст id
- 958  8479 7E           	ld a,(hl)
- 959  847A FE 30        	cp "0"
- 960  847C 38 09        	jr c,id_copy2
- 961  847E FE 3A        	cp "9"+1
- 962  8480 30 05        	jr nc,id_copy2
- 963  8482 12           	ld (de),a
- 964  8483 13           	inc de
- 965  8484 23           	inc hl
- 966  8485 18 F2        	jr id_copy
- 967  8487
- 968  8487              id_copy2
- 969  8487              	;скопировать остаток строки запроса
- 970  8487 21 EF 88     	ld hl,requestbuffer2_end
- 971  848A              id_copy3
- 972  848A 7E           	ld a,(hl)
- 973  848B B7           	or a
- 974  848C 28 05        	jr z,id_copy_ex
- 975  848E 12           	ld (de),a
- 976  848F 13           	inc de
- 977  8490 23           	inc hl
- 978  8491 18 F7        	jr id_copy3
- 979  8493              id_copy_ex
- 980  8493 AF           	xor a
- 981  8494 12           	ld (de),a  ;в конце 0
- 982  8495 C9           	ret
- 983  8496
- 984  8496              strLen: ;посчитать длину строки до 0
- 985  8496 21 00 00         ld hl, 0
- 986  8499              .loop
- 987  8499 1A               ld a, (de)
- 987  849A A7             and a
- 987  849B C8             ret z
- 988  849C 13 23            inc de, hl
- 989  849E 18 F9            jr .loop
- 990  84A0
- 991  84A0              text_to_digit ;тест в цифру
- 992  84A0              ;de - текст
- 993  84A0              ;вых: hl - цифра
- 994  84A0 21 00 00     		ld hl,0			; count lenght
- 995  84A3 1A           .cil1	ld a,(de)
- 996  84A4 13           		inc de
- 997  84A5 FE 30        		cp "0"
- 997  84A7 D8             ret c
- 998  84A8 FE 3A        		cp "9"+1
- 998  84AA D0             ret nc
- 999  84AB D6 30        		sub 0x30
- 999  84AD 4D             ld c,l
- 999  84AE 44             ld b,h
- 999  84AF 29             add hl,hl
- 999  84B0 29             add hl,hl
- 999  84B1 09             add hl,bc
- 999  84B2 29             add hl,hl
- 999  84B3 4F             ld c,a
- 999  84B4 06 00          ld b,0
- 999  84B6 09             add hl,bc
-1000  84B7 18 EA        		jr .cil1
-1001  84B9
-1002  84B9              ;поиск строки
-1003  84B9              ;de - образец, в конце 0
-1004  84B9              ;вых: hl - адрес после найденного
-1005  84B9              search_str
-1006  84B9 21 74 89     	ld hl,outputBuffer
-1007  84BC 42           	ld b,d
-1008  84BD 4B           	ld c,e
-1009  84BE              search_str2
-1010  84BE 1A           	ld a,(de)
-1011  84BF BE           	cp (hl)
-1012  84C0 20 0A        	jr nz,search_str1
-1013  84C2              	;нашли одну букву
-1014  84C2              search_str3
-1015  84C2 23           	inc hl
-1016  84C3 13           	inc de
-1017  84C4 1A           	ld a,(de)
-1018  84C5 B7           	or a
-1019  84C6 C8           	ret z ;нашли всю строку
-1020  84C7 BE           	cp (hl)
-1021  84C8 28 F8        	jr z,search_str3
-1022  84CA              	;не вся строка совпала
-1023  84CA 50           	ld d,b ;в начало образца
-1024  84CB 59           	ld e,c
-1025  84CC              search_str1
-1026  84CC 23           	inc hl ;дальше
-1027  84CD 24           	inc h
-1028  84CE 25           	dec h
-1029  84CF 20 ED        	jr nz,search_str2
-1030  84D1 37           	scf ;не нашли
-1031  84D2 C9           	ret
-1032  84D3
-1033  84D3
-1034  84D3              clear_outputBuffer ;почистить буфер приёма
-1035  84D3 21 74 89     	ld hl,outputBuffer
-1036  84D6 11 75 89     	ld de,outputBuffer+1
-1037  84D9 01 8A 76     	ld bc,#ffff-outputBuffer-1
-1038  84DC 36 00        	ld (hl),0
-1039  84DE ED B0        	ldir
-1040  84E0 C9           	ret
-1041  84E1
-1042  84E1
-1043  84E1              ;вх: HL - диапазон
-1044  84E1              ;вых: HL - результат
-1045  84E1              rnd ;генератор случайного числа в заданном диапазоне
-1046  84E1 7C           	ld a,h
-1047  84E2 B5           	or l
-1048  84E3 C8           	ret z
-1049  84E4 AF           	xor a ;очистить переменную
-1050  84E5 32 0B 85     	ld (rnd_out),a
-1051  84E8 32 0C 85     	ld (rnd_out+1),a
-1052  84EB E5           	push hl
-1053  84EC CD 0D 85     	call random ;получить случайное
-1054  84EF              	;умножить диапазон на случайное число и взять старшие два байта
-1055  84EF C1           	pop bc ;счётчик
-1056  84F0 EB           	ex de,hl
-1057  84F1 21 00 00     	ld hl,0
-1058  84F4              rnd_cl
-1059  84F4 19           	add hl,de
-1060  84F5 30 0B        	jr nc,rnd_cl1 ;если нет переполения
-1061  84F7 D9           	exx
-1062  84F8 ED 5B 0B 85  	ld de,(rnd_out) ;увеличить старшие байты
-1063  84FC 13           	inc de
-1064  84FD ED 53 0B 85  	ld (rnd_out),de
-1065  8501 D9           	exx
-1066  8502              rnd_cl1
-1067  8502 0B           	dec bc
-1068  8503 78           	ld a,b
-1069  8504 B1           	or c
-1070  8505 20 ED        	jr nz,rnd_cl
-1071  8507 2A 0B 85     	ld hl,(rnd_out)
-1072  850A C9           	ret
-1073  850B 00 00        rnd_out dw 0 ;ответ случайное число
-1074  850D
-1075  850D
-1076  850D              random ;Переписанный генератор из ПЗУ бейсика
-1077  850D 11 00 00     	ld	de,0
-1078  8510              seed	equ	$-2
-1079  8510 AF           	xor	a
-1080  8511 67 6F 47     	ld	h,a,l,a,b,a
-1081  8514 19           	add	hl,de
-1082  8515 88           	adc	a,b
-1083  8516 29           	add	hl,hl
-1084  8517 8F           	adc	a,a
-1085  8518 29           	add	hl,hl
-1086  8519 8F           	adc	a,a
-1087  851A 29           	add	hl,hl
-1088  851B 8F           	adc	a,a
-1089  851C 19           	add	hl,de
-1090  851D 88           	adc	a,b
-1091  851E 29           	add	hl,hl
-1092  851F 8F           	adc	a,a
-1093  8520 29           	add	hl,hl
-1094  8521 8F           	adc	a,a
-1095  8522 19           	add	hl,de
-1096  8523 88           	adc	a,b
-1097  8524 29           	add	hl,hl
-1098  8525 8F           	adc	a,a
-1099  8526 19           	add	hl,de
-1100  8527 88           	adc	a,b
-1101  8528 D6 4A        	sub	#4a
-1102  852A ED 44        	neg
-1103  852C 4F           	ld	c,a
-1104  852D 09           	add	hl,bc
-1105  852E 22 0E 85     	ld	(seed),hl
-1106  8531 C9           	ret
-1107  8532
-1108  8532              toDecimal		;конвертирует 2 байта в 5 десятичных цифр
-1109  8532              				;на входе в HL число
-1110  8532 11 10 27     			ld de,10000 ;десятки тысяч
-1111  8535 3E FF        			ld a,255
-1112  8537              toDecimal10k
-1113  8537 A7           			and a
-1114  8538 ED 52        			sbc hl,de
-1115  853A 3C           			inc a
-1116  853B 30 FA        			jr nc,toDecimal10k
-1117  853D 19           			add hl,de
-1118  853E C6 30        			add a,48
-1119  8540 32 8B 85     			ld (decimalS),a
-1120  8543 11 E8 03     			ld de,1000 ;тысячи
-1121  8546 3E FF        			ld a,255
-1122  8548              toDecimal1k
-1123  8548 A7           			and a
-1124  8549 ED 52        			sbc hl,de
-1125  854B 3C           			inc a
-1126  854C 30 FA        			jr nc,toDecimal1k
-1127  854E 19           			add hl,de
-1128  854F C6 30        			add a,48
-1129  8551 32 8C 85     			ld (decimalS+1),a
-1130  8554 11 64 00     			ld de,100 ;сотни
-1131  8557 3E FF        			ld a,255
-1132  8559              toDecimal01k
-1133  8559 A7           			and a
-1134  855A ED 52        			sbc hl,de
-1135  855C 3C           			inc a
-1136  855D 30 FA        			jr nc,toDecimal01k
-1137  855F 19           			add hl,de
-1138  8560 C6 30        			add a,48
-1139  8562 32 8D 85     			ld (decimalS+2),a
-1140  8565 11 0A 00     			ld de,10 ;десятки
-1141  8568 3E FF        			ld a,255
-1142  856A              toDecimal001k
-1143  856A A7           			and a
-1144  856B ED 52        			sbc hl,de
-1145  856D 3C           			inc a
-1146  856E 30 FA        			jr nc,toDecimal001k
-1147  8570 19           			add hl,de
-1148  8571 C6 30        			add a,48
-1149  8573 32 8E 85     			ld (decimalS+3),a
-1150  8576 11 01 00     			ld de,1 ;единицы
-1151  8579 3E FF        			ld a,255
-1152  857B              toDecimal0001k
-1153  857B A7           			and a
-1154  857C ED 52        			sbc hl,de
-1155  857E 3C           			inc a
-1156  857F 30 FA        			jr nc,toDecimal0001k
-1157  8581 19           			add hl,de
-1158  8582 C6 30        			add a,48
-1159  8584 32 8F 85     			ld (decimalS+4),a
-1160  8587 21 8B 85     			ld hl,decimalS
-1161  858A C9           			ret
-1162  858B
-1163  858B 00 00 00...  decimalS	ds 6 ;десятичные цифры
-1164  8591
-1165  8591
-1166  8591                  ; include "drivers/utils.asm"
-1167  8591                  ; include "drivers/wifi.asm"
-1168  8591              	; include "drivers/zx-wifi.asm"
-1169  8591
-1170  8591
-1171  8591              id_lenght equ 6 ;длина кода файла
-1172  8591              wait_count equ 2*50 ;задержка в кадрах
-1173  8591              buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
-1174  8591
-1175  8591              ; ;ответы ESP
-1176  8591              ; sendOk[] = "SEND OK";
-1177  8591              ; const unsigned char gotWiFi[] = "WIFI GOT IP";
-1178  8591              ; "CONNECT"
-1179  8591
-1180  8591              ; ;команды
-1181  8591              ; ;<link ID> – ID соединения (0–4), используется при нескольких соединениях;
-1182  8591              ; at_cipmux db "AT+CIPMUX=1",0 ;несколько соединений
-1183  8591              ;at_cipstart db "AT+CIPSTART=1,\"TCP\",\"zxart.ee\",80",0
-1184  8591              ; "AT+CIPSEND="
-1185  8591              ; "AT+CIPCLOSE"
-1186  8591              ;link_id db 0; номер соединения
-1187  8591 00 00        data_start dw 0 ;начало данных
-1188  8593 00 00        data_end dw 0 ;конец данных
-1189  8595 00 00        data_length dw 0 ;длина данных
-1190  8597 00 00        buffer_pointer dw 0 ;указатель на буфер
-1191  8599 0D 0A 0D 0A  rnrn db 13,10,13,10,0 ;окончание заголовка
-1191  859D 00
-1192  859E 7A 78 61 72  site_name db "zxart.ee",0 ;имя сайта
-1192  85A2 74 2E 65 65
-1192  85A6 00
-1193  85A7 38 30 00     port_number db "80" ,0;
-1194  85AA 43 6F 6E 74  Content_Length db "Content-Length: ",0
-1194  85AE 65 6E 74 2D
-1194  85B2 4C 65 6E 67
-1194  85B6 74 68 3A 20
-1194  85BA 00
-1195  85BB 73 75 63 63  Content_Sucesfully db "succes",0
-1195  85BF 65 73 00
-1196  85C2 22 74 6F 74  Content_Total_Amount db "\"totalAmount\":",0
-1196  85C6 61 6C 41 6D
-1196  85CA 6F 75 6E 74
-1196  85CE 22 3A 00
-1197  85D1 22 74 69 74  Content_Title db "\"title\":",0
-1197  85D5 6C 65 22 3A
-1197  85D9 00
-1198  85DA 22 61 75 74  Content_AuthorIDs db "\"authorIds\":",0
-1198  85DE 68 6F 72 49
-1198  85E2 64 73 22 3A
-1198  85E6 00
-1199  85E7 22 72 61 74  Content_Rating db "\"rating\":",0
-1199  85EB 69 6E 67 22
-1199  85EF 3A 00
-1200  85F1 22 79 65 61  Content_Year db "\"year\":",0
-1200  85F5 72 22 3A 00
-1201  85F9 22 74 69 6D  Content_Time db "\"time\":",0
-1201  85FD 65 22 3A 00
-1202  8601 22 69 64 22  Content_ID db "\"id\":",0
-1202  8605 3A 00
-1203  8607 22 74 79 70  Content_Type db "\"type\":",0
-1203  860B 65 22 3A 00
-1204  860F              ;file_id db "000000",0 ;id файла
-1205  860F 4F 70 65 6E  msg_open db "Open: ",0
-1205  8613 3A 20 00
-1206  8616 45 72 72 6F  msg_error db "Error",13,0
-1206  861A 72 0D 00
-1207  861D 46 6F 72 6D  msg_format db "Format: ",0
-1207  8621 61 74 3A 20
-1207  8625 00
-1208  8626 44 6F 77 6E  msg_download_info db "Download info...",13,0
-1208  862A 6C 6F 61 64
-1208  862E 20 69 6E 66
-1208  8632 6F 2E 2E 2E
-1208  8636 0D 00
-1209  8638 52 65 71 75  msg_request_info db "Request info...",13,0
-1209  863C 65 73 74 20
-1209  8640 69 6E 66 6F
-1209  8644 2E 2E 2E 0D
-1209  8648 00
-1210  8649 52 65 71 75  msg_request_art db "Request art...",13,0
-1210  864D 65 73 74 20
-1210  8651 61 72 74 2E
-1210  8655 2E 2E 0D 00
-1211  8659 44 6F 77 6E  msg_download_art db "Download art...",13,0
-1211  865D 6C 6F 61 64
-1211  8661 20 61 72 74
-1211  8665 2E 2E 2E 0D
-1211  8669 00
-1212  866A 50 6C 61 79  msg_play_art db "Play art...",13,0
-1212  866E 20 61 72 74
-1212  8672 2E 2E 2E 0D
-1212  8676 00
-1213  8677 53 74 6F 70  msg_stop db "Stop",13,0
-1213  867B 0D 00
-1214  867D 52 65 73 74  msg_restart db "Restart...",13,0
-1214  8681 61 72 74 2E
-1214  8685 2E 2E 0D 00
-1215  8689              ;msg_get_link_id db "Get link ID...",13,0
-1216  8689 53 20 2D 20  msg_sys_info db "S - Stop, R - Restart",13
-1216  868D 53 74 6F 70
-1216  8691 2C 20 52 20
-1216  8695 2D 20 52 65
-1216  8699 73 74 61 72
-1216  869D 74 0D
-1217  869F 53 70 20 2D  	db "Sp - Next, Break - Exit",13,0
-1217  86A3 20 4E 65 78
-1217  86A7 74 2C 20 42
-1217  86AB 72 65 61 6B
-1217  86AF 20 2D 20 45
-1217  86B3 78 69 74 0D
-1217  86B7 00
-1218  86B8 51 20 2D 20  msg_order 	db "Q - Order: ",0
-1218  86BC 4F 72 64 65
-1218  86C0 72 3A 20 00
-1219  86C4 0D 43 75 72  msg_cur_number	db 13,"Current number: ",0
-1219  86C8 72 65 6E 74
-1219  86CC 20 6E 75 6D
-1219  86D0 62 65 72 3A
-1219  86D4 20 00
-1220  86D6
-1221  86D6 72 61 6E 64  msg_order_random db "random",13,0
-1221  86DA 6F 6D 0D 00
-1222  86DE 66 72 6F 6D  msg_order_from_new db "from new to old",13,0
-1222  86E2 20 6E 65 77
-1222  86E6 20 74 6F 20
-1222  86EA 6F 6C 64 0D
-1222  86EE 00
-1223  86EF 66 72 6F 6D  msg_order_from_old db "from old to new",13,0
-1223  86F3 20 6F 6C 64
-1223  86F7 20 74 6F 20
-1223  86FB 6E 65 77 0D
-1223  86FF 00
-1224  8700 53 69 7A 65  msg_download_size db "Size: ",0
-1224  8704 3A 20 00
-1225  8707 42 0D 00     msg_B db "B",13,0
-1226  870A 00 00        total_art dw 0;
-1227  870C 00 00        start_art dw 0;
-1228  870E 00 00        cur_art dw 0;
-1229  8710 00           stopKey_flag db 0;
-1230  8711              ; format_pt2 db "pt2",0
-1231  8711              ; format_pt3 db "pt3",0
-1232  8711              ; format_ts db " ts",0
-1233  8711              ; format_tfc db "tfc",0
-1234  8711 01           order_val db 1 ;тип сортировки
-1235  8712
-1236  8712              ;player_setup db 0;настройки плеера
-1237  8712 96           time_view db 3*50 ;время на просмотр картинки
-1238  8713
-1239  8713              ;запрос списка
-1240  8713 52 65 71 75  requestbuffer_title db "Request:",13
-1240  8717 65 73 74 3A
-1240  871B 0D
-1241  871C              requestbuffer ;
-1242  871C 47 45 54 20  	db "GET /api/export:zxPicture/limit:1/start:"
-1242  8720 2F 61 70 69
-1242  8724 2F 65 78 70
-1242  8728 6F 72 74 3A
-1242  872C 7A 78 50 69
-1242  8730 63 74 75 72
-1242  8734 65 2F 6C 69
-1242  8738 6D 69 74 3A
-1242  873C 31 2F 73 74
-1242  8740 61 72 74 3A
-1243  8744              start_request ;тут подстановка порядкового номера арта
-1244  8744 30 30 30 30  	db "00000/filter:zxPictureType=standard/"
-1244  8748 30 2F 66 69
-1244  874C 6C 74 65 72
-1244  8750 3A 7A 78 50
-1244  8754 69 63 74 75
-1244  8758 72 65 54 79
-1244  875C 70 65 3D 73
-1244  8760 74 61 6E 64
-1244  8764 61 72 64 2F
-1245  8768              request_format
-1246  8768 6F 72 64 65  	db "order:date,desc HTTP/1.1\r\n"
-1246  876C 72 3A 64 61
-1246  8770 74 65 2C 64
-1246  8774 65 73 63 20
-1246  8778 48 54 54 50
-1246  877C 2F 31 2E 31
-1246  8780 0D 0A
-1247  8782              ;request_agent
-1248  8782 48 6F 73 74  	db "Host: zxart.ee\r\n"
-1248  8786 3A 20 7A 78
-1248  878A 61 72 74 2E
-1248  878E 65 65 0D 0A
-1249  8792 55 73 65 72  	db "User-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; GMX OS)\r\n\r\n",0
-1249  8796 2D 41 67 65
-1249  879A 6E 74 3A 20
-1249  879E 55 73 65 72
-1249  87A2 2D 41 67 65
-1249  87A6 6E 74 3A 20
-1249  87AA 4D 6F 7A 69
-1249  87AE 6C 6C 61 2F
-1249  87B2 34 2E 30 20
-1249  87B6 28 63 6F 6D
-1249  87BA 70 61 74 69
-1249  87BE 62 6C 65 3B
-1249  87C2 20 4D 53 49
-1249  87C6 45 35 2E 30
-1249  87CA 31 3B 20 47
-1249  87CE 4D 58 20 4F
-1249  87D2 53 29 0D 0A
-1249  87D6 0D 0A 00
-1250  87D9
-1251  87D9              ;запрос закачки
-1252  87D9 52 65 71 75  requestbuffer2_title db "Request:",13
-1252  87DD 65 73 74 3A
-1252  87E1 0D
-1253  87E2              requestbuffer2 ;
-1254  87E2 47 45 54 20  	db "GET /file/id:"
-1254  87E6 2F 66 69 6C
-1254  87EA 65 2F 69 64
-1254  87EE 3A
-1255  87EF              requestbuffer2_file_id ;тут подстановка id арта
-1256  87EF              	;db "539319"
-1257  87EF 00 00 00...  	ds #100 ;буфер для отправки
-1258  88EF              requestbuffer2_end ;окончание строки запроса
-1259  88EF 20 48 54 54  	db " HTTP/1.1\r\n"
-1259  88F3 50 2F 31 2E
-1259  88F7 31 0D 0A
-1260  88FA              ;request_agent
-1261  88FA 48 6F 73 74  	db "Host: zxart.ee\r\n"
-1261  88FE 3A 20 7A 78
-1261  8902 61 72 74 2E
-1261  8906 65 65 0D 0A
-1262  890A 55 73 65 72  	db "User-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; GMX OS)\r\n\r\n",0
-1262  890E 2D 41 67 65
-1262  8912 6E 74 3A 20
-1262  8916 55 73 65 72
-1262  891A 2D 41 67 65
-1262  891E 6E 74 3A 20
-1262  8922 4D 6F 7A 69
-1262  8926 6C 6C 61 2F
-1262  892A 34 2E 30 20
-1262  892E 28 63 6F 6D
-1262  8932 70 61 74 69
-1262  8936 62 6C 65 3B
-1262  893A 20 4D 53 49
-1262  893E 45 35 2E 30
-1262  8942 31 3B 20 47
-1262  8946 4D 58 20 4F
-1262  894A 53 29 0D 0A
-1262  894E 0D 0A 00
-1263  8951
-1264  8951
-1265  8951              ;примеры (может не правильные)
-1266  8951              	;db "http://zxart.ee/api/types:zxMusic/export:zxMusic/language:eng/start:0/limit:2/order:date,desc/filter:zxMusicAll=1;"
-1267  8951              	;https://zxart.ee/api/types:zxMusic/export:zxMusic/language:eng/start:0/limit:2/order:date,desc/filter:zxMusicAll=1;
-1268  8951
-1269  8951              	;db "GET /file/id:44816",0
-1270  8951              	;db "GET /api/export:zxMusic/limit:2/start:0/filter:zxMusicFormat=pt3/order:date,desc",0
-1271  8951
-1272  8951
-1273  8951              ;requestbuffer_end
-1274  8951
-1275  8951              msg_title_artview
-1276  8951 41 72 74 56  	db "ArtView ver 2025.05.28",10,13,0
-1276  8955 69 65 77 20
-1276  8959 76 65 72 20
-1276  895D 32 30 32 35
-1276  8961 2E 30 35 2E
-1276  8965 32 38 0A 0D
-1276  8969 00
-1277  896A
-1278  896A 52 65 73 70  outputBuffer_title db "Response:",13
-1278  896E 6F 6E 73 65
-1278  8972 3A 0D
-1279  8974              outputBuffer equ $  ;буфер для загрузки
-1280  8974
-1281  8974              end_artview
-1282  8974              	;SAVETRD "OS.TRD",|"artview.C",start_artview,$-start_artview
-1283  8974              	savebin "artview.apg",start_artview,$-start_artview
+ 207  80CD CA 7C 81     	jp z, select_order
+ 208  80D0 FE 44        	cp "D" ;сохранить в файл
+ 209  80D2 CA 9E 85     	jp z, save_file
+ 210  80D5 FE 64        	cp "d" ;сохранить в файл
+ 211  80D7 CA 9E 85     	jp z, save_file
+ 212  80DA FE 18        	cp 24 ;break
+ 213  80DC CA FE 80     	jp z,exit
+ 214  80DF              	; OS_GET_VTPL_SETUP
+ 215  80DF                  ; ld a, (hl) :
+ 216  80DF              	; rla : jr nc, loop_artview
+ 217  80DF              	; ld a,(time_view) ;пауза
+ 218  80DF              	; ld b,a
+ 219  80DF              	; call delay1
+ 220  80DF 3A C7 88     	ld a,(stopKey_flag)
+ 221  80E2 B7           	or a
+ 222  80E3 20 C4        	jr nz,loop_artview
+ 223  80E5
+ 224  80E5 C3 02 81     	jp next_art
+ 225  80E8              stopKey
+ 226  80E8              	;OS_VTPL_MUTE
+ 227  80E8 21 1F 88     	ld hl,msg_stop
+ 228  80EB              	OS_PRINTZ
+ 228  80EB 0E 09       >    ld c,#09
+ 228  80ED E7          >    rst #20
+ 229  80EE 3E 01        	ld a,1
+ 230  80F0 32 C7 88     	ld (stopKey_flag),a
+ 231  80F3 18 B4        	jr loop_artview
+ 232  80F5              ; loop_artview2
+ 233  80F5              	; jr loop_artview2
+ 234  80F5
+ 235  80F5              restart
+ 236  80F5              	;OS_VTPL_MUTE
+ 237  80F5 21 25 88     	ld hl,msg_restart
+ 238  80F8              	OS_PRINTZ
+ 238  80F8 0E 09       >    ld c,#09
+ 238  80FA E7          >    rst #20
+ 239  80FB C3 06 80     	jp start_artview_warm
+ 240  80FE
+ 241  80FE              exit ;выход в ДОС
+ 242  80FE AF           	xor a
+ 243  80FF              	OS_PROC_CLOSE
+ 243  80FF 0E 13       >    ld c,#13
+ 243  8101 E7          >    rst #20
+ 244  8102
+ 245  8102
+ 246  8102              ;следующий арт
+ 247  8102              next_art
+ 248  8102              	;получить случайный номер арта
+ 249  8102              	; nop
+ 250  8102              	; nop
+ 251  8102              	;OS_VTPL_MUTE
+ 252  8102
+ 253  8102 CD 2A 81     	call get_next ;узнать следующий
+ 254  8105 DA E8 80     	jp c,stopKey ;если 0, то останов
+ 255  8108              	;подставить номер
+ 256  8108 CD 3F 85     	call toDecimal
+ 257  810B              	;ld (start_art),hl
+ 258  810B 21 98 85     	ld hl,decimalS
+ 259  810E 11 FB 88     	ld de,start_request
+ 260  8111 01 05 00     	ld bc,5
+ 261  8114 ED B0        	ldir
+ 262  8116 C3 21 80     	jp artview_main ;на загрузку нового арта
+ 263  8119
+ 264  8119              ; select_pt2 ;выбор типа
+ 265  8119              	; ;OS_VTPL_MUTE
+ 266  8119              	; ld hl,format_pt2
+ 267  8119              	; call select_format_print
+ 268  8119              	; ld de,request_format
+ 269  8119              	; ld bc,3
+ 270  8119              	; ldir
+ 271  8119              	; ;настроить плеер
+ 272  8119              	; ld a,%00000011 ;pt2
+ 273  8119              	; ld (player_setup),a
+ 274  8119              	; jp start_artview_warm2
+ 275  8119
+ 276  8119              ; select_pt3 ;выбор типа
+ 277  8119              	; ;OS_VTPL_MUTE
+ 278  8119              	; ld hl,format_pt3
+ 279  8119              	; call select_format_print
+ 280  8119              	; ld de,request_format
+ 281  8119              	; ld bc,3
+ 282  8119              	; ldir
+ 283  8119              	; ;настроить плеер
+ 284  8119              	; ld a,%00100001 ;pt3
+ 285  8119              	; ld (player_setup),a
+ 286  8119              	; call artview_download_info ;загрузка информации сколько артов
+ 287  8119              	; jp start_artview_warm2
+ 288  8119
+ 289  8119              ; select_ts ;выбор типа
+ 290  8119              	; OS_VTPL_MUTE
+ 291  8119              	; ld hl,format_ts
+ 292  8119              	; call select_format_print
+ 293  8119              	; ld de,request_format
+ 294  8119              	; ld bc,3
+ 295  8119              	; ldir
+ 296  8119              	; OS_GET_VTPL_SETUP ;настроить плеер
+ 297  8119              	; ld a,%00100001 ;%00010001 ;2xPT3
+ 298  8119              	; ld (hl),a
+ 299  8119              	; jp loop_artview
+ 300  8119
+ 301  8119              ; select_tfc ;выбор типа
+ 302  8119              	; OS_VTPL_MUTE
+ 303  8119              	; ld hl,format_tfc
+ 304  8119              	; call select_format_print
+ 305  8119              	; ld de,request_format
+ 306  8119              	; ld bc,3
+ 307  8119              	; ldir
+ 308  8119              	; jp loop_artview
+ 309  8119
+ 310  8119              select_format_print
+ 311  8119 E5           	push hl
+ 312  811A 21 C5 87     	ld hl,msg_format
+ 313  811D              	OS_PRINTZ
+ 313  811D 0E 09       >    ld c,#09
+ 313  811F E7          >    rst #20
+ 314  8120 E1           	pop hl
+ 315  8121 E5           	push hl
+ 316  8122              	OS_PRINTZ
+ 316  8122 0E 09       >    ld c,#09
+ 316  8124 E7          >    rst #20
+ 317  8125 3E 0D        	ld a,13
+ 318  8127              	OS_PRINT_CHARF
+ 318  8127 D7          >	rst #10
+ 319  8128 E1           	pop hl
+ 320  8129 C9           	ret
+ 321  812A
+ 322  812A
+ 323  812A
+ 324  812A
+ 325  812A
+ 326  812A
+ 327  812A
+ 328  812A
+ 329  812A              get_next ;выбор следующего арта
+ 330  812A 2A C1 88     	ld hl,(total_art)
+ 331  812D 7D           	ld a,l
+ 332  812E B4           	or h
+ 333  812F 37           	scf ;ошибка
+ 334  8130 C8           	ret z ;если всего 0, то вернуть 0
+ 335  8131 3A C8 88     	ld a,(order_val)
+ 336  8134 B7           	or a
+ 337  8135 28 3A        	jr z,get_next_random
+ 338  8137 FE 01        	cp 1
+ 339  8139 28 1A        	jr z,get_next_from_new_to_old
+ 340  813B
+ 341  813B
+ 342  813B              get_next_from_old_to_new
+ 343  813B              	;от старых к новым
+ 344  813B 2A C5 88     	ld hl,(cur_art)
+ 345  813E 11 01 00     	ld de,1
+ 346  8141 A7           	and a
+ 347  8142 ED 52        	sbc hl,de
+ 348  8144 30 06        	jr nc,get_next_from_old_to_new1
+ 349  8146 2A C1 88     	ld hl,(total_art) ;с конца
+ 350  8149 2B           	dec hl ;фикс потому что счёт с 0
+ 351  814A 18 04        	jr get_next_from_old_to_new2
+ 352  814C              get_next_from_old_to_new1
+ 353  814C 2A C5 88     	ld hl,(cur_art)
+ 354  814F 2B           	dec hl
+ 355  8150              get_next_from_old_to_new2
+ 356  8150 22 C5 88     	ld (cur_art),hl ;запомним
+ 357  8153 AF           	xor a ;нет ошибок
+ 358  8154 C9           	ret
+ 359  8155
+ 360  8155
+ 361  8155              get_next_from_new_to_old
+ 362  8155              	;от новых к старым
+ 363  8155 ED 5B C5 88  	ld de,(cur_art)
+ 364  8159 13           	inc de
+ 365  815A 2A C1 88     	ld hl,(total_art)
+ 366  815D 2B           	dec hl ;фикс потому что счёт с 0
+ 367  815E A7           	and a
+ 368  815F ED 52        	sbc hl,de
+ 369  8161 30 05        	jr nc,get_next_from_new_to_old1
+ 370  8163 21 00 00     	ld hl,0 ;сначала
+ 371  8166 18 04        	jr get_next_from_new_to_old2
+ 372  8168              get_next_from_new_to_old1
+ 373  8168 2A C5 88     	ld hl,(cur_art)
+ 374  816B 23           	inc hl
+ 375  816C              get_next_from_new_to_old2
+ 376  816C 22 C5 88     	ld (cur_art),hl ;запомним
+ 377  816F AF           	xor a ;нет ошибок
+ 378  8170 C9           	ret
+ 379  8171
+ 380  8171
+ 381  8171
+ 382  8171              get_next_random
+ 383  8171              	;случайный
+ 384  8171 2A C1 88     	ld hl,(total_art)
+ 385  8174 CD EE 84     	call rnd
+ 386  8177 22 C5 88     	ld (cur_art),hl ;запомним
+ 387  817A AF           	xor a ;нет ошибок
+ 388  817B C9           	ret
+ 389  817C
+ 390  817C
+ 391  817C
+ 392  817C
+ 393  817C              select_order ;выбор порядка
+ 394  817C 3A C8 88     	ld a,(order_val)
+ 395  817F 3C           	inc a
+ 396  8180 FE 03        	cp 3 ;макс
+ 397  8182 38 01        	jr c,select_order1
+ 398  8184 AF           	xor a
+ 399  8185              select_order1
+ 400  8185 32 C8 88     	ld (order_val),a
+ 401  8188 CD 8E 81     	call print_order
+ 402  818B C3 A9 80     	jp loop_artview
+ 403  818E
+ 404  818E              print_order ;печать порядка
+ 405  818E 21 6F 88     	ld hl,msg_order
+ 406  8191              	OS_PRINTZ
+ 406  8191 0E 09       >    ld c,#09
+ 406  8193 E7          >    rst #20
+ 407  8194
+ 408  8194 3E 05        	ld a,5;цвет
+ 409  8196 06 0C        	ld b,#c
+ 410  8198              	OS_SET_COLOR
+ 410  8198 0E 06       >    ld c,#06
+ 410  819A E7          >    rst #20
+ 411  819B
+ 412  819B 3A C8 88     	ld a,(order_val)
+ 413  819E B7           	or a
+ 414  819F 20 08        	jr nz,select_order_from_new
+ 415  81A1 21 8D 88     	ld hl,msg_order_random
+ 416  81A4              	OS_PRINTZ
+ 416  81A4 0E 09       >    ld c,#09
+ 416  81A6 E7          >    rst #20
+ 417  81A7 18 12        	jr select_order_ex
+ 418  81A9              select_order_from_new
+ 419  81A9 FE 01        	cp 1
+ 420  81AB 20 08        	jr nz,select_order_from_old
+ 421  81AD 21 95 88     	ld hl,msg_order_from_new
+ 422  81B0              	OS_PRINTZ
+ 422  81B0 0E 09       >    ld c,#09
+ 422  81B2 E7          >    rst #20
+ 423  81B3 18 06        	jr select_order_ex
+ 424  81B5              select_order_from_old
+ 425  81B5 21 A6 88     	ld hl,msg_order_from_old
+ 426  81B8              	OS_PRINTZ
+ 426  81B8 0E 09       >    ld c,#09
+ 426  81BA E7          >    rst #20
+ 427  81BB              select_order_ex
+ 428  81BB 3E 07        	ld a,7 ;цвет
+ 429  81BD 06 0C        	ld b,#c
+ 430  81BF              	OS_SET_COLOR
+ 430  81BF 0E 06       >    ld c,#06
+ 430  81C1 E7          >    rst #20
+ 431  81C2 C9           	ret
+ 432  81C3
+ 433  81C3
+ 434  81C3
+ 435  81C3
+ 436  81C3
+ 437  81C3              scr_view ;просмотр картинки
+ 438  81C3              ;вх: HL - адрес картинки (scr 6912 байт)
+ 439  81C3 E5               push hl
+ 440  81C4              scr_view_wait
+ 441  81C4 3E 07        	ld a,7
+ 442  81C6              	OS_SET_SCREEN ;включить экран
+ 442  81C6 0E 1D       >    ld c,#1d
+ 442  81C8 E7          >    rst #20
+ 443  81C9 30 03        	jr nc,scr_view_ok
+ 444  81CB              	OS_WAIT
+ 444  81CB DF          >	rst #18
+ 445  81CC 18 F6        	jr scr_view_wait
+ 446  81CE              scr_view_ok
+ 447  81CE              	;если успешно включили экран, перекинем картинку
+ 448  81CE              	OS_GET_MAIN_PAGES
+ 448  81CE 0E 1E       >    ld c,#1e
+ 448  81D0 E7          >    rst #20
+ 449  81D1 78           	ld a,b ; страница с буфером
+ 450  81D2 06 07        	ld b,7 ;страница назначения
+ 451  81D4              	;ld hl,outputBuffer
+ 452  81D4 E1           	pop hl
+ 453  81D5 11 00 C0     	ld de,#c000
+ 454  81D8 DD 21 00 1B  	ld ix,6912
+ 455  81DC              	OS_RAM_COPY ;скопировать картинку на экран
+ 455  81DC 0E 19       >    ld c,#19
+ 455  81DE E7          >    rst #20
+ 456  81DF
+ 457  81DF 3A C9 88     	ld a,(time_view)
+ 458  81E2 47           	ld b,a
+ 459  81E3              scr_view_wait2 ;scr_view
+ 460  81E3 C5           	push bc
+ 461  81E4              	OS_WAIT
+ 461  81E4 DF          >	rst #18
+ 462  81E5              	OS_GET_CHAR
+ 462  81E5 0E 10       >    ld c,#10
+ 462  81E7 E7          >    rst #20
+ 463  81E8 FE FF        	cp 255
+ 464  81EA 20 05        	jr nz,scr_view_wait3
+ 465  81EC C1           	pop bc
+ 466  81ED 10 F4        	djnz scr_view_wait2
+ 467  81EF 18 01        	jr scr_view_wait_ex
+ 468  81F1              scr_view_wait3
+ 469  81F1 C1           	pop bc
+ 470  81F2
+ 471  81F2              scr_view_wait_ex
+ 472  81F2 F5           	push af ;сохраним клавишу
+ 473  81F3 AF           	xor a ;текстовый
+ 474  81F4              	OS_SET_SCREEN
+ 474  81F4 0E 1D       >    ld c,#1d
+ 474  81F6 E7          >    rst #20
+ 475  81F7 F1           	pop af
+ 476  81F8 C9               ret
+ 477  81F9
+ 478  81F9
+ 479  81F9
+ 480  81F9
+ 481  81F9
+ 482  81F9              artview_main_error ;печать ошибка
+ 483  81F9              	;какая-то ошибка
+ 484  81F9 3E 02        	ld a,2 ;цвет
+ 485  81FB 06 0C        	ld b,#c
+ 486  81FD              	OS_SET_COLOR
+ 486  81FD 0E 06       >    ld c,#06
+ 486  81FF E7          >    rst #20
+ 487  8200 21 BE 87     	ld hl,msg_error
+ 488  8203              	OS_PRINTZ
+ 488  8203 0E 09       >    ld c,#09
+ 488  8205 E7          >    rst #20
+ 489  8206 3E 07        	ld a,7 ;цвет
+ 490  8208 06 0C        	ld b,#c
+ 491  820A              	OS_SET_COLOR
+ 491  820A 0E 06       >    ld c,#06
+ 491  820C E7          >    rst #20
+ 492  820D CD 80 84     	call delay ;задержка
+ 493  8210 C9           	ret
+ 494  8211
+ 495  8211              artview_open_site ;открыть сайт
+ 496  8211              	OS_ESP_CLOSE ;на всякий случай сначала закрыть
+ 496  8211 0E 0C       >    ld c,#0c
+ 496  8213 E7          >    rst #20
+ 497  8214 21 B7 87     	ld hl,msg_open ;печать инфы
+ 498  8217              	OS_PRINTZ
+ 498  8217 0E 09       >    ld c,#09
+ 498  8219 E7          >    rst #20
+ 499  821A 21 3C 87     	ld hl,site_name
+ 500  821D              	OS_PRINTZ
+ 500  821D 0E 09       >    ld c,#09
+ 500  821F E7          >    rst #20
+ 501  8220 3E 0D        	ld a,13 ;новая строка
+ 502  8222              	OS_PRINT_CHARF
+ 502  8222 D7          >	rst #10
+ 503  8223 21 3C 87     	ld hl,site_name ;сайт
+ 504  8226 11 45 87     	ld de,port_number
+ 505  8229              	;call Wifi.openTCP ;открыть сайт
+ 506  8229 AF           	xor a ;открыть TCP
+ 507  822A              	OS_ESP_OPEN
+ 507  822A 0E 0D       >    ld c,#0d
+ 507  822C E7          >    rst #20
+ 508  822D D8           	ret c ;сразу не удалось (может, очередь)
+ 509  822E              	;или подождём открытия
+ 510  822E 06 64        	ld b,wait_count ;
+ 511  8230              artview_open_site_wait
+ 512  8230              	OS_WAIT
+ 512  8230 DF          >	rst #18
+ 513  8231 DD 7E 02     	ld a,(ix+2) ;флаг
+ 514  8234 07           	rlca
+ 515  8235 D8           	ret c ;если ошибка (=255)
+ 516  8236 B7           	or a ;если флаг !=0
+ 517  8237 C0           	ret nz
+ 518  8238 10 F6        	djnz artview_open_site_wait
+ 519  823A 37           	scf ;ощибка
+ 520  823B C9           	ret
+ 521  823C
+ 522  823C
+ 523  823C
+ 524  823C
+ 525  823C
+ 526  823C              artview_request_info ;запрос инфы
+ 527  823C CD 11 82     	call artview_open_site ;открыть сайт
+ 528  823F D8           	ret c
+ 529  8240
+ 530  8240 21 E0 87     	ld hl,msg_request_info ;
+ 531  8243              	OS_PRINTZ
+ 531  8243 0E 09       >    ld c,#09
+ 531  8245 E7          >    rst #20
+ 532  8246 11 D3 88     	ld de,requestbuffer
+ 533  8249 CD A3 84     	call strLen ;узнать длину
+ 534  824C EB           	ex de,hl
+ 535  824D 21 D3 88     	ld hl,requestbuffer
+ 536  8250              	;call Wifi.tcpSendZ ;послать запрос
+ 537  8250              	OS_ESP_SEND
+ 537  8250 0E 0E       >    ld c,#0e
+ 537  8252 E7          >    rst #20
+ 538  8253 D8           	ret c;сразу не удалось (может, очередь)
+ 539  8254              	;ждём когда запрос пройдёт
+ 540  8254 06 64        	ld b,wait_count ;
+ 541  8256              artview_request_info_wait2
+ 542  8256              	OS_WAIT
+ 542  8256 DF          >	rst #18
+ 543  8257 DD 7E 04     	ld a,(ix+4) ;флаг
+ 544  825A 07           	rlca
+ 545  825B D8           	ret c ;если ошибка (=255)
+ 546  825C B7           	or a
+ 547  825D C0           	ret nz
+ 548  825E 10 F6        	djnz artview_request_info_wait2
+ 549  8260 37           	scf ;ощибка
+ 550  8261 C9           	ret
+ 551  8262
+ 552  8262
+ 553  8262              artview_download_info ;загрузить инфо
+ 554  8262
+ 555  8262 21 CE 87     	ld hl,msg_download_info ;
+ 556  8265              	OS_PRINTZ
+ 556  8265 0E 09       >    ld c,#09
+ 556  8267 E7          >    rst #20
+ 557  8268
+ 558  8268 CD E0 84     	call clear_outputBuffer ;очистить
+ 559  826B
+ 560  826B 21 2B 8B     	ld hl,outputBuffer ;буфер для загрузки
+ 561  826E 22 35 87     	ld (buffer_pointer),hl
+ 562  8271              	;call Wifi.getPacket ;получить ответ
+ 563  8271              	OS_ESP_GET
+ 563  8271 0E 0F       >    ld c,#0f
+ 563  8273 E7          >    rst #20
+ 564  8274 D8           	ret c ;сразу не удалось (может, очередь)
+ 565  8275 06 64        	ld b,wait_count ;
+ 566  8277              artview_download_info_wait1
+ 567  8277              	OS_WAIT
+ 567  8277 DF          >	rst #18
+ 568  8278 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
+ 569  827B 07           	rlca
+ 570  827C D8           	ret c ;если ошибка (=255)
+ 571  827D B7           	or a
+ 572  827E 20 04        	jr nz,artview_download_info_wait1_skip
+ 573  8280 10 F5        	djnz artview_download_info_wait1
+ 574  8282 37           	scf ;ощибка
+ 575  8283 C9           	ret
+ 576  8284
+ 577  8284              artview_download_info_wait1_skip
+ 578  8284              	;подготовка к приёму дальше
+ 579  8284 2A 35 87     	ld hl,(buffer_pointer)
+ 580  8287 DD 4E 09     	ld c,(ix+9) ; длина принятого
+ 581  828A DD 46 0A     	ld b,(ix+10)
+ 582  828D 09           	add hl,bc
+ 583  828E 22 35 87     	ld (buffer_pointer),hl ;продолжить загружать с этого места
+ 584  8291
+ 585  8291              	;попробуем найти начало данных
+ 586  8291 11 48 87     	ld de,Content_Length ;найти запись о длине данных
+ 587  8294 CD C6 84     	call search_str
+ 588  8297 D8           	ret c
+ 589  8298
+ 590  8298 EB           	ex de,hl
+ 591  8299 CD AD 84     	call text_to_digit ;преобразовать в число
+ 592  829C 22 33 87     	ld (data_length),hl ;длина данных
+ 593  829F
+ 594  829F 11 37 87     	ld de,rnrn ;найти конец заголовка
+ 595  82A2 CD C6 84     	call search_str
+ 596  82A5 D8           	ret c
+ 597  82A6 22 2F 87     	ld (data_start),hl ;начало данных
+ 598  82A9
+ 599  82A9 ED 5B 33 87  	ld de,(data_length)
+ 600  82AD 19           	add hl,de ;узнали ожидаемый конец данных
+ 601  82AE 22 31 87     	ld (data_end),hl
+ 602  82B1
+ 603  82B1              ;загрузка остальных частей, если есть
+ 604  82B1              artview_download_info1
+ 605  82B1 DD 7E 02     	ld a,(ix+2) ;!!! closed
+ 606  82B4 B7           	or a
+ 607  82B5 28 35        	jr z,artview_download_info1_skip ;если закрыто, больше не грузим
+ 608  82B7
+ 609  82B7 2A 35 87     	ld hl,(buffer_pointer)
+ 610  82BA ED 5B 31 87  	ld de,(data_end)
+ 611  82BE A7           	and a
+ 612  82BF ED 52        	sbc hl,de
+ 613  82C1 28 29        	jr z,artview_download_info1_skip ;если уже всё загружено
+ 614  82C3
+ 615  82C3
+ 616  82C3              	;ещё не всё
+ 617  82C3 2A 35 87     	ld hl,(buffer_pointer)
+ 618  82C6 7C           	ld a,h
+ 619  82C7 FE FA        	cp buffer_top ;ограничение
+ 620  82C9 30 21        	jr nc,artview_download_info1_skip
+ 621  82CB
+ 622  82CB              	;call Wifi.getPacket
+ 623  82CB              	OS_ESP_GET
+ 623  82CB 0E 0F       >    ld c,#0f
+ 623  82CD E7          >    rst #20
+ 624  82CE 06 64        	ld b,wait_count ;
+ 625  82D0              artview_download_info_wait2
+ 626  82D0              	OS_WAIT
+ 626  82D0 DF          >	rst #18
+ 627  82D1 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
+ 628  82D4 07           	rlca
+ 629  82D5 D8           	ret c ;если ошибка (=255)
+ 630  82D6 B7           	or a
+ 631  82D7 20 04        	jr nz,artview_download_info_wait2_skip
+ 632  82D9 10 F5        	djnz artview_download_info_wait2
+ 633  82DB 37           	scf
+ 634  82DC C9           	ret
+ 635  82DD
+ 636  82DD              artview_download_info_wait2_skip
+ 637  82DD 2A 35 87     	ld hl,(buffer_pointer)
+ 638  82E0 DD 4E 09     	ld c,(ix+9) ; длина принятого
+ 639  82E3 DD 46 0A     	ld b,(ix+10)
+ 640  82E6 09           	add hl,bc
+ 641  82E7 22 35 87     	ld (buffer_pointer),hl ;продолжить загружать с этого места
+ 642  82EA
+ 643  82EA 18 C5        	jr artview_download_info1 ;получить ещё части до конца
+ 644  82EC
+ 645  82EC              artview_download_info1_skip
+ 646  82EC
+ 647  82EC              	OS_ESP_CLOSE ;закрыть соединение!
+ 647  82EC 0E 0C       >    ld c,#0c
+ 647  82EE E7          >    rst #20
+ 648  82EF
+ 649  82EF
+ 650  82EF 11 59 87     	ld de,Content_Sucesfully ;найти запись об успешном запросе
+ 651  82F2 CD C6 84     	call search_str
+ 652  82F5 D8           	ret c
+ 653  82F6
+ 654  82F6              	; ld de,Content_Length ;найти запись о длине
+ 655  82F6              	; call search_str
+ 656  82F6              	; ret c
+ 657  82F6
+ 658  82F6              	; ex de,hl
+ 659  82F6              	; call text_to_digit ;преобразовать в число
+ 660  82F6
+ 661  82F6              	; ex de,hl
+ 662  82F6              	; ld hl,(buffer_pointer) ;
+ 663  82F6              	; and a
+ 664  82F6              	; sbc hl,de
+ 665  82F6              	; ;узнали начало пакета
+ 666  82F6
+ 667  82F6 2A 2F 87     	ld hl,(data_start)
+ 668  82F9
+ 669  82F9 11 9F 87     	ld de,Content_ID ;найти запись об ID файла
+ 670  82FC CD C6 84     	call search_str
+ 671  82FF D8           	ret c
+ 672  8300
+ 673  8300
+ 674  8300              	;инфа получена
+ 675  8300
+ 676  8300 E5           	push hl
+ 677  8301 CD 03 84     	call print_info_art ;инфо
+ 678  8304 3E 0D        	ld a,13
+ 679  8306              	OS_PRINT_CHARF
+ 679  8306 D7          >	rst #10
+ 680  8307 E1           	pop hl
+ 681  8308 11 A6 89     	ld de,requestbuffer2_file_id
+ 682  830B
+ 683  830B              ;WAITKEY	XOR A:IN A,(#FE):CPL:AND #1F:JR Z,WAITKEY
+ 684  830B
+ 685  830B CD 86 84     	call id_copy ;скопировать в запрос id арта
+ 686  830E
+ 687  830E              	;запомнить сколько всего
+ 688  830E 11 60 87     	ld de,Content_Total_Amount ;всего таких артов
+ 689  8311 CD C6 84     	call search_str
+ 690  8314 D8           	ret c
+ 691  8315 EB           	ex de,hl
+ 692  8316 CD AD 84     	call text_to_digit
+ 693  8319 22 C1 88     	ld (total_art),hl
+ 694  831C B7           	or a
+ 695  831D C9           	ret
+ 696  831E
+ 697  831E
+ 698  831E
+ 699  831E
+ 700  831E
+ 701  831E
+ 702  831E              artview_request_art	;запрос арта
+ 703  831E CD 11 82     	call artview_open_site ;открыть сайт
+ 704  8321 D8           	ret c
+ 705  8322
+ 706  8322 21 F1 87     	ld hl,msg_request_art
+ 707  8325              	OS_PRINTZ
+ 707  8325 0E 09       >    ld c,#09
+ 707  8327 E7          >    rst #20
+ 708  8328
+ 709  8328              	;ld hl,requestbuffer2_title
+ 710  8328              	;OS_PRINTZ
+ 711  8328 11 99 89     	ld de,requestbuffer2
+ 712  832B CD A3 84     	call strLen ;узнать длину
+ 713  832E EB           	ex de,hl
+ 714  832F 21 99 89     	ld hl,requestbuffer2
+ 715  8332              	OS_ESP_SEND
+ 715  8332 0E 0E       >    ld c,#0e
+ 715  8334 E7          >    rst #20
+ 716  8335 D8           	ret c ;сразу не удалось (может, очередь)
+ 717  8336              	;ждём когда запрос пройдёт
+ 718  8336 06 64        	ld b,wait_count ;
+ 719  8338              artview_request_art_wait2
+ 720  8338              	OS_WAIT
+ 720  8338 DF          >	rst #18
+ 721  8339 DD 7E 04     	ld a,(ix+4) ;флаг
+ 722  833C 07           	rlca
+ 723  833D D8           	ret c ;если ошибка (=255)
+ 724  833E B7           	or a
+ 725  833F C0           	ret nz
+ 726  8340 10 F6        	djnz artview_request_art_wait2
+ 727  8342 37           	scf
+ 728  8343 C9           	ret
+ 729  8344
+ 730  8344
+ 731  8344
+ 732  8344
+ 733  8344              artview_download_art ;загрузить арт
+ 734  8344 21 01 88     	ld hl,msg_download_art
+ 735  8347              	OS_PRINTZ
+ 735  8347 0E 09       >    ld c,#09
+ 735  8349 E7          >    rst #20
+ 736  834A
+ 737  834A CD E0 84     	call clear_outputBuffer ;очистить
+ 738  834D
+ 739  834D 21 2B 8B     	ld hl,outputBuffer ;буфер для загрузки
+ 740  8350 22 35 87     	ld (buffer_pointer),hl
+ 741  8353              	;call Wifi.getPacket ;получить ответ
+ 742  8353              	OS_ESP_GET
+ 742  8353 0E 0F       >    ld c,#0f
+ 742  8355 E7          >    rst #20
+ 743  8356 D8           	ret c ;сразу не удалось (может, очередь)
+ 744  8357 06 64        	ld b,wait_count ;
+ 745  8359              artview_download_art_wait1
+ 746  8359              	OS_WAIT
+ 746  8359 DF          >	rst #18
+ 747  835A DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
+ 748  835D 07           	rlca
+ 749  835E D8           	ret c ;если ошибка (=255)
+ 750  835F B7           	or a
+ 751  8360 20 04        	jr nz,artview_download_art_wait1_skip
+ 752  8362 10 F5        	djnz artview_download_art_wait1
+ 753  8364 37           	scf
+ 754  8365 C9           	ret
+ 755  8366
+ 756  8366              artview_download_art_wait1_skip
+ 757  8366              	;подготовка к приёму дальше
+ 758  8366 2A 35 87     	ld hl,(buffer_pointer)
+ 759  8369 DD 4E 09     	ld c,(ix+9) ; длина принятого
+ 760  836C DD 46 0A     	ld b,(ix+10)
+ 761  836F 09           	add hl,bc
+ 762  8370 22 35 87     	ld (buffer_pointer),hl ;продолжить загружать с этого места
+ 763  8373
+ 764  8373              	;попробуем найти начало данных
+ 765  8373 11 48 87     	ld de,Content_Length ;найти запись о длине данных
+ 766  8376 CD C6 84     	call search_str
+ 767  8379 D8           	ret c
+ 768  837A
+ 769  837A EB           	ex de,hl
+ 770  837B CD AD 84     	call text_to_digit ;преобразовать в число
+ 771  837E 22 33 87     	ld (data_length),hl ;длина данных
+ 772  8381
+ 773  8381 11 37 87     	ld de,rnrn ;найти конец заголовка
+ 774  8384 CD C6 84     	call search_str
+ 775  8387 D8           	ret c
+ 776  8388 22 2F 87     	ld (data_start),hl ;начало данных
+ 777  838B
+ 778  838B ED 5B 33 87  	ld de,(data_length)
+ 779  838F 19           	add hl,de ;узнали ожидаемый конец данных
+ 780  8390 22 31 87     	ld (data_end),hl
+ 781  8393
+ 782  8393              	;загрузка остатка
+ 783  8393              artview_download_art1
+ 784  8393
+ 785  8393 DD 7E 02     	ld a,(ix+2) ;!!! closed
+ 786  8396 B7           	or a
+ 787  8397 28 35        	jr z,artview_download_art1_skip ;если закрыто, больше не грузим
+ 788  8399
+ 789  8399 2A 35 87     	ld hl,(buffer_pointer)
+ 790  839C ED 5B 31 87  	ld de,(data_end)
+ 791  83A0 A7           	and a
+ 792  83A1 ED 52        	sbc hl,de
+ 793  83A3 28 29        	jr z,artview_download_art1_skip ;если уже всё загружено
+ 794  83A5
+ 795  83A5
+ 796  83A5              	;ещё не всё
+ 797  83A5 2A 35 87     	ld hl,(buffer_pointer)
+ 798  83A8 7C           	ld a,h
+ 799  83A9 FE FA        	cp buffer_top ;ограничение
+ 800  83AB 30 21        	jr nc,artview_download_art1_skip
+ 801  83AD
+ 802  83AD              	;call Wifi.getPacket
+ 803  83AD              	OS_ESP_GET
+ 803  83AD 0E 0F       >    ld c,#0f
+ 803  83AF E7          >    rst #20
+ 804  83B0 06 64        	ld b,wait_count ;
+ 805  83B2              artview_download_art_wait2
+ 806  83B2              	OS_WAIT
+ 806  83B2 DF          >	rst #18
+ 807  83B3 DD 7E 06     	ld a,(ix+6) ;флаг результат приёма
+ 808  83B6 07           	rlca
+ 809  83B7 D8           	ret c ;если ошибка (=255)
+ 810  83B8 B7           	or a
+ 811  83B9 20 04        	jr nz,artview_download_art_wait2_skip
+ 812  83BB 10 F5        	djnz artview_download_art_wait2
+ 813  83BD 37           	scf
+ 814  83BE C9           	ret
+ 815  83BF
+ 816  83BF              artview_download_art_wait2_skip
+ 817  83BF 2A 35 87     	ld hl,(buffer_pointer)
+ 818  83C2 DD 4E 09     	ld c,(ix+9) ; длина принятого
+ 819  83C5 DD 46 0A     	ld b,(ix+10)
+ 820  83C8 09           	add hl,bc
+ 821  83C9 22 35 87     	ld (buffer_pointer),hl ;продолжить загружать с этого места
+ 822  83CC
+ 823  83CC 18 C5        	jr artview_download_art1 ;получить ещё части до конца
+ 824  83CE
+ 825  83CE              artview_download_art1_skip
+ 826  83CE              	OS_ESP_CLOSE ;закрыть!
+ 826  83CE 0E 0C       >    ld c,#0c
+ 826  83D0 E7          >    rst #20
+ 827  83D1
+ 828  83D1
+ 829  83D1              	; ;определить длину
+ 830  83D1              	; ld de,Content_Length ;найти запись о длине
+ 831  83D1              	; call search_str
+ 832  83D1              	; ret c
+ 833  83D1              	; ex de,hl
+ 834  83D1              	; call text_to_digit ;преобразовать в число
+ 835  83D1
+ 836  83D1              	; ex de,hl
+ 837  83D1              	; ld hl,(buffer_pointer) ;
+ 838  83D1              	; and a
+ 839  83D1              	; sbc hl,de
+ 840  83D1              	; ;узнали начало пакета
+ 841  83D1 21 B7 88     	ld hl,msg_download_size ;печать размера
+ 842  83D4              	OS_PRINTZ
+ 842  83D4 0E 09       >    ld c,#09
+ 842  83D6 E7          >    rst #20
+ 843  83D7 2A 33 87     	ld hl,(data_length)
+ 844  83DA CD 3F 85     	call toDecimal
+ 845  83DD              	OS_PRINTZ
+ 845  83DD 0E 09       >    ld c,#09
+ 845  83DF E7          >    rst #20
+ 846  83E0 21 BE 88     	ld hl,msg_B
+ 847  83E3              	OS_PRINTZ
+ 847  83E3 0E 09       >    ld c,#09
+ 847  83E5 E7          >    rst #20
+ 848  83E6
+ 849  83E6 2A 2F 87     	ld hl,(data_start) ;начало данных
+ 850  83E9 B7           	or a
+ 851  83EA C9           	ret
+ 852  83EB
+ 853  83EB
+ 854  83EB
+ 855  83EB
+ 856  83EB
+ 857  83EB
+ 858  83EB              print_sys_info ;печать меню управления
+ 859  83EB 3E 47        	ld a,7+64 ;цвет
+ 860  83ED 06 0C        	ld b,#c
+ 861  83EF              	OS_SET_COLOR
+ 861  83EF 0E 06       >    ld c,#06
+ 861  83F1 E7          >    rst #20
+ 862  83F2 21 31 88     	ld hl,msg_sys_info
+ 863  83F5              	OS_PRINTZ
+ 863  83F5 0E 09       >    ld c,#09
+ 863  83F7 E7          >    rst #20
+ 864  83F8
+ 865  83F8 CD 8E 81     	call print_order
+ 866  83FB
+ 867  83FB 3E 07        	ld a,7 ;цвет
+ 868  83FD 06 0C        	ld b,#c
+ 869  83FF              	OS_SET_COLOR
+ 869  83FF 0E 06       >    ld c,#06
+ 869  8401 E7          >    rst #20
+ 870  8402 C9           	ret
+ 871  8403
+ 872  8403
+ 873  8403              print_info_art ;печать инфо о арте
+ 874  8403 CD DF 85     	call save_file_prep_name ;запомнить имя файла
+ 875  8406
+ 876  8406 21 7B 88     	ld hl,msg_cur_number
+ 877  8409              	OS_PRINTZ
+ 877  8409 0E 09       >    ld c,#09
+ 877  840B E7          >    rst #20
+ 878  840C 2A C5 88     	ld hl,(cur_art)
+ 879  840F CD 3F 85     	call toDecimal
+ 880  8412              	OS_PRINTZ
+ 880  8412 0E 09       >    ld c,#09
+ 880  8414 E7          >    rst #20
+ 881  8415
+ 882  8415 21 60 87     	ld hl,Content_Total_Amount ;всего таких артов
+ 883  8418 CD 61 84     	call print_info_art_one
+ 884  841B D8           	ret c
+ 885  841C
+ 886  841C 21 9F 87     	ld hl,Content_ID ;id арта
+ 887  841F CD 61 84     	call print_info_art_one
+ 888  8422 D8           	ret c
+ 889  8423
+ 890  8423 21 A5 87     	ld hl,Content_Type ;формат арта
+ 891  8426 CD 61 84     	call print_info_art_one
+ 892  8429 D8           	ret c
+ 893  842A
+ 894  842A 3E 04        	ld a,4 ;цвет
+ 895  842C 06 0C        	ld b,#c
+ 896  842E              	OS_SET_COLOR
+ 896  842E 0E 06       >    ld c,#06
+ 896  8430 E7          >    rst #20
+ 897  8431 21 6F 87     	ld hl,Content_Title ;название арта
+ 898  8434 CD 61 84     	call print_info_art_one
+ 899  8437 F5           	push af
+ 900  8438 3E 07        	ld a,7 ;цвет
+ 901  843A 06 0C        	ld b,#c
+ 902  843C              	OS_SET_COLOR
+ 902  843C 0E 06       >    ld c,#06
+ 902  843E E7          >    rst #20
+ 903  843F F1           	pop af
+ 904  8440 D8           	ret c
+ 905  8441
+ 906  8441 21 8F 87     	ld hl,Content_Year ;год арта
+ 907  8444 CD 61 84     	call print_info_art_one
+ 908  8447 D8           	ret c
+ 909  8448
+ 910  8448 21 97 87     	ld hl,Content_Time ;длина арта
+ 911  844B CD 61 84     	call print_info_art_one
+ 912  844E D8           	ret c
+ 913  844F
+ 914  844F 21 85 87     	ld hl,Content_Rating ;рейтинг арта
+ 915  8452 CD 61 84     	call print_info_art_one
+ 916  8455 D8           	ret c
+ 917  8456
+ 918  8456 21 78 87     	ld hl,Content_AuthorIDs ;id автора арта
+ 919  8459 CD 61 84     	call print_info_art_one
+ 920  845C D8           	ret c
+ 921  845D
+ 922  845D 3E 0D        	ld a,13
+ 923  845F              	OS_PRINT_CHARF
+ 923  845F D7          >	rst #10
+ 924  8460 C9           	ret
+ 925  8461
+ 926  8461
+ 927  8461              print_info_art_one
+ 928  8461 E5           	push hl
+ 929  8462 3E 0D        	ld a,13
+ 930  8464              	OS_PRINT_CHARF
+ 930  8464 D7          >	rst #10
+ 931  8465 E1           	pop hl
+ 932  8466 E5           	push hl
+ 933  8467              	OS_PRINTZ
+ 933  8467 0E 09       >    ld c,#09
+ 933  8469 E7          >    rst #20
+ 934  846A D1           	pop de
+ 935  846B CD C6 84     	call search_str
+ 936  846E D8           	ret c
+ 937  846F CD 74 84     	call print_to_sym ;печать значения
+ 938  8472 B7           	or a
+ 939  8473 C9           	ret
+ 940  8474
+ 941  8474              print_to_sym ;печать до символа "," или 0
+ 942  8474 7E           	ld a,(hl)
+ 943  8475 FE 2C        	cp ","
+ 944  8477 C8           	ret z
+ 945  8478 B7           	or a
+ 946  8479 C8           	ret z
+ 947  847A E5           	push hl
+ 948  847B              	OS_PRINT_CHARF
+ 948  847B D7          >	rst #10
+ 949  847C E1           	pop hl
+ 950  847D 23           	inc hl
+ 951  847E 18 F4        	jr print_to_sym
+ 952  8480
+ 953  8480
+ 954  8480              delay ;задержка между запросами
+ 955  8480 06 32        	ld b,50*1 ;
+ 956  8482              delay1
+ 957  8482              	OS_WAIT
+ 957  8482 DF          >	rst #18
+ 958  8483 10 FD        	djnz delay1
+ 959  8485 C9           	ret
+ 960  8486
+ 961  8486              ;hl - from
+ 962  8486              ;de - to
+ 963  8486              id_copy ;скопировать текст id
+ 964  8486 7E           	ld a,(hl)
+ 965  8487 FE 30        	cp "0"
+ 966  8489 38 09        	jr c,id_copy2
+ 967  848B FE 3A        	cp "9"+1
+ 968  848D 30 05        	jr nc,id_copy2
+ 969  848F 12           	ld (de),a
+ 970  8490 13           	inc de
+ 971  8491 23           	inc hl
+ 972  8492 18 F2        	jr id_copy
+ 973  8494
+ 974  8494              id_copy2
+ 975  8494              	;скопировать остаток строки запроса
+ 976  8494 21 A6 8A     	ld hl,requestbuffer2_end
+ 977  8497              id_copy3
+ 978  8497 7E           	ld a,(hl)
+ 979  8498 B7           	or a
+ 980  8499 28 05        	jr z,id_copy_ex
+ 981  849B 12           	ld (de),a
+ 982  849C 13           	inc de
+ 983  849D 23           	inc hl
+ 984  849E 18 F7        	jr id_copy3
+ 985  84A0              id_copy_ex
+ 986  84A0 AF           	xor a
+ 987  84A1 12           	ld (de),a  ;в конце 0
+ 988  84A2 C9           	ret
+ 989  84A3
+ 990  84A3              strLen: ;посчитать длину строки до 0
+ 991  84A3 21 00 00         ld hl, 0
+ 992  84A6              .loop
+ 993  84A6 1A               ld a, (de)
+ 993  84A7 A7             and a
+ 993  84A8 C8             ret z
+ 994  84A9 13 23            inc de, hl
+ 995  84AB 18 F9            jr .loop
+ 996  84AD
+ 997  84AD              text_to_digit ;тест в цифру
+ 998  84AD              ;de - текст
+ 999  84AD              ;вых: hl - цифра
+1000  84AD 21 00 00     		ld hl,0			; count lenght
+1001  84B0 1A           .cil1	ld a,(de)
+1002  84B1 13           		inc de
+1003  84B2 FE 30        		cp "0"
+1003  84B4 D8             ret c
+1004  84B5 FE 3A        		cp "9"+1
+1004  84B7 D0             ret nc
+1005  84B8 D6 30        		sub 0x30
+1005  84BA 4D             ld c,l
+1005  84BB 44             ld b,h
+1005  84BC 29             add hl,hl
+1005  84BD 29             add hl,hl
+1005  84BE 09             add hl,bc
+1005  84BF 29             add hl,hl
+1005  84C0 4F             ld c,a
+1005  84C1 06 00          ld b,0
+1005  84C3 09             add hl,bc
+1006  84C4 18 EA        		jr .cil1
+1007  84C6
+1008  84C6              ;поиск строки
+1009  84C6              ;de - образец, в конце 0
+1010  84C6              ;вых: hl - адрес после найденного
+1011  84C6              search_str
+1012  84C6 21 2B 8B     	ld hl,outputBuffer
+1013  84C9 42           	ld b,d
+1014  84CA 4B           	ld c,e
+1015  84CB              search_str2
+1016  84CB 1A           	ld a,(de)
+1017  84CC BE           	cp (hl)
+1018  84CD 20 0A        	jr nz,search_str1
+1019  84CF              	;нашли одну букву
+1020  84CF              search_str3
+1021  84CF 23           	inc hl
+1022  84D0 13           	inc de
+1023  84D1 1A           	ld a,(de)
+1024  84D2 B7           	or a
+1025  84D3 C8           	ret z ;нашли всю строку
+1026  84D4 BE           	cp (hl)
+1027  84D5 28 F8        	jr z,search_str3
+1028  84D7              	;не вся строка совпала
+1029  84D7 50           	ld d,b ;в начало образца
+1030  84D8 59           	ld e,c
+1031  84D9              search_str1
+1032  84D9 23           	inc hl ;дальше
+1033  84DA 24           	inc h
+1034  84DB 25           	dec h
+1035  84DC 20 ED        	jr nz,search_str2
+1036  84DE 37           	scf ;не нашли
+1037  84DF C9           	ret
+1038  84E0
+1039  84E0
+1040  84E0              clear_outputBuffer ;почистить буфер приёма
+1041  84E0 21 2B 8B     	ld hl,outputBuffer
+1042  84E3 11 2C 8B     	ld de,outputBuffer+1
+1043  84E6 01 D3 74     	ld bc,#ffff-outputBuffer-1
+1044  84E9 36 00        	ld (hl),0
+1045  84EB ED B0        	ldir
+1046  84ED C9           	ret
+1047  84EE
+1048  84EE
+1049  84EE              ;вх: HL - диапазон
+1050  84EE              ;вых: HL - результат
+1051  84EE              rnd ;генератор случайного числа в заданном диапазоне
+1052  84EE 7C           	ld a,h
+1053  84EF B5           	or l
+1054  84F0 C8           	ret z
+1055  84F1 AF           	xor a ;очистить переменную
+1056  84F2 32 18 85     	ld (rnd_out),a
+1057  84F5 32 19 85     	ld (rnd_out+1),a
+1058  84F8 E5           	push hl
+1059  84F9 CD 1A 85     	call random ;получить случайное
+1060  84FC              	;умножить диапазон на случайное число и взять старшие два байта
+1061  84FC C1           	pop bc ;счётчик
+1062  84FD EB           	ex de,hl
+1063  84FE 21 00 00     	ld hl,0
+1064  8501              rnd_cl
+1065  8501 19           	add hl,de
+1066  8502 30 0B        	jr nc,rnd_cl1 ;если нет переполения
+1067  8504 D9           	exx
+1068  8505 ED 5B 18 85  	ld de,(rnd_out) ;увеличить старшие байты
+1069  8509 13           	inc de
+1070  850A ED 53 18 85  	ld (rnd_out),de
+1071  850E D9           	exx
+1072  850F              rnd_cl1
+1073  850F 0B           	dec bc
+1074  8510 78           	ld a,b
+1075  8511 B1           	or c
+1076  8512 20 ED        	jr nz,rnd_cl
+1077  8514 2A 18 85     	ld hl,(rnd_out)
+1078  8517 C9           	ret
+1079  8518 00 00        rnd_out dw 0 ;ответ случайное число
+1080  851A
+1081  851A
+1082  851A              random ;Переписанный генератор из ПЗУ бейсика
+1083  851A 11 00 00     	ld	de,0
+1084  851D              seed	equ	$-2
+1085  851D AF           	xor	a
+1086  851E 67 6F 47     	ld	h,a,l,a,b,a
+1087  8521 19           	add	hl,de
+1088  8522 88           	adc	a,b
+1089  8523 29           	add	hl,hl
+1090  8524 8F           	adc	a,a
+1091  8525 29           	add	hl,hl
+1092  8526 8F           	adc	a,a
+1093  8527 29           	add	hl,hl
+1094  8528 8F           	adc	a,a
+1095  8529 19           	add	hl,de
+1096  852A 88           	adc	a,b
+1097  852B 29           	add	hl,hl
+1098  852C 8F           	adc	a,a
+1099  852D 29           	add	hl,hl
+1100  852E 8F           	adc	a,a
+1101  852F 19           	add	hl,de
+1102  8530 88           	adc	a,b
+1103  8531 29           	add	hl,hl
+1104  8532 8F           	adc	a,a
+1105  8533 19           	add	hl,de
+1106  8534 88           	adc	a,b
+1107  8535 D6 4A        	sub	#4a
+1108  8537 ED 44        	neg
+1109  8539 4F           	ld	c,a
+1110  853A 09           	add	hl,bc
+1111  853B 22 1B 85     	ld	(seed),hl
+1112  853E C9           	ret
+1113  853F
+1114  853F              toDecimal		;конвертирует 2 байта в 5 десятичных цифр
+1115  853F              				;на входе в HL число
+1116  853F 11 10 27     			ld de,10000 ;десятки тысяч
+1117  8542 3E FF        			ld a,255
+1118  8544              toDecimal10k
+1119  8544 A7           			and a
+1120  8545 ED 52        			sbc hl,de
+1121  8547 3C           			inc a
+1122  8548 30 FA        			jr nc,toDecimal10k
+1123  854A 19           			add hl,de
+1124  854B C6 30        			add a,48
+1125  854D 32 98 85     			ld (decimalS),a
+1126  8550 11 E8 03     			ld de,1000 ;тысячи
+1127  8553 3E FF        			ld a,255
+1128  8555              toDecimal1k
+1129  8555 A7           			and a
+1130  8556 ED 52        			sbc hl,de
+1131  8558 3C           			inc a
+1132  8559 30 FA        			jr nc,toDecimal1k
+1133  855B 19           			add hl,de
+1134  855C C6 30        			add a,48
+1135  855E 32 99 85     			ld (decimalS+1),a
+1136  8561 11 64 00     			ld de,100 ;сотни
+1137  8564 3E FF        			ld a,255
+1138  8566              toDecimal01k
+1139  8566 A7           			and a
+1140  8567 ED 52        			sbc hl,de
+1141  8569 3C           			inc a
+1142  856A 30 FA        			jr nc,toDecimal01k
+1143  856C 19           			add hl,de
+1144  856D C6 30        			add a,48
+1145  856F 32 9A 85     			ld (decimalS+2),a
+1146  8572 11 0A 00     			ld de,10 ;десятки
+1147  8575 3E FF        			ld a,255
+1148  8577              toDecimal001k
+1149  8577 A7           			and a
+1150  8578 ED 52        			sbc hl,de
+1151  857A 3C           			inc a
+1152  857B 30 FA        			jr nc,toDecimal001k
+1153  857D 19           			add hl,de
+1154  857E C6 30        			add a,48
+1155  8580 32 9B 85     			ld (decimalS+3),a
+1156  8583 11 01 00     			ld de,1 ;единицы
+1157  8586 3E FF        			ld a,255
+1158  8588              toDecimal0001k
+1159  8588 A7           			and a
+1160  8589 ED 52        			sbc hl,de
+1161  858B 3C           			inc a
+1162  858C 30 FA        			jr nc,toDecimal0001k
+1163  858E 19           			add hl,de
+1164  858F C6 30        			add a,48
+1165  8591 32 9C 85     			ld (decimalS+4),a
+1166  8594 21 98 85     			ld hl,decimalS
+1167  8597 C9           			ret
+1168  8598
+1169  8598 00 00 00...  decimalS	ds 6 ;десятичные цифры
+1170  859E
+1171  859E
+1172  859E
+1173  859E              save_file ;сохранить на диск
+1174  859E 3E 04        	ld a,4;цвет
+1175  85A0 06 0C        	ld b,#c
+1176  85A2              	OS_SET_COLOR
+1176  85A2 0E 06       >    ld c,#06
+1176  85A4 E7          >    rst #20
+1177  85A5
+1178  85A5 21 28 86     	ld hl,msg_save_file ;печать сообщения и имени файла
+1179  85A8              	OS_PRINTZ
+1179  85A8 0E 09       >    ld c,#09
+1179  85AA E7          >    rst #20
+1180  85AB
+1181  85AB 3E 0D        	ld a,13
+1182  85AD              	OS_PRINT_CHARF
+1182  85AD D7          >	rst #10
+1183  85AE
+1184  85AE 3E 07        	ld a,7;цвет
+1185  85B0 06 0C        	ld b,#c
+1186  85B2              	OS_SET_COLOR
+1186  85B2 0E 06       >    ld c,#06
+1186  85B4 E7          >    rst #20
+1187  85B5
+1188  85B5 21 1A 86     	ld hl,path_download ;путь для сохранений
+1189  85B8 AF           	xor	a
+1190  85B9 3D           	dec	a ;установить текущим
+1191  85BA              	OS_FIND_PATH ;найти папку
+1191  85BA 0E 29       >    ld c,#29
+1191  85BC E7          >    rst #20
+1192  85BD
+1193  85BD
+1194  85BD 21 34 86     	ld hl,save_file_name ;имя
+1195  85C0              	OS_FILE_OPEN ;если есть, откроем
+1195  85C0 0E 21       >    ld c,#21
+1195  85C2 E7          >    rst #20
+1196  85C3 30 05        	jr nc,save_file_open_ok
+1197  85C5
+1198  85C5              	OS_FILE_CREATE ;или создадим
+1198  85C5 0E 22       >    ld c,#22
+1198  85C7 E7          >    rst #20
+1199  85C8 38 0F        	jr c,save_file_ex_err
+1200  85CA              save_file_open_ok
+1201  85CA              	;файл открыт в A - id файла
+1202  85CA
+1203  85CA 2A 2F 87     	ld hl,(data_start)
+1204  85CD ED 5B 33 87  	ld de,(data_length)
+1205  85D1              	OS_FILE_WRITE ;записать
+1205  85D1 0E 24       >    ld c,#24
+1205  85D3 E7          >    rst #20
+1206  85D4 38 03        	jr c,save_file_ex_err
+1207  85D6
+1208  85D6              save_file_ex_ok
+1209  85D6 C3 A9 80     	jp loop_artview
+1210  85D9
+1211  85D9              save_file_ex_err
+1212  85D9 CD F9 81     	call artview_main_error
+1213  85DC C3 A9 80     	jp loop_artview
+1214  85DF
+1215  85DF
+1216  85DF              save_file_prep_name
+1217  85DF              	;найти и подготовить имя файла
+1218  85DF 11 AD 87     	ld de,Content_filename
+1219  85E2 CD C6 84     	call search_str
+1220  85E5 38 13        	jr c,save_file_prep_name_no ;если не нашли имени
+1221  85E7              	;перенести до символа "
+1222  85E7 11 34 86     	ld de,save_file_name ;куда
+1223  85EA 06 FA        	ld b,save_file_name_max_lenght ;макс длина
+1224  85EC 0E FF        	ld c,#ff ;для цикла
+1225  85EE              save_file_prep_name_cl ;цикл
+1226  85EE 7E           	ld a,(hl)
+1227  85EF FE 22        	cp '"'
+1228  85F1 28 04        	jr z,save_file_prep_name_ex
+1229  85F3 ED A0        	ldi
+1230  85F5 18 F7        	jr save_file_prep_name_cl
+1231  85F7
+1232  85F7              save_file_prep_name_ex
+1233  85F7 AF           	xor a
+1234  85F8 12           	ld (de),a ;в конце 0
+1235  85F9 C9           	ret
+1236  85FA
+1237  85FA              save_file_prep_name_no
+1238  85FA 11 9F 87     	ld de,Content_ID ;id трека
+1239  85FD CD C6 84     	call search_str
+1240  8600 11 34 86     	ld de,save_file_name ;куда
+1241  8603 01 05 00     	ld bc,5
+1242  8606 ED B0        	ldir
+1243  8608              	;теперь расширение
+1244  8608 3E 2E        	ld a,'.'
+1245  860A 12           	ld (de),a
+1246  860B 13           	inc de
+1247  860C 3E 73        	ld a,'s'
+1248  860E 12           	ld (de),a
+1249  860F 13           	inc de
+1250  8610 3E 63        	ld a,'c'
+1251  8612 12           	ld (de),a
+1252  8613 13           	inc de
+1253  8614 3E 72        	ld a,'r'
+1254  8616 12           	ld (de),a
+1255  8617 13           	inc de
+1256  8618 18 DD        	jr save_file_prep_name_ex
+1257  861A
+1258  861A
+1259  861A              save_file_name_max_lenght equ 250 ;максимальная длина имени
+1260  861A 5C 4F 53 5A  path_download db "\\OSZ\\Download",0
+1260  861E 5C 44 6F 77
+1260  8622 6E 6C 6F 61
+1260  8626 64 00
+1261  8628 0D 53 61 76  msg_save_file db 13,"Save file: "
+1261  862C 65 20 66 69
+1261  8630 6C 65 3A 20
+1262  8634              save_file_name  ;тут имя файла
+1263  8634 00 00 00...  	ds save_file_name_max_lenght+1 ;буфер для имени файла
+1264  872F
+1265  872F
+1266  872F
+1267  872F                  ; include "drivers/utils.asm"
+1268  872F                  ; include "drivers/wifi.asm"
+1269  872F              	; include "drivers/zx-wifi.asm"
+1270  872F
+1271  872F
+1272  872F              id_lenght equ 6 ;длина кода файла
+1273  872F              wait_count equ 2*50 ;задержка в кадрах
+1274  872F              buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
+1275  872F
+1276  872F              ; ;ответы ESP
+1277  872F              ; sendOk[] = "SEND OK";
+1278  872F              ; const unsigned char gotWiFi[] = "WIFI GOT IP";
+1279  872F              ; "CONNECT"
+1280  872F
+1281  872F              ; ;команды
+1282  872F              ; ;<link ID> – ID соединения (0–4), используется при нескольких соединениях;
+1283  872F              ; at_cipmux db "AT+CIPMUX=1",0 ;несколько соединений
+1284  872F              ;at_cipstart db "AT+CIPSTART=1,\"TCP\",\"zxart.ee\",80",0
+1285  872F              ; "AT+CIPSEND="
+1286  872F              ; "AT+CIPCLOSE"
+1287  872F              ;link_id db 0; номер соединения
+1288  872F 00 00        data_start dw 0 ;начало данных
+1289  8731 00 00        data_end dw 0 ;конец данных
+1290  8733 00 00        data_length dw 0 ;длина данных
+1291  8735 00 00        buffer_pointer dw 0 ;указатель на буфер
+1292  8737 0D 0A 0D 0A  rnrn db 13,10,13,10,0 ;окончание заголовка
+1292  873B 00
+1293  873C 7A 78 61 72  site_name db "zxart.ee",0 ;имя сайта
+1293  8740 74 2E 65 65
+1293  8744 00
+1294  8745 38 30 00     port_number db "80" ,0;
+1295  8748 43 6F 6E 74  Content_Length db "Content-Length: ",0
+1295  874C 65 6E 74 2D
+1295  8750 4C 65 6E 67
+1295  8754 74 68 3A 20
+1295  8758 00
+1296  8759 73 75 63 63  Content_Sucesfully db "succes",0
+1296  875D 65 73 00
+1297  8760 22 74 6F 74  Content_Total_Amount db "\"totalAmount\":",0
+1297  8764 61 6C 41 6D
+1297  8768 6F 75 6E 74
+1297  876C 22 3A 00
+1298  876F 22 74 69 74  Content_Title db "\"title\":",0
+1298  8773 6C 65 22 3A
+1298  8777 00
+1299  8778 22 61 75 74  Content_AuthorIDs db "\"authorIds\":",0
+1299  877C 68 6F 72 49
+1299  8780 64 73 22 3A
+1299  8784 00
+1300  8785 22 72 61 74  Content_Rating db "\"rating\":",0
+1300  8789 69 6E 67 22
+1300  878D 3A 00
+1301  878F 22 79 65 61  Content_Year db "\"year\":",0
+1301  8793 72 22 3A 00
+1302  8797 22 74 69 6D  Content_Time db "\"time\":",0
+1302  879B 65 22 3A 00
+1303  879F 22 69 64 22  Content_ID db "\"id\":",0
+1303  87A3 3A 00
+1304  87A5 22 74 79 70  Content_Type db "\"type\":",0
+1304  87A9 65 22 3A 00
+1305  87AD 66 69 6C 65  Content_filename db 'filename:',0
+1305  87B1 6E 61 6D 65
+1305  87B5 3A 00
+1306  87B7              ;file_id db "000000",0 ;id файла
+1307  87B7 4F 70 65 6E  msg_open db "Open: ",0
+1307  87BB 3A 20 00
+1308  87BE 45 72 72 6F  msg_error db "Error",13,0
+1308  87C2 72 0D 00
+1309  87C5 46 6F 72 6D  msg_format db "Format: ",0
+1309  87C9 61 74 3A 20
+1309  87CD 00
+1310  87CE 44 6F 77 6E  msg_download_info db "Download info...",13,0
+1310  87D2 6C 6F 61 64
+1310  87D6 20 69 6E 66
+1310  87DA 6F 2E 2E 2E
+1310  87DE 0D 00
+1311  87E0 52 65 71 75  msg_request_info db "Request info...",13,0
+1311  87E4 65 73 74 20
+1311  87E8 69 6E 66 6F
+1311  87EC 2E 2E 2E 0D
+1311  87F0 00
+1312  87F1 52 65 71 75  msg_request_art db "Request art...",13,0
+1312  87F5 65 73 74 20
+1312  87F9 61 72 74 2E
+1312  87FD 2E 2E 0D 00
+1313  8801 44 6F 77 6E  msg_download_art db "Download art...",13,0
+1313  8805 6C 6F 61 64
+1313  8809 20 61 72 74
+1313  880D 2E 2E 2E 0D
+1313  8811 00
+1314  8812 50 6C 61 79  msg_play_art db "Play art...",13,0
+1314  8816 20 61 72 74
+1314  881A 2E 2E 2E 0D
+1314  881E 00
+1315  881F 53 74 6F 70  msg_stop db "Stop",13,0
+1315  8823 0D 00
+1316  8825 52 65 73 74  msg_restart db "Restart...",13,0
+1316  8829 61 72 74 2E
+1316  882D 2E 2E 0D 00
+1317  8831              ;msg_get_link_id db "Get link ID...",13,0
+1318  8831 53 20 2D 20  msg_sys_info db "S - Stop, R - Restart",13
+1318  8835 53 74 6F 70
+1318  8839 2C 20 52 20
+1318  883D 2D 20 52 65
+1318  8841 73 74 61 72
+1318  8845 74 0D
+1319  8847 53 70 20 2D  	db "Sp - Next, Break - Exit, "
+1319  884B 20 4E 65 78
+1319  884F 74 2C 20 42
+1319  8853 72 65 61 6B
+1319  8857 20 2D 20 45
+1319  885B 78 69 74 2C
+1319  885F 20
+1320  8860 44 20 2D 20  	db "D - Save file",13,0
+1320  8864 53 61 76 65
+1320  8868 20 66 69 6C
+1320  886C 65 0D 00
+1321  886F 51 20 2D 20  msg_order 	db "Q - Order: ",0
+1321  8873 4F 72 64 65
+1321  8877 72 3A 20 00
+1322  887B 0D 43 75 72  msg_cur_number	db 13,"Current number: ",0
+1322  887F 72 65 6E 74
+1322  8883 20 6E 75 6D
+1322  8887 62 65 72 3A
+1322  888B 20 00
+1323  888D
+1324  888D 72 61 6E 64  msg_order_random db "random",13,0
+1324  8891 6F 6D 0D 00
+1325  8895 66 72 6F 6D  msg_order_from_new db "from new to old",13,0
+1325  8899 20 6E 65 77
+1325  889D 20 74 6F 20
+1325  88A1 6F 6C 64 0D
+1325  88A5 00
+1326  88A6 66 72 6F 6D  msg_order_from_old db "from old to new",13,0
+1326  88AA 20 6F 6C 64
+1326  88AE 20 74 6F 20
+1326  88B2 6E 65 77 0D
+1326  88B6 00
+1327  88B7 53 69 7A 65  msg_download_size db "Size: ",0
+1327  88BB 3A 20 00
+1328  88BE 42 0D 00     msg_B db "B",13,0
+1329  88C1 00 00        total_art dw 0;
+1330  88C3 00 00        start_art dw 0;
+1331  88C5 00 00        cur_art dw 0;
+1332  88C7 00           stopKey_flag db 0;
+1333  88C8              ; format_pt2 db "pt2",0
+1334  88C8              ; format_pt3 db "pt3",0
+1335  88C8              ; format_ts db " ts",0
+1336  88C8              ; format_tfc db "tfc",0
+1337  88C8 01           order_val db 1 ;тип сортировки
+1338  88C9
+1339  88C9              ;player_setup db 0;настройки плеера
+1340  88C9 96           time_view db 3*50 ;время на просмотр картинки
+1341  88CA
+1342  88CA              ;запрос списка
+1343  88CA 52 65 71 75  requestbuffer_title db "Request:",13
+1343  88CE 65 73 74 3A
+1343  88D2 0D
+1344  88D3              requestbuffer ;
+1345  88D3 47 45 54 20  	db "GET /api/export:zxPicture/limit:1/start:"
+1345  88D7 2F 61 70 69
+1345  88DB 2F 65 78 70
+1345  88DF 6F 72 74 3A
+1345  88E3 7A 78 50 69
+1345  88E7 63 74 75 72
+1345  88EB 65 2F 6C 69
+1345  88EF 6D 69 74 3A
+1345  88F3 31 2F 73 74
+1345  88F7 61 72 74 3A
+1346  88FB              start_request ;тут подстановка порядкового номера арта
+1347  88FB 30 30 30 30  	db "00000/filter:zxPictureType=standard/"
+1347  88FF 30 2F 66 69
+1347  8903 6C 74 65 72
+1347  8907 3A 7A 78 50
+1347  890B 69 63 74 75
+1347  890F 72 65 54 79
+1347  8913 70 65 3D 73
+1347  8917 74 61 6E 64
+1347  891B 61 72 64 2F
+1348  891F              request_format
+1349  891F 6F 72 64 65  	db "order:date,desc HTTP/1.1\r\n"
+1349  8923 72 3A 64 61
+1349  8927 74 65 2C 64
+1349  892B 65 73 63 20
+1349  892F 48 54 54 50
+1349  8933 2F 31 2E 31
+1349  8937 0D 0A
+1350  8939              ;request_agent
+1351  8939 48 6F 73 74  	db "Host: zxart.ee\r\n"
+1351  893D 3A 20 7A 78
+1351  8941 61 72 74 2E
+1351  8945 65 65 0D 0A
+1352  8949 55 73 65 72  	db "User-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; GMX OS)\r\n\r\n",0
+1352  894D 2D 41 67 65
+1352  8951 6E 74 3A 20
+1352  8955 55 73 65 72
+1352  8959 2D 41 67 65
+1352  895D 6E 74 3A 20
+1352  8961 4D 6F 7A 69
+1352  8965 6C 6C 61 2F
+1352  8969 34 2E 30 20
+1352  896D 28 63 6F 6D
+1352  8971 70 61 74 69
+1352  8975 62 6C 65 3B
+1352  8979 20 4D 53 49
+1352  897D 45 35 2E 30
+1352  8981 31 3B 20 47
+1352  8985 4D 58 20 4F
+1352  8989 53 29 0D 0A
+1352  898D 0D 0A 00
+1353  8990
+1354  8990              ;запрос закачки
+1355  8990 52 65 71 75  requestbuffer2_title db "Request:",13
+1355  8994 65 73 74 3A
+1355  8998 0D
+1356  8999              requestbuffer2 ;
+1357  8999 47 45 54 20  	db "GET /file/id:"
+1357  899D 2F 66 69 6C
+1357  89A1 65 2F 69 64
+1357  89A5 3A
+1358  89A6              requestbuffer2_file_id ;тут подстановка id арта
+1359  89A6              	;db "539319"
+1360  89A6 00 00 00...  	ds #100 ;буфер для отправки
+1361  8AA6              requestbuffer2_end ;окончание строки запроса
+1362  8AA6 20 48 54 54  	db " HTTP/1.1\r\n"
+1362  8AAA 50 2F 31 2E
+1362  8AAE 31 0D 0A
+1363  8AB1              ;request_agent
+1364  8AB1 48 6F 73 74  	db "Host: zxart.ee\r\n"
+1364  8AB5 3A 20 7A 78
+1364  8AB9 61 72 74 2E
+1364  8ABD 65 65 0D 0A
+1365  8AC1 55 73 65 72  	db "User-Agent: User-Agent: Mozilla/4.0 (compatible; MSIE5.01; GMX OS)\r\n\r\n",0
+1365  8AC5 2D 41 67 65
+1365  8AC9 6E 74 3A 20
+1365  8ACD 55 73 65 72
+1365  8AD1 2D 41 67 65
+1365  8AD5 6E 74 3A 20
+1365  8AD9 4D 6F 7A 69
+1365  8ADD 6C 6C 61 2F
+1365  8AE1 34 2E 30 20
+1365  8AE5 28 63 6F 6D
+1365  8AE9 70 61 74 69
+1365  8AED 62 6C 65 3B
+1365  8AF1 20 4D 53 49
+1365  8AF5 45 35 2E 30
+1365  8AF9 31 3B 20 47
+1365  8AFD 4D 58 20 4F
+1365  8B01 53 29 0D 0A
+1365  8B05 0D 0A 00
+1366  8B08
+1367  8B08
+1368  8B08              ;примеры (может не правильные)
+1369  8B08              	;db "http://zxart.ee/api/types:zxMusic/export:zxMusic/language:eng/start:0/limit:2/order:date,desc/filter:zxMusicAll=1;"
+1370  8B08              	;https://zxart.ee/api/types:zxMusic/export:zxMusic/language:eng/start:0/limit:2/order:date,desc/filter:zxMusicAll=1;
+1371  8B08
+1372  8B08              	;db "GET /file/id:44816",0
+1373  8B08              	;db "GET /api/export:zxMusic/limit:2/start:0/filter:zxMusicFormat=pt3/order:date,desc",0
+1374  8B08
+1375  8B08
+1376  8B08              ;requestbuffer_end
+1377  8B08
+1378  8B08              msg_title_artview
+1379  8B08 41 72 74 56  	db "ArtView ver 2025.06.18",10,13,0
+1379  8B0C 69 65 77 20
+1379  8B10 76 65 72 20
+1379  8B14 32 30 32 35
+1379  8B18 2E 30 36 2E
+1379  8B1C 31 38 0A 0D
+1379  8B20 00
+1380  8B21
+1381  8B21 52 65 73 70  outputBuffer_title db "Response:",13
+1381  8B25 6F 6E 73 65
+1381  8B29 3A 0D
+1382  8B2B              outputBuffer equ $  ;буфер для загрузки
+1383  8B2B
+1384  8B2B              end_artview
+1385  8B2B              	;SAVETRD "OS.TRD",|"artview.C",start_artview,$-start_artview
+1386  8B2B              	savebin "artview.apg",start_artview,$-start_artview
 # file closed: artview.asm

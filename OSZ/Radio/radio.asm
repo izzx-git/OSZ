@@ -197,6 +197,10 @@ loop_radio
 	jp z, select_order
 	cp "q" ;порядок
 	jp z, select_order	
+	cp "D" ;сохранить в файл
+	jp z, save_file
+	cp "d" ;сохранить в файл
+	jp z, save_file
 	cp 24 ;break
 	jp z,exit
 	OS_GET_VTPL_SETUP
@@ -803,6 +807,8 @@ print_sys_info ;печать меню управления
 
 
 print_info_track ;печать инфо о треке
+	call save_file_prep_name ;запомнить имя файла
+
 	ld hl,msg_cur_number
 	OS_PRINTZ
 	ld hl,(cur_track)
@@ -1098,6 +1104,98 @@ toDecimal0001k
 	
 decimalS	ds 6 ;десятичные цифры
 
+
+
+save_file ;сохранить на диск
+	ld a,4;цвет
+	ld b,#c
+	OS_SET_COLOR
+	
+	ld hl,msg_save_file ;печать сообщения и имени файла
+	OS_PRINTZ
+	
+	ld a,13
+	OS_PRINT_CHARF
+
+	ld a,7;цвет
+	ld b,#c
+	OS_SET_COLOR	
+
+	ld hl,path_download ;путь для сохранений
+	xor	a
+	dec	a ;установить текущим
+	OS_FIND_PATH ;найти папку
+	
+
+	ld hl,save_file_name ;имя
+	OS_FILE_OPEN ;если есть, откроем
+	jr nc,save_file_open_ok
+	
+	OS_FILE_CREATE ;или создадим
+	jr c,save_file_ex_err
+save_file_open_ok
+	;файл открыт в A - id файла
+	
+	ld hl,(data_start)
+	ld de,(data_length)
+	OS_FILE_WRITE ;записать
+	jr c,save_file_ex_err
+	
+save_file_ex_ok
+	jp loop_radio
+
+save_file_ex_err
+	call radio_main_error
+	jp loop_radio
+	
+	
+save_file_prep_name
+	;найти и подготовить имя файла
+	ld de,Content_originalFileName
+	call search_str
+	jr c,save_file_prep_name_no ;если не нашли имени
+	;перенести до символа "
+	ld de,save_file_name ;куда
+	ld b,save_file_name_max_lenght ;макс длина
+	ld c,#ff ;для цикла
+save_file_prep_name_cl ;цикл
+	ld a,(hl)
+	cp '"'
+	jr z,save_file_prep_name_ex
+	ldi 
+	jr save_file_prep_name_cl
+	
+save_file_prep_name_ex
+	xor a
+	ld (de),a ;в конце 0
+	ret
+	
+save_file_prep_name_no
+	ld de,Content_ID ;id трека
+	call search_str
+	ld de,save_file_name ;куда
+	ld bc,5
+	ldir
+	;теперь расширение
+	ld a,'.'
+	ld (de),a
+	inc de
+	ld hl,request_format
+	ld bc,3
+	ldir
+	jr save_file_prep_name_ex
+	
+	
+save_file_name_max_lenght equ 250 ;максимальная длина имени
+path_download db "\\OSZ\\Download",0	
+msg_save_file db 13,"Save file: "	
+save_file_name  ;тут имя файла
+	ds save_file_name_max_lenght+1 ;буфер для имени файла
+	
+	
+
+	
+	
 	
     ; include "drivers/utils.asm"
     ; include "drivers/wifi.asm"
@@ -1137,6 +1235,7 @@ Content_Year db "\"year\":",0
 Content_Time db "\"time\":",0
 Content_ID db "\"id\":",0
 Content_Type db "\"type\":",0
+Content_originalFileName db 'originalFileName":"',0
 ;file_id db "000000",0 ;id файла
 msg_open db "Open: ",0
 msg_error db "Error",13,0
@@ -1150,7 +1249,8 @@ msg_stop db "Stop",13,0
 msg_restart db "Restart...",13,0
 ;msg_get_link_id db "Get link ID...",13,0
 msg_sys_info db "S - Stop, R - Restart, 1-2 - Format (pt2, pt3)",13
-	db "Sp - Next, Break - Exit",13,0
+	db "Sp - Next, Break - Exit, "
+	db "D - Save file",13,0
 msg_order 	db "Q - Order: ",0
 msg_cur_number	db 13,"Current number: ",0
 
@@ -1207,7 +1307,7 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_radio
-	db "Radio ver 2025.05.27",10,13,0
+	db "Radio ver 2025.06.18",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки
