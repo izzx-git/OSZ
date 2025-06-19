@@ -5,6 +5,7 @@ view_file
 	ld a,l
 	or h
 	jp z,view_file_ex ;защита
+	ld hl,(file_r_num_cur)
 	call calc_deskr
 	ld a,(ix+#0b) 
 	cp #10 ;признак каталога
@@ -115,9 +116,9 @@ view_file_wait ;цикл ожидания клавиши
 	jp z,view_right 
 	cp 08 ;влево
 	jp z,view_left
-	cp 04 ;вправо
+	cp 04 ;страница вверх
 	jp z,view_page_up
-	cp 05 ;влево
+	cp 05 ;страница вниз
 	jp z,view_page_down
 	cp 24 ;break
 	jp z,exit

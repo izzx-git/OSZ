@@ -37,14 +37,15 @@ start_nc_warm ;тёплый старт
 	;загрузка каталога
 	ld hl,buffer_cat ;куда
 	ld de,0 ;начиная с 0 сектора
-	ld b,32 ; секторов
+	ld b,32 ; секторов = 16384 = 512 файлов макс
 	OS_DIR_READ
 
 	ld hl,0 ;обнулить переменные
 	ld (file_r_num_cur),hl
 	ld (file_r_all),hl
+	ld (file_r_cur_focus),hl
 	
-	call format_dir
+	call sort_dir
 	
 	ld a,color_backgr
 	ld b,#c	
@@ -67,13 +68,26 @@ nc_wait
 	cp 13
 	jp z,key_enter ;
 	cp 10 ;вниз
-	jp z,key_down 
+	call z,key_down 
 	cp 11 ;вверх
-	jp z,key_up 
-	cp 24 ;break
-	jp z,exit
+	call z,key_up 
+	cp 09 ;вправо
+	call z,key_right 
+	cp 08 ;влево
+	call z,key_left
+	cp "2" ;переключение сортировки
+	jp z,sort_toggle
 	cp "3" ;просмотр файла
 	jp z,view_file	
+	cp 24 ;break
+	jp z,exit
+
+	
+	ld a,(print_panel_r_flag)
+	or a
+	call nz,print_panel_r ;обновить каталог
+	xor a
+	ld (print_panel_r_flag),a
 	
 	jp nc_wait ;на цикл ожидания
 
@@ -111,6 +125,7 @@ key_enter
 	ld a,l
 	or h
 	jp z,key_enter_ex ;защита
+	ld hl,(file_r_num_cur)
 	call calc_deskr
 	ld a,(ix+#0b) 
 	cp #10 ;признак каталога
@@ -169,18 +184,20 @@ key_enter_dir
 	; ld (de),a
 	; ret
 
-calc_deskr ;вычислить дескриптор текущего элемента справа
-	ld de,buffer_cat
-	ld hl,(file_r_num_cur)
+ ;вычислить дескриптор текущего элемента справа
+calc_deskr
 	add hl,hl ;*2
-	add hl,hl ;*4
-	add hl,hl ;*8
-	add hl,hl ;*16
-	add hl,hl ;*32
-	add hl,de
+	ld bc,cat_index
+	add hl,bc
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ex de,hl ;hl - адрес элемента
 	push hl
-	pop ix ;указатель на файл в каталоге
+	pop ix ;ix- адрес элемента
 	ret
+	
+
 
 
 key_down
@@ -188,40 +205,114 @@ key_down
 	ld a,l
 	or h
 	jp z,key_down_ex ;защита
-	ld hl,(file_r_num_cur)
-	inc hl	
-	ld bc,(file_r_all)
+	
+	ld bc,(file_r_num_cur)
+	inc bc	
+	ld hl,(file_r_all)
 	;если не больше чем всего
-	push hl
 	and a
 	sbc hl,bc
-	pop hl
-	jr nc,key_down_skip
-	ld (file_r_num_cur),hl
-	call print_panel_r ;обновить каталог
+	jr c,key_down_skip
+	jr z,key_down_skip
+	;прибавить
+	ld (file_r_num_cur),bc
+	
+	;теперь передвинуть фокус, если надо
+	ld hl,(file_r_cur_focus)	
+	ld bc,panel_hight
+	add hl,bc ;прибавить количество видимых	
+	ld bc,(file_r_num_cur)
+	and a
+	sbc hl,bc ;вычесть положение курсора
+	jr z,key_down_change_focus_yes
+	jr nc,key_down_change_focus_no
+key_down_change_focus_yes
+	;передвинуть фокус
+	ld hl,(file_r_cur_focus)
+	inc hl
+	ld (file_r_cur_focus),hl	
+	
+key_down_change_focus_no	
+	ld a,1
+	ld (print_panel_r_flag),a
+	;call print_panel_r ;обновить каталог
 key_down_skip
-	ld a,(key_pressed)
+
 key_down_ex
-	jp nc_wait
+	ld a,(key_pressed)
+	ret
 	
 	
 	
-key_up
+key_up ;вверх
 	ld hl,(file_r_all)
 	ld a,l
 	or h
 	jp z,key_up_ex ;защита
+	
 	ld hl,(file_r_num_cur)
 	ld a,l
 	or h
 	jr z,key_up_skip
 	dec hl
 	ld (file_r_num_cur),hl
-	call print_panel_r ;обновить каталог
+	
+	;теперь передвинуть фокус, если надо
+	ld hl,(file_r_num_cur)	
+	; ld bc,panel_hight
+	; add hl,bc ;прибавить количество видимых	
+	ld bc,(file_r_cur_focus)
+	and a
+	sbc hl,bc ;вычесть положение курсора
+	;jr z,key_up_change_foces_yes
+	jr nc,key_up_change_foces_no
+key_up_change_foces_yes	
+	;передвинуть фокус
+	ld hl,(file_r_cur_focus)
+	ld a,h
+	or l
+	jr z,key_up_change_foces_no ;защита
+	dec hl
+	ld (file_r_cur_focus),hl	
+	
+key_up_change_foces_no	
+	
+	ld a,1
+	ld (print_panel_r_flag),a
+	;call print_panel_r ;обновить каталог
 key_up_skip
 
 key_up_ex
-	jp nc_wait
+	ld a,(key_pressed)
+	ret
+	
+	
+key_left ;на страницу назад
+	ld b,panel_hight-1
+key_left_cl
+	push bc
+	call key_up
+	pop bc
+	djnz key_left_cl
+	ld a,1
+	ld (print_panel_r_flag),a
+	ld a,(key_pressed)
+	ret
+	
+	
+	
+key_right ;на страницу вперёд
+	ld b,panel_hight-1
+key_right_cl
+	push bc
+	call key_down
+	pop bc
+	djnz key_right_cl
+	ld a,1
+	ld (print_panel_r_flag),a
+	ld a,(key_pressed)
+	ret
+
 
 	
 exit ;выход в DOS
@@ -246,41 +337,57 @@ check_apg ;проверка на расширение APG
 
 	
 print_panel_r ;печать правой панели
-	ld ix,buffer_cat	
+	;ld ix,buffer_cat	
+	ld iy,(file_r_all) ;всего файлов
+	ld a,iyl
+	or iyh
+	ret z ;защита если 0
 	ld de,panel_r_xy ;координаты yx
 	ld b,panel_hight ;высота панели
-	ld iy,0
+	ld iy,(file_r_cur_focus) ;номер файла первый видимый
 print_panel_r_cl ;цикл
 	push bc
 	push de ;xy
 	OS_SET_XY
-	push ix ;адрес элемента
+	
+	;получить адрес элемента
+	push iy
 	pop hl
-	ld a,(hl)
-	or a ;конец каталога
-	jr z,print_panel_r_ex
-	call print_file_info
+	call calc_deskr
+		
+	call print_file_info ;напечатать строку
 print_panel_r_skip
 	pop de
 	inc d ;y++
 	inc iy ;текущий файл
-	ld bc,32 ;на другой элемент каталога
-	add ix,bc
+	;проверка на конец каталога
+	ld hl,(file_r_all)
+	push iy
 	pop bc
+	and a
+	sbc hl,bc
+	pop bc
+	jr c,print_panel_r_ex2
+	jr z,print_panel_r_ex2
 	djnz print_panel_r_cl
 	ret
 print_panel_r_ex
 	pop de
 	pop bc
-	
-	;здесь почистить остаток каталога
+print_panel_r_ex2	
+	;тут, возможно, надо допечатать пустые строки
 	ret
 
 
 	
 print_file_info ;печать строчки о файле
 	ld de,file_info_string ;скопировать
-	ld bc,file_info_lenght
+	ld bc,8 ;file_info_lenght
+	ldir
+	ld a,' '
+	ld (de),a
+	inc de
+	ld bc,3
 	ldir
 
 	call get_color_item
@@ -346,97 +453,318 @@ get_color_item_backgr
 
 	
 	
-format_dir ;подготовить каталог, убрать лишнее
-	; ld a,2
-	; out (254),a
-	ld iy,0 ;счётчик файлов	
-	;найти конец каталога
-	ld hl,buffer_cat
-	ld a,(hl)
+; format_dir ;подготовить каталог, убрать лишнее
+	; ; ld a,2
+	; ; out (254),a
+	; ld iy,0 ;счётчик файлов	
+	; ;найти конец каталога
+	; ld hl,buffer_cat
+	; ld a,(hl)
+	; or a
+	; ret z ;защита
+	; ld bc,32
+; format_dir_prep_cl
+	; ld a,(hl)
+	; or a
+	; jr z,format_dir_prep_ex
+	; add hl,bc
+	; ld a,h
+	; or a ;если вышли за границу	
+	; jr z,format_dir_prep_ex
+	; jr format_dir_prep_cl
+; format_dir_prep_ex
+	; ld bc,32
+	; and a
+	; sbc hl,bc
+	; ld (format_dir_top),hl ;конец каталога
+
+
+
+	; ld ix,buffer_cat	
+	; ;ld b,panel_hight ;высота панели
+; format_dir_cl ;цикл
+	; ld a,(ix)
+	; or a ;конец каталога
+	; jr z,format_dir_ex
+	; cp #e5 ;удалённый
+	; jr z,format_dir_skip
+	; cp #05 ;удалённый	
+	; jr z,format_dir_skip	
+	; ld a,(ix+#0b)
+	; cp #0f ;длинный	
+	; jr z,format_dir_skip
+	
+	; ;проверка на папку "." (этот же каталог)
+	; ld a,(ix+#00)
+	; cp "." ;	
+	; jr nz,format_dir_add
+	; ld a,(ix+#01)
+	; cp " " ;
+	; jr z,format_dir_skip	
+	
+	
+; format_dir_add	
+	; inc iy ;++
+	; ld bc,32 ;на другой элемент каталога
+	; add ix,bc
+	; ld a,ixh
+	; or a ;если вышли за границу
+	; jr z,format_dir_ex	
+	; jr format_dir_cl
+; format_dir_skip
+	; ;сдвинуть элементы вниз
+	; push ix
+	; push ix
+	; pop hl 
+	; pop de ;куда
+	; ld hl,(format_dir_top) ;0-32
+	; and a
+	; sbc hl,de
+	; ld b,h
+	; ld c,l ;длина
+	; push bc
+	
+	; push ix
+	; pop hl ;откуда
+	; ld bc,32 ;на другой элемент каталога
+	; add hl,bc ;откуда
+
+	; pop bc
+	; ldir
+	
+	; xor a
+	; ld (de),a ;очистить ненужный элемент
+	
+	; jr format_dir_cl
+
+; format_dir_ex
+	; ld (file_r_all),iy
+	; ;здесь почистить остаток каталога
+	; ; ld a,0
+	; ; out (254),a
+	; ret
+; format_dir_top	dw 0 ;временно конец гаталога
+	
+	
+	
+	
+	
+sort_dir ;сортировка каталога с помощью построения индекса
+	ld ix,buffer_cat	;каталог тут
+	ld a,(ix)
 	or a
-	ret z ;защита
-	ld bc,32
-format_dir_prep_cl
-	ld a,(hl)
+	ret z ;если пусто, выход
+	ld iy,0 ;счётчик
+	ld hl,cat_index ;таблица - индекс
+	
+	ld a,(sort_enable_flag)
 	or a
-	jr z,format_dir_prep_ex
-	add hl,bc
-	ld a,h
-	or a ;если вышли за границу	
-	jr z,format_dir_prep_ex
-	jr format_dir_prep_cl
-format_dir_prep_ex
-	ld bc,32
-	and a
-	sbc hl,bc
-	ld (format_dir_top),hl ;конец каталога
+	jp z,sort_dir_no
+	
+	xor a
+	ld (sort_item),a ;образец для сравнения
+sort_dir_cl
+	call sort_dir_one ;один проход по папкам
+	ld a,(sort_item)
+	inc a ;следующий образец
+	ld (sort_item),a
+	jr nz,sort_dir_cl
+	
+	; xor a
+	; ld (sort_item),a ;образец для сравнения
+sort_file_cl
+	call sort_file_one ;один проход по файлам
+	ld a,(sort_item)
+	inc a ;следующий образец
+	ld (sort_item),a
+	jr nz,sort_file_cl
+	
+	ret
+	
+sort_item db 0; текущий образец
 
 
 
-	ld ix,buffer_cat	
-	;ld b,panel_hight ;высота панели
-format_dir_cl ;цикл
+;без сортировки
+sort_dir_no
+	ld ix,buffer_cat	;каталог тут
+sort_dir_no_cl ;цикл по каталогам
 	ld a,(ix)
 	or a ;конец каталога
-	jr z,format_dir_ex
+	jr z,sort_dir_no_ex
 	cp #e5 ;удалённый
-	jr z,format_dir_skip
+	jr z,sort_dir_no_skip
 	cp #05 ;удалённый	
-	jr z,format_dir_skip	
+	jr z,sort_dir_no_skip	
 	ld a,(ix+#0b)
 	cp #0f ;длинный	
-	jr z,format_dir_skip
+	jr z,sort_dir_no_skip
 	
 	;проверка на папку "." (этот же каталог)
 	ld a,(ix+#00)
 	cp "." ;	
-	jr nz,format_dir_add
+	jr nz,sort_dir_no_add
 	ld a,(ix+#01)
 	cp " " ;
-	jr z,format_dir_skip	
+	jr z,sort_dir_no_skip	
 	
-	
-format_dir_add	
+sort_dir_no_add	
 	inc iy ;++
-	ld bc,32 ;на другой элемент каталога
-	add ix,bc
-	ld a,ixh
-	or a ;если вышли за границу
-	jr z,format_dir_ex	
-	jr format_dir_cl
-format_dir_skip
-	;сдвинуть элементы вниз
+	;записать в таблицу (индекс)
 	push ix
-	push ix
-	pop hl 
-	pop de ;куда
-	ld hl,(format_dir_top) ;0-32
-	and a
-	sbc hl,de
-	ld b,h
-	ld c,l ;длина
-	push bc
-	
-	push ix
-	pop hl ;откуда
-	ld bc,32 ;на другой элемент каталога
-	add hl,bc ;откуда
-
 	pop bc
-	ldir
+	ld (hl),c
+	inc hl
+	ld (hl),b
+	inc hl
 	
-	xor a
-	ld (de),a ;очистить ненужный элемент
 	
-	jr format_dir_cl
+sort_dir_no_skip
+	ld bc,32
+	add ix,bc ;на следующий
+	ld a,ixh ;проверка на конец буфера
+	cp #c0
+	jr nc,sort_dir_no_cl
 
-format_dir_ex
+sort_dir_no_ex
 	ld (file_r_all),iy
-	;здесь почистить остаток каталога
-	; ld a,0
-	; out (254),a
 	ret
-format_dir_top	dw 0 ;временно конец гаталога
+
+
+;сортировка файлов
+sort_file_one
+	ld ix,buffer_cat	;каталог тут
+sort_file_one_cl ;цикл по каталогам
+	ld a,(ix)
+	or a ;конец каталога
+	jr z,sort_file_one_ex
+	ld a,(ix+#0b) 
+	cp #10 ;признак каталога
+	jr z,sort_file_one_skip
+	ld a,(ix)
+	cp #e5 ;удалённый
+	jr z,sort_file_one_skip
+	cp #05 ;удалённый	
+	jr z,sort_file_one_skip	
+	ld a,(ix+#0b)
+	cp #0f ;длинный	
+	jr z,sort_file_one_skip
+	
+	; ;проверка на папку "." (этот же каталог)
+	; ld a,(ix+#00)
+	; cp "." ;	
+	; jr nz,sort_file_one_add
+	; ld a,(ix+#01)
+	; cp " " ;
+	; jr z,sort_file_one_skip	
+	
+	
+sort_file_one_add	
+	ld a,(sort_item)
+	cp (ix+#00) ;первая буква имени
+	jr nz,sort_file_one_skip ;пока не подошла
+	
+	inc iy ;++
+	;записать в таблицу (индекс)
+	push ix
+	pop bc
+	ld (hl),c
+	inc hl
+	ld (hl),b
+	inc hl
+	
+	
+sort_file_one_skip
+	ld bc,32
+	add ix,bc ;на следующий
+	ld a,ixh ;проверка на конец буфера
+	cp #c0
+	jr nc,sort_file_one_cl
+
+sort_file_one_ex
+	ld (file_r_all),iy
+	ret
+	
+	
+	
+	
+	
+;сортировка папок
+sort_dir_one
+	ld ix,buffer_cat	;каталог тут
+sort_dir_one_cl ;цикл по каталогам
+	ld a,(ix)
+	or a ;конец каталога
+	jr z,sort_dir_one_ex
+	ld a,(ix+#0b) 
+	cp #10 ;признак каталога
+	jr nz,sort_dir_one_skip
+	ld a,(ix)	
+	cp #e5 ;удалённый
+	jr z,sort_dir_one_skip
+	cp #05 ;удалённый	
+	jr z,sort_dir_one_skip	
+	ld a,(ix+#0b)
+	cp #0f ;длинный	
+	jr z,sort_dir_one_skip
+	
+	;проверка на папку "." (этот же каталог)
+	ld a,(ix+#00)
+	cp "." ;	
+	jr nz,sort_dir_one_add
+	ld a,(ix+#01)
+	cp " " ;
+	jr z,sort_dir_one_skip	
+	
+sort_dir_one_add	
+	ld a,(sort_item)
+	cp (ix+#00) ;первая буква имени
+	jr nz,sort_dir_one_skip ;пока не подошла
+	
+	inc iy ;++
+	;записать в таблицу (индекс)
+	push ix
+	pop bc
+	ld (hl),c
+	inc hl
+	ld (hl),b
+	inc hl
+	
+	
+sort_dir_one_skip
+	ld bc,32
+	add ix,bc ;на следующий
+	ld a,ixh ;проверка на конец буфера
+	cp #c0
+	jr nc,sort_dir_one_cl
+
+sort_dir_one_ex
+	ld (file_r_all),iy
+	ret
+
+
+
+
+
+
+
+sort_toggle ;переключение сортировки
+	ld a,(sort_enable_flag)
+	xor 1
+	ld (sort_enable_flag),a
+	ld a,"N" ;вкл
+	jr nz,sort_toggle1
+	ld a,"f";выкл
+sort_toggle1	
+	ld (msg_menu_main2+6),a
+	
+	call sort_dir
+	call print_menu_main
+	call print_panel_r
+	
+	jp nc_wait
+sort_enable_flag db 0 ;флаг сортировки
+
 	
 	
 format_name ;подогнать имя под стандарт filename.ext
@@ -511,9 +839,13 @@ print_menu_main ;печать основного меню
 	ld a,color_backgr_hi ;цвет
 	ld b,#c
 	OS_SET_COLOR
+	ld de,#1800+2*8
+	OS_SET_XY
+	ld hl,msg_menu_main2
+	OS_PRINTZ
 	ld de,#1800+3*8
 	OS_SET_XY
-	ld hl,msg_menu_main
+	ld hl,msg_menu_main3
 	OS_PRINTZ
 	ret
 	
@@ -535,6 +867,7 @@ panel_r_xy equ #0129
 buffer_cat equ #c000 ;адрес буфера каталога
 
 file_r_all dw 0;всего файлов справа
+file_r_cur_focus dw 0;первый видимый
 file_name_cur ds 256 ;имя файла текущее
 dir_name_cur ds 256 ;имя файла текущее
 file_info_string ds file_info_lenght+1 ;буфер инфо
@@ -548,6 +881,7 @@ file_id_cur_r db 0 ;id файла справа
 
 page_ext01 db 0 ;номер дополнительной страницы
 page_main dw 0 ;основные номера страниц слота 2,3
+print_panel_r_flag db 0 ;флаг что надо обновить правую панель
 
 rect_1 
 	db #c9
@@ -570,7 +904,9 @@ rect_3
 	edup
 	db #bc,0	
 
-msg_menu_main
+msg_menu_main2
+	db "2 AZ Of",0
+msg_menu_main3	
 	db "3 View",0
 msg_file_error
 	db "File error",10,13,0
@@ -579,7 +915,10 @@ msg_file_too_big
 msg_mem_err
 	db "Get memory error",10,13,0
 msg_title_nc
-	db "None Commander ver 2025.06.17",10,13,0
+	db "None Commander ver 2025.06.19",10,13,0
 
 end_nc
+;ниже не включается в файл
+cat_index ds 1024 ;буфер для индекса (вектора) сортировки
+
 	savebin "nc.apg",start_nc,$-start_nc

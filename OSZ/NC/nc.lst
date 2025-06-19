@@ -396,17 +396,21 @@
 391+  0000 ~                rst #20
 392+  0000                  endm
 393+  0000
-394+  0000                  ; macro OS_ ;
-395+  0000                  ; ld c,#29
-396+  0000                  ; rst #20
-397+  0000                  ; endm
-398+  0000
-399+  0000
+394+  0000              ; поиск файла или каталога по заданному пути, начиная от корневого, со входом в подкаталоги
+395+  0000              ;вх: hl - путь к файлу в формате ASCIZ (не более 250 байт, заканчивается нулем)
+396+  0000              	 ;формат пути: \[DIR\DIR\..\DIR\]filename.ext	(можно без имени файла, только каталоги)
+397+  0000              ;вх: a=#00/#FF - без установки каталога/с установкой найденного каталога текущим
+398+  0000                  macro OS_FIND_PATH ;
+399+  0000 ~                ld c,#29
+400+  0000 ~                rst #20
+401+  0000                  endm
+402+  0000
+403+  0000
 # file closed: ../os_defs.asm
   4   0000              	org PROGSTART
   5   8000
   6   8000              start_nc
-  7   8000 21 5B 88     	ld hl,msg_title_nc ;имя приложения
+  7   8000 21 AE 89     	ld hl,msg_title_nc ;имя приложения
   8   8003              	OS_PRINTZ ;печать
   8   8003 0E 09       >    ld c,#09
   8   8005 E7          >    rst #20
@@ -418,7 +422,7 @@
  12   8008 E7          >    rst #20
  13   8009 38 09        	jr c,get_page_error
  14   800B
- 15   800B ED 43 A8 87  	ld (page_main),bc
+ 15   800B ED 43 F2 88  	ld (page_main),bc
  16   800F
  17   800F
  18   800F              	OS_GET_PAGE ;получить лишнюю страницу
@@ -426,1315 +430,1660 @@
  18   8011 E7          >    rst #20
  19   8012 30 0C        	jr nc,get_page_ok
  20   8014              get_page_error
- 21   8014 21 48 88     	ld hl,msg_mem_err ;нет памяти
+ 21   8014 21 9B 89     	ld hl,msg_mem_err ;нет памяти
  22   8017              	OS_PRINTZ ;печать
  22   8017 0E 09       >    ld c,#09
  22   8019 E7          >    rst #20
  23   801A
- 24   801A CD 76 80     	call delay
- 25   801D C3 18 81     	jp exit
+ 24   801A CD 93 80     	call delay
+ 25   801D C3 8D 81     	jp exit
  26   8020
  27   8020              get_page_ok
- 28   8020 32 A7 87     	ld (page_ext01),a ;запомнить
+ 28   8020 32 F1 88     	ld (page_ext01),a ;запомнить
  29   8023
  30   8023
  31   8023
  32   8023              start_nc_warm ;тёплый старт
  33   8023
  34   8023              	;очистка буфера
- 35   8023 CD 7C 80     	call clear_buf
+ 35   8023 CD 99 80     	call clear_buf
  36   8026
  37   8026              	;загрузка каталога
  38   8026 21 00 C0     	ld hl,buffer_cat ;куда
  39   8029 11 00 00     	ld de,0 ;начиная с 0 сектора
- 40   802C 06 20        	ld b,32 ; секторов
+ 40   802C 06 20        	ld b,32 ; секторов = 16384 = 512 файлов макс
  41   802E              	OS_DIR_READ
  41   802E 0E 26       >    ld c,#26
  41   8030 E7          >    rst #20
  42   8031
  43   8031 21 00 00     	ld hl,0 ;обнулить переменные
- 44   8034 22 A3 87     	ld (file_r_num_cur),hl
- 45   8037 22 87 85     	ld (file_r_all),hl
- 46   803A
- 47   803A CD B4 81     	call format_dir
- 48   803D
- 49   803D 3E 0F        	ld a,color_backgr
- 50   803F 06 0C        	ld b,#c
- 51   8041              	OS_SET_COLOR
- 51   8041 0E 06       >    ld c,#06
- 51   8043 E7          >    rst #20
- 52   8044
- 53   8044 CD 63 82     	call print_rect_r ;рамка
- 54   8047 CD 30 81     	call print_panel_r
- 55   804A CD 98 82     	call print_menu_main
- 56   804D
- 57   804D 11 00 01     	ld de,#0100
- 58   8050              	OS_SET_XY
- 58   8050 0E 01       >    ld c,#01
- 58   8052 E7          >    rst #20
- 59   8053
- 60   8053
- 61   8053
- 62   8053              nc_wait
- 63   8053              	OS_WAIT ;ждать прерывание
- 63   8053 DF          >	rst #18
- 64   8054
- 65   8054              	OS_GET_CHAR ;клавиша
- 65   8054 0E 10       >    ld c,#10
- 65   8056 E7          >    rst #20
- 66   8057 32 A5 87     	ld (key_pressed),a ;запомнить
- 67   805A FE 0D        	cp 13
- 68   805C CA 93 80     	jp z,key_enter ;
- 69   805F FE 0A        	cp 10 ;вниз
- 70   8061 CA DC 80     	jp z,key_down
- 71   8064 FE 0B        	cp 11 ;вверх
- 72   8066 CA FF 80     	jp z,key_up
- 73   8069 FE 18        	cp 24 ;break
- 74   806B CA 18 81     	jp z,exit
- 75   806E FE 33        	cp "3" ;просмотр файла
- 76   8070 CA AC 82     	jp z,view_file
- 77   8073
- 78   8073 C3 53 80     	jp nc_wait ;на цикл ожидания
- 79   8076
- 80   8076
- 81   8076              delay ;задержка
- 82   8076 06 96        	ld b,50*3 ;
- 83   8078              delay1
- 84   8078              	OS_WAIT
- 84   8078 DF          >	rst #18
- 85   8079 10 FD        	djnz delay1
- 86   807B C9           	ret
- 87   807C
- 88   807C
- 89   807C              clear_buf
- 90   807C 21 00 C0     	ld hl,buffer_cat
- 91   807F 11 01 C0     	ld de,buffer_cat+1
- 92   8082 01 FF 3F     	ld bc,#4000-1
- 93   8085 36 00        	ld (hl),0
- 94   8087 ED B0        	ldir
- 95   8089 C9           	ret
- 96   808A
- 97   808A
- 98   808A
- 99   808A
-100   808A              release_key ;ждать отпускания клавиши
-101   808A              	OS_WAIT
-101   808A DF          >	rst #18
-102   808B              	OS_GET_CHAR
-102   808B 0E 10       >    ld c,#10
-102   808D E7          >    rst #20
-103   808E FE FF        	cp 255
-104   8090 20 F8        	jr nz,release_key
-105   8092 C9           	ret
-106   8093
-107   8093
-108   8093              key_enter
-109   8093              	;нажата Enter
-110   8093 2A 87 85     	ld hl,(file_r_all)
-111   8096 7D           	ld a,l
-112   8097 B4           	or h
-113   8098 CA BC 80     	jp z,key_enter_ex ;защита
-114   809B CD CC 80     	call calc_deskr
-115   809E DD 7E 0B     	ld a,(ix+#0b)
-116   80A1 FE 10        	cp #10 ;признак каталога
-117   80A3 28 1A        	jr z,key_enter_dir
-118   80A5
-119   80A5              	;проверка расширения ;APG
-120   80A5 CD 1C 81     	call check_apg
-121   80A8 C2 BC 80     	jp nz,key_enter_ex
-122   80AB              	;тут запуск приложения
-123   80AB CD 2E 82     	call format_name
-124   80AE
-125   80AE 21 89 85     	ld hl,file_name_cur		;строка с именем
-126   80B1              	OS_PROC_RUN ;запустить прогу
-126   80B1 0E 11       >    ld c,#11
-126   80B3 E7          >    rst #20
-127   80B4              	;обработка ошибки
-128   80B4 38 06        	jr c,key_enter_ex
-129   80B6
-130   80B6 DD 7E 00     	ld a,(ix)
-131   80B9              	OS_PROC_SET_FOCUS ;на передний план
-131   80B9 0E 12       >    ld c,#12
-131   80BB E7          >    rst #20
-132   80BC
-133   80BC              key_enter_ex
-134   80BC C3 53 80     	jp nc_wait
-135   80BF
-136   80BF              key_enter_dir
-137   80BF              	;тут открытие папки
-138   80BF
-139   80BF              	;call format_name_dir
-140   80BF EB           	ex de,hl ;de - дескриптор для открытия
-141   80C0 21 89 86     	ld hl,dir_name_cur
-142   80C3              	OS_DIR_OPEN
-142   80C3 0E 27       >    ld c,#27
-142   80C5 E7          >    rst #20
-143   80C6 38 F4        	jr c,key_enter_ex ;если ошибка, ничего не делаем
-144   80C8
-145   80C8 E1           	pop hl ;отменить возврат
-146   80C9 C3 23 80     	jp start_nc_warm ;перезагрузить папку
-147   80CC
-148   80CC
-149   80CC              ; format_name_dir
-150   80CC              	; push hl
-151   80CC              	; ld hl,file_name_cur
-152   80CC              	; ld de,file_name_cur+1 ;почистить
-153   80CC              	; ld bc,256-1
-154   80CC              	; ld (hl),0
-155   80CC              	; ldir
-156   80CC
-157   80CC              	; pop hl
-158   80CC
-159   80CC              	; ld de,file_name_cur ;куда
-160   80CC              	; ld bc,#08ff
-161   80CC              ; format_name_dir_cl
-162   80CC              	; ld a,(hl)
-163   80CC              	; cp " "+1
-164   80CC              	; jr c,format_name_dir_skip
-165   80CC              	; ldi
-166   80CC              	; djnz format_name_dir_cl
-167   80CC              ; format_name_dir_skip
-168   80CC              	; ld a,'/'
-169   80CC              	; ld (de),a
-170   80CC              	; ret
-171   80CC
-172   80CC              calc_deskr ;вычислить дескриптор текущего элемента справа
-173   80CC 11 00 C0     	ld de,buffer_cat
-174   80CF 2A A3 87     	ld hl,(file_r_num_cur)
-175   80D2 29           	add hl,hl ;*2
-176   80D3 29           	add hl,hl ;*4
-177   80D4 29           	add hl,hl ;*8
-178   80D5 29           	add hl,hl ;*16
-179   80D6 29           	add hl,hl ;*32
-180   80D7 19           	add hl,de
-181   80D8 E5           	push hl
-182   80D9 DD E1        	pop ix ;указатель на файл в каталоге
-183   80DB C9           	ret
-184   80DC
-185   80DC
-186   80DC              key_down
-187   80DC 2A 87 85     	ld hl,(file_r_all)
-188   80DF 7D           	ld a,l
-189   80E0 B4           	or h
-190   80E1 CA FC 80     	jp z,key_down_ex ;защита
-191   80E4 2A A3 87     	ld hl,(file_r_num_cur)
-192   80E7 23           	inc hl
-193   80E8 ED 4B 87 85  	ld bc,(file_r_all)
-194   80EC              	;если не больше чем всего
-195   80EC E5           	push hl
-196   80ED A7           	and a
-197   80EE ED 42        	sbc hl,bc
-198   80F0 E1           	pop hl
-199   80F1 30 06        	jr nc,key_down_skip
-200   80F3 22 A3 87     	ld (file_r_num_cur),hl
-201   80F6 CD 30 81     	call print_panel_r ;обновить каталог
-202   80F9              key_down_skip
-203   80F9 3A A5 87     	ld a,(key_pressed)
-204   80FC              key_down_ex
-205   80FC C3 53 80     	jp nc_wait
-206   80FF
-207   80FF
-208   80FF
-209   80FF              key_up
-210   80FF 2A 87 85     	ld hl,(file_r_all)
-211   8102 7D           	ld a,l
-212   8103 B4           	or h
-213   8104 CA 15 81     	jp z,key_up_ex ;защита
-214   8107 2A A3 87     	ld hl,(file_r_num_cur)
-215   810A 7D           	ld a,l
-216   810B B4           	or h
-217   810C 28 07        	jr z,key_up_skip
-218   810E 2B           	dec hl
-219   810F 22 A3 87     	ld (file_r_num_cur),hl
-220   8112 CD 30 81     	call print_panel_r ;обновить каталог
-221   8115              key_up_skip
-222   8115
-223   8115              key_up_ex
-224   8115 C3 53 80     	jp nc_wait
-225   8118
-226   8118
-227   8118              exit ;выход в DOS
-228   8118 AF           	xor a
-229   8119              	OS_PROC_CLOSE
-229   8119 0E 13       >    ld c,#13
-229   811B E7          >    rst #20
-230   811C
-231   811C
-232   811C
-233   811C              check_apg ;проверка на расширение APG
-234   811C DD 7E 08     	ld a,(ix+8)
-235   811F FE 41        	cp "A"
-236   8121 C0           	ret nz
-237   8122 DD 7E 09     	ld a,(ix+9)
-238   8125 FE 50        	cp "P"
-239   8127 C0           	ret nz
-240   8128 DD 7E 0A     	ld a,(ix+10)
-241   812B FE 47        	cp "G"
-242   812D C0           	ret nz
-243   812E AF           	xor a ;равен
-244   812F C9           	ret
-245   8130
-246   8130
-247   8130
-248   8130              print_panel_r ;печать правой панели
-249   8130 DD 21 00 C0  	ld ix,buffer_cat
-250   8134 11 29 01     	ld de,panel_r_xy ;координаты yx
-251   8137 06 16        	ld b,panel_hight ;высота панели
-252   8139 FD 21 00 00  	ld iy,0
-253   813D              print_panel_r_cl ;цикл
-254   813D C5           	push bc
-255   813E D5           	push de ;xy
-256   813F              	OS_SET_XY
-256   813F 0E 01       >    ld c,#01
-256   8141 E7          >    rst #20
-257   8142 DD E5        	push ix ;адрес элемента
-258   8144 E1           	pop hl
-259   8145 7E           	ld a,(hl)
-260   8146 B7           	or a ;конец каталога
-261   8147 28 10        	jr z,print_panel_r_ex
-262   8149 CD 5C 81     	call print_file_info
-263   814C              print_panel_r_skip
-264   814C D1           	pop de
-265   814D 14           	inc d ;y++
-266   814E FD 23        	inc iy ;текущий файл
-267   8150 01 20 00     	ld bc,32 ;на другой элемент каталога
-268   8153 DD 09        	add ix,bc
-269   8155 C1           	pop bc
-270   8156 10 E5        	djnz print_panel_r_cl
-271   8158 C9           	ret
-272   8159              print_panel_r_ex
-273   8159 D1           	pop de
-274   815A C1           	pop bc
-275   815B
-276   815B              	;здесь почистить остаток каталога
-277   815B C9           	ret
-278   815C
-279   815C
-280   815C
-281   815C              print_file_info ;печать строчки о файле
-282   815C 11 89 87     	ld de,file_info_string ;скопировать
-283   815F 01 0B 00     	ld bc,file_info_lenght
-284   8162 ED B0        	ldir
-285   8164
-286   8164 CD 73 81     	call get_color_item
-287   8167
-288   8167 06 0C        	ld b,#c
-289   8169              	OS_SET_COLOR
-289   8169 0E 06       >    ld c,#06
-289   816B E7          >    rst #20
-290   816C 21 89 87     	ld hl,file_info_string
-291   816F              	OS_PRINTZ
-291   816F 0E 09       >    ld c,#09
-291   8171 E7          >    rst #20
-292   8172 C9           	ret
-293   8173
-294   8173
-295   8173
-296   8173              get_color_item ;получить цвет элемента
-297   8173              ;вх: IX - адрес в каталоге, IY - порядковый номер (0-511)
-298   8173              ;вых: A - цвет
-299   8173 ED 4B A3 87  	ld bc,(file_r_num_cur) ;позиция курсора справа
-300   8177 FD E5        	push iy
-301   8179 E1           	pop hl
-302   817A A7           	and a
-303   817B ED 42        	sbc hl,bc ;сравнить
-304   817D 28 11        	jr z,get_color_item_no_cursor
-305   817F              	;цвета курсора
-306   817F 3E 0E        	ld a,color_dir ;простая
-307   8181 32 A7 81     	ld (get_color_item_dir+1),a
-308   8184 3E 0C        	ld a,color_apg ;простая
-309   8186 32 AF 81     	ld (get_color_item_apg+1),a
-310   8189 3E 0F        	ld a,color_backgr ;простая
-311   818B 32 B2 81     	ld (get_color_item_backgr+1),a
-312   818E 18 0F        	jr get_color_item_set
-313   8190
-314   8190              get_color_item_no_cursor
-315   8190              	;цвета обычные
-316   8190 3E 28        	ld a,color_dir_hi ;под курсором
-317   8192 32 A7 81     	ld (get_color_item_dir+1),a
-318   8195 3E 28        	ld a,color_apg_hi ;под курсором
-319   8197 32 AF 81     	ld (get_color_item_apg+1),a
-320   819A 3E 28        	ld a,color_backgr_hi ;под курсором
-321   819C 32 B2 81     	ld (get_color_item_backgr+1),a
-322   819F
-323   819F              get_color_item_set
-324   819F              	;задать цвет
-325   819F DD 7E 0B     	ld a,(ix+#0b)
-326   81A2 FE 10        	cp #10 ;признак каталога
-327   81A4 20 03        	jr nz,get_color_item_no_dir
-328   81A6              	;если папка
-329   81A6              get_color_item_dir
-330   81A6 3E 00        	ld a,0
-331   81A8 C9           	ret
-332   81A9
-333   81A9              get_color_item_no_dir
-334   81A9 CD 1C 81     	call check_apg ;расширение apg
-335   81AC 20 03        	jr nz,get_color_item_no_apg
-336   81AE              	;если приложение
-337   81AE              get_color_item_apg
-338   81AE 3E 00        	ld a,0
-339   81B0 C9           	ret
-340   81B1
-341   81B1              get_color_item_no_apg
-342   81B1              	;если обычный файл
-343   81B1              get_color_item_backgr
-344   81B1 3E 00        	ld a,0
-345   81B3 C9           	ret
-346   81B4
-347   81B4
-348   81B4
-349   81B4              format_dir ;подготовить каталог, убрать лишнее
-350   81B4              	; ld a,2
-351   81B4              	; out (254),a
-352   81B4 FD 21 00 00  	ld iy,0 ;счётчик файлов
-353   81B8              	;найти конец каталога
-354   81B8 21 00 C0     	ld hl,buffer_cat
-355   81BB 7E           	ld a,(hl)
-356   81BC B7           	or a
-357   81BD C8           	ret z ;защита
-358   81BE 01 20 00     	ld bc,32
-359   81C1              format_dir_prep_cl
-360   81C1 7E           	ld a,(hl)
-361   81C2 B7           	or a
-362   81C3 28 07        	jr z,format_dir_prep_ex
-363   81C5 09           	add hl,bc
-364   81C6 7C           	ld a,h
-365   81C7 B7           	or a ;если вышли за границу
-366   81C8 28 02        	jr z,format_dir_prep_ex
-367   81CA 18 F5        	jr format_dir_prep_cl
-368   81CC              format_dir_prep_ex
-369   81CC 01 20 00     	ld bc,32
-370   81CF A7           	and a
-371   81D0 ED 42        	sbc hl,bc
-372   81D2 22 2C 82     	ld (format_dir_top),hl ;конец каталога
-373   81D5
-374   81D5
-375   81D5
-376   81D5 DD 21 00 C0  	ld ix,buffer_cat
-377   81D9              	;ld b,panel_hight ;высота панели
-378   81D9              format_dir_cl ;цикл
-379   81D9 DD 7E 00     	ld a,(ix)
-380   81DC B7           	or a ;конец каталога
-381   81DD 28 48        	jr z,format_dir_ex
-382   81DF FE E5        	cp #e5 ;удалённый
-383   81E1 28 27        	jr z,format_dir_skip
-384   81E3 FE 05        	cp #05 ;удалённый
-385   81E5 28 23        	jr z,format_dir_skip
-386   81E7 DD 7E 0B     	ld a,(ix+#0b)
-387   81EA FE 0F        	cp #0f ;длинный
-388   81EC 28 1C        	jr z,format_dir_skip
-389   81EE
-390   81EE              	;проверка на папку "." (этот же каталог)
-391   81EE DD 7E 00     	ld a,(ix+#00)
-392   81F1 FE 2E        	cp "." ;
-393   81F3 20 07        	jr nz,format_dir_add
-394   81F5 DD 7E 01     	ld a,(ix+#01)
-395   81F8 FE 20        	cp " " ;
-396   81FA 28 0E        	jr z,format_dir_skip
-397   81FC
-398   81FC
-399   81FC              format_dir_add
-400   81FC FD 23        	inc iy ;++
-401   81FE 01 20 00     	ld bc,32 ;на другой элемент каталога
-402   8201 DD 09        	add ix,bc
-403   8203 DD 7C        	ld a,ixh
-404   8205 B7           	or a ;если вышли за границу
-405   8206 28 1F        	jr z,format_dir_ex
-406   8208 18 CF        	jr format_dir_cl
-407   820A              format_dir_skip
-408   820A              	;сдвинуть элементы вниз
-409   820A DD E5        	push ix
-410   820C DD E5        	push ix
-411   820E E1           	pop hl
-412   820F D1           	pop de ;куда
-413   8210 2A 2C 82     	ld hl,(format_dir_top) ;0-32
-414   8213 A7           	and a
-415   8214 ED 52        	sbc hl,de
-416   8216 44           	ld b,h
-417   8217 4D           	ld c,l ;длина
-418   8218 C5           	push bc
-419   8219
-420   8219 DD E5        	push ix
-421   821B E1           	pop hl ;откуда
-422   821C 01 20 00     	ld bc,32 ;на другой элемент каталога
-423   821F 09           	add hl,bc ;откуда
-424   8220
-425   8220 C1           	pop bc
-426   8221 ED B0        	ldir
-427   8223
-428   8223 AF           	xor a
-429   8224 12           	ld (de),a ;очистить ненужный элемент
-430   8225
-431   8225 18 B2        	jr format_dir_cl
-432   8227
-433   8227              format_dir_ex
-434   8227 FD 22 87 85  	ld (file_r_all),iy
-435   822B              	;здесь почистить остаток каталога
-436   822B              	; ld a,0
-437   822B              	; out (254),a
-438   822B C9           	ret
-439   822C 00 00        format_dir_top	dw 0 ;временно конец гаталога
-440   822E
-441   822E
-442   822E              format_name ;подогнать имя под стандарт filename.ext
-443   822E              ;вх: HL - имя в каталоге
-444   822E E5           	push hl
-445   822F 21 89 85     	ld hl,file_name_cur
-446   8232 11 8A 85     	ld de,file_name_cur+1 ;почистить
-447   8235 01 FF 00     	ld bc,256-1
-448   8238 36 00        	ld (hl),0
-449   823A ED B0        	ldir
-450   823C
-451   823C E1           	pop hl
-452   823D E5           	push hl
+ 44   8034 22 ED 88     	ld (file_r_num_cur),hl
+ 45   8037 22 CF 86     	ld (file_r_all),hl
+ 46   803A 22 D1 86     	ld (file_r_cur_focus),hl
+ 47   803D
+ 48   803D CD 3E 82     	call sort_dir
+ 49   8040
+ 50   8040 3E 0F        	ld a,color_backgr
+ 51   8042 06 0C        	ld b,#c
+ 52   8044              	OS_SET_COLOR
+ 52   8044 0E 06       >    ld c,#06
+ 52   8046 E7          >    rst #20
+ 53   8047
+ 54   8047 CD 9C 83     	call print_rect_r ;рамка
+ 55   804A CD A5 81     	call print_panel_r
+ 56   804D CD D1 83     	call print_menu_main
+ 57   8050
+ 58   8050 11 00 01     	ld de,#0100
+ 59   8053              	OS_SET_XY
+ 59   8053 0E 01       >    ld c,#01
+ 59   8055 E7          >    rst #20
+ 60   8056
+ 61   8056
+ 62   8056
+ 63   8056              nc_wait
+ 64   8056              	OS_WAIT ;ждать прерывание
+ 64   8056 DF          >	rst #18
+ 65   8057
+ 66   8057              	OS_GET_CHAR ;клавиша
+ 66   8057 0E 10       >    ld c,#10
+ 66   8059 E7          >    rst #20
+ 67   805A 32 EF 88     	ld (key_pressed),a ;запомнить
+ 68   805D FE 0D        	cp 13
+ 69   805F CA B0 80     	jp z,key_enter ;
+ 70   8062 FE 0A        	cp 10 ;вниз
+ 71   8064 CC F9 80     	call z,key_down
+ 72   8067 FE 0B        	cp 11 ;вверх
+ 73   8069 CC 36 81     	call z,key_up
+ 74   806C FE 09        	cp 09 ;вправо
+ 75   806E CC 7B 81     	call z,key_right
+ 76   8071 FE 08        	cp 08 ;влево
+ 77   8073 CC 69 81     	call z,key_left
+ 78   8076 FE 32        	cp "2" ;переключение сортировки
+ 79   8078 CA 49 83     	jp z,sort_toggle
+ 80   807B FE 33        	cp "3" ;просмотр файла
+ 81   807D CA F1 83     	jp z,view_file
+ 82   8080 FE 18        	cp 24 ;break
+ 83   8082 CA 8D 81     	jp z,exit
+ 84   8085
+ 85   8085
+ 86   8085 3A F4 88     	ld a,(print_panel_r_flag)
+ 87   8088 B7           	or a
+ 88   8089 C4 A5 81     	call nz,print_panel_r ;обновить каталог
+ 89   808C AF           	xor a
+ 90   808D 32 F4 88     	ld (print_panel_r_flag),a
+ 91   8090
+ 92   8090 C3 56 80     	jp nc_wait ;на цикл ожидания
+ 93   8093
+ 94   8093
+ 95   8093              delay ;задержка
+ 96   8093 06 96        	ld b,50*3 ;
+ 97   8095              delay1
+ 98   8095              	OS_WAIT
+ 98   8095 DF          >	rst #18
+ 99   8096 10 FD        	djnz delay1
+100   8098 C9           	ret
+101   8099
+102   8099
+103   8099              clear_buf
+104   8099 21 00 C0     	ld hl,buffer_cat
+105   809C 11 01 C0     	ld de,buffer_cat+1
+106   809F 01 FF 3F     	ld bc,#4000-1
+107   80A2 36 00        	ld (hl),0
+108   80A4 ED B0        	ldir
+109   80A6 C9           	ret
+110   80A7
+111   80A7
+112   80A7
+113   80A7
+114   80A7              release_key ;ждать отпускания клавиши
+115   80A7              	OS_WAIT
+115   80A7 DF          >	rst #18
+116   80A8              	OS_GET_CHAR
+116   80A8 0E 10       >    ld c,#10
+116   80AA E7          >    rst #20
+117   80AB FE FF        	cp 255
+118   80AD 20 F8        	jr nz,release_key
+119   80AF C9           	ret
+120   80B0
+121   80B0
+122   80B0              key_enter
+123   80B0              	;нажата Enter
+124   80B0 2A CF 86     	ld hl,(file_r_all)
+125   80B3 7D           	ld a,l
+126   80B4 B4           	or h
+127   80B5 CA DC 80     	jp z,key_enter_ex ;защита
+128   80B8 2A ED 88     	ld hl,(file_r_num_cur)
+129   80BB CD EC 80     	call calc_deskr
+130   80BE DD 7E 0B     	ld a,(ix+#0b)
+131   80C1 FE 10        	cp #10 ;признак каталога
+132   80C3 28 1A        	jr z,key_enter_dir
+133   80C5
+134   80C5              	;проверка расширения ;APG
+135   80C5 CD 91 81     	call check_apg
+136   80C8 C2 DC 80     	jp nz,key_enter_ex
+137   80CB              	;тут запуск приложения
+138   80CB CD 67 83     	call format_name
+139   80CE
+140   80CE 21 D3 86     	ld hl,file_name_cur		;строка с именем
+141   80D1              	OS_PROC_RUN ;запустить прогу
+141   80D1 0E 11       >    ld c,#11
+141   80D3 E7          >    rst #20
+142   80D4              	;обработка ошибки
+143   80D4 38 06        	jr c,key_enter_ex
+144   80D6
+145   80D6 DD 7E 00     	ld a,(ix)
+146   80D9              	OS_PROC_SET_FOCUS ;на передний план
+146   80D9 0E 12       >    ld c,#12
+146   80DB E7          >    rst #20
+147   80DC
+148   80DC              key_enter_ex
+149   80DC C3 56 80     	jp nc_wait
+150   80DF
+151   80DF              key_enter_dir
+152   80DF              	;тут открытие папки
+153   80DF
+154   80DF              	;call format_name_dir
+155   80DF EB           	ex de,hl ;de - дескриптор для открытия
+156   80E0 21 D3 87     	ld hl,dir_name_cur
+157   80E3              	OS_DIR_OPEN
+157   80E3 0E 27       >    ld c,#27
+157   80E5 E7          >    rst #20
+158   80E6 38 F4        	jr c,key_enter_ex ;если ошибка, ничего не делаем
+159   80E8
+160   80E8 E1           	pop hl ;отменить возврат
+161   80E9 C3 23 80     	jp start_nc_warm ;перезагрузить папку
+162   80EC
+163   80EC
+164   80EC              ; format_name_dir
+165   80EC              	; push hl
+166   80EC              	; ld hl,file_name_cur
+167   80EC              	; ld de,file_name_cur+1 ;почистить
+168   80EC              	; ld bc,256-1
+169   80EC              	; ld (hl),0
+170   80EC              	; ldir
+171   80EC
+172   80EC              	; pop hl
+173   80EC
+174   80EC              	; ld de,file_name_cur ;куда
+175   80EC              	; ld bc,#08ff
+176   80EC              ; format_name_dir_cl
+177   80EC              	; ld a,(hl)
+178   80EC              	; cp " "+1
+179   80EC              	; jr c,format_name_dir_skip
+180   80EC              	; ldi
+181   80EC              	; djnz format_name_dir_cl
+182   80EC              ; format_name_dir_skip
+183   80EC              	; ld a,'/'
+184   80EC              	; ld (de),a
+185   80EC              	; ret
+186   80EC
+187   80EC               ;вычислить дескриптор текущего элемента справа
+188   80EC              calc_deskr
+189   80EC 29           	add hl,hl ;*2
+190   80ED 01 CE 89     	ld bc,cat_index
+191   80F0 09           	add hl,bc
+192   80F1 5E           	ld e,(hl)
+193   80F2 23           	inc hl
+194   80F3 56           	ld d,(hl)
+195   80F4 EB           	ex de,hl ;hl - адрес элемента
+196   80F5 E5           	push hl
+197   80F6 DD E1        	pop ix ;ix- адрес элемента
+198   80F8 C9           	ret
+199   80F9
+200   80F9
+201   80F9
+202   80F9
+203   80F9              key_down
+204   80F9 2A CF 86     	ld hl,(file_r_all)
+205   80FC 7D           	ld a,l
+206   80FD B4           	or h
+207   80FE CA 32 81     	jp z,key_down_ex ;защита
+208   8101
+209   8101 ED 4B ED 88  	ld bc,(file_r_num_cur)
+210   8105 03           	inc bc
+211   8106 2A CF 86     	ld hl,(file_r_all)
+212   8109              	;если не больше чем всего
+213   8109 A7           	and a
+214   810A ED 42        	sbc hl,bc
+215   810C 38 24        	jr c,key_down_skip
+216   810E 28 22        	jr z,key_down_skip
+217   8110              	;прибавить
+218   8110 ED 43 ED 88  	ld (file_r_num_cur),bc
+219   8114
+220   8114              	;теперь передвинуть фокус, если надо
+221   8114 2A D1 86     	ld hl,(file_r_cur_focus)
+222   8117 01 16 00     	ld bc,panel_hight
+223   811A 09           	add hl,bc ;прибавить количество видимых
+224   811B ED 4B ED 88  	ld bc,(file_r_num_cur)
+225   811F A7           	and a
+226   8120 ED 42        	sbc hl,bc ;вычесть положение курсора
+227   8122 28 02        	jr z,key_down_change_focus_yes
+228   8124 30 07        	jr nc,key_down_change_focus_no
+229   8126              key_down_change_focus_yes
+230   8126              	;передвинуть фокус
+231   8126 2A D1 86     	ld hl,(file_r_cur_focus)
+232   8129 23           	inc hl
+233   812A 22 D1 86     	ld (file_r_cur_focus),hl
+234   812D
+235   812D              key_down_change_focus_no
+236   812D 3E 01        	ld a,1
+237   812F 32 F4 88     	ld (print_panel_r_flag),a
+238   8132              	;call print_panel_r ;обновить каталог
+239   8132              key_down_skip
+240   8132
+241   8132              key_down_ex
+242   8132 3A EF 88     	ld a,(key_pressed)
+243   8135 C9           	ret
+244   8136
+245   8136
+246   8136
+247   8136              key_up ;вверх
+248   8136 2A CF 86     	ld hl,(file_r_all)
+249   8139 7D           	ld a,l
+250   813A B4           	or h
+251   813B CA 65 81     	jp z,key_up_ex ;защита
+252   813E
+253   813E 2A ED 88     	ld hl,(file_r_num_cur)
+254   8141 7D           	ld a,l
+255   8142 B4           	or h
+256   8143 28 20        	jr z,key_up_skip
+257   8145 2B           	dec hl
+258   8146 22 ED 88     	ld (file_r_num_cur),hl
+259   8149
+260   8149              	;теперь передвинуть фокус, если надо
+261   8149 2A ED 88     	ld hl,(file_r_num_cur)
+262   814C              	; ld bc,panel_hight
+263   814C              	; add hl,bc ;прибавить количество видимых
+264   814C ED 4B D1 86  	ld bc,(file_r_cur_focus)
+265   8150 A7           	and a
+266   8151 ED 42        	sbc hl,bc ;вычесть положение курсора
+267   8153              	;jr z,key_up_change_foces_yes
+268   8153 30 0B        	jr nc,key_up_change_foces_no
+269   8155              key_up_change_foces_yes
+270   8155              	;передвинуть фокус
+271   8155 2A D1 86     	ld hl,(file_r_cur_focus)
+272   8158 7C           	ld a,h
+273   8159 B5           	or l
+274   815A 28 04        	jr z,key_up_change_foces_no ;защита
+275   815C 2B           	dec hl
+276   815D 22 D1 86     	ld (file_r_cur_focus),hl
+277   8160
+278   8160              key_up_change_foces_no
+279   8160
+280   8160 3E 01        	ld a,1
+281   8162 32 F4 88     	ld (print_panel_r_flag),a
+282   8165              	;call print_panel_r ;обновить каталог
+283   8165              key_up_skip
+284   8165
+285   8165              key_up_ex
+286   8165 3A EF 88     	ld a,(key_pressed)
+287   8168 C9           	ret
+288   8169
+289   8169
+290   8169              key_left ;на страницу назад
+291   8169 06 15        	ld b,panel_hight-1
+292   816B              key_left_cl
+293   816B C5           	push bc
+294   816C CD 36 81     	call key_up
+295   816F C1           	pop bc
+296   8170 10 F9        	djnz key_left_cl
+297   8172 3E 01        	ld a,1
+298   8174 32 F4 88     	ld (print_panel_r_flag),a
+299   8177 3A EF 88     	ld a,(key_pressed)
+300   817A C9           	ret
+301   817B
+302   817B
+303   817B
+304   817B              key_right ;на страницу вперёд
+305   817B 06 15        	ld b,panel_hight-1
+306   817D              key_right_cl
+307   817D C5           	push bc
+308   817E CD F9 80     	call key_down
+309   8181 C1           	pop bc
+310   8182 10 F9        	djnz key_right_cl
+311   8184 3E 01        	ld a,1
+312   8186 32 F4 88     	ld (print_panel_r_flag),a
+313   8189 3A EF 88     	ld a,(key_pressed)
+314   818C C9           	ret
+315   818D
+316   818D
+317   818D
+318   818D              exit ;выход в DOS
+319   818D AF           	xor a
+320   818E              	OS_PROC_CLOSE
+320   818E 0E 13       >    ld c,#13
+320   8190 E7          >    rst #20
+321   8191
+322   8191
+323   8191
+324   8191              check_apg ;проверка на расширение APG
+325   8191 DD 7E 08     	ld a,(ix+8)
+326   8194 FE 41        	cp "A"
+327   8196 C0           	ret nz
+328   8197 DD 7E 09     	ld a,(ix+9)
+329   819A FE 50        	cp "P"
+330   819C C0           	ret nz
+331   819D DD 7E 0A     	ld a,(ix+10)
+332   81A0 FE 47        	cp "G"
+333   81A2 C0           	ret nz
+334   81A3 AF           	xor a ;равен
+335   81A4 C9           	ret
+336   81A5
+337   81A5
+338   81A5
+339   81A5              print_panel_r ;печать правой панели
+340   81A5              	;ld ix,buffer_cat
+341   81A5 FD 2A CF 86  	ld iy,(file_r_all) ;всего файлов
+342   81A9 FD 7D        	ld a,iyl
+343   81AB FD B4        	or iyh
+344   81AD C8           	ret z ;защита если 0
+345   81AE 11 29 01     	ld de,panel_r_xy ;координаты yx
+346   81B1 06 16        	ld b,panel_hight ;высота панели
+347   81B3 FD 2A D1 86  	ld iy,(file_r_cur_focus) ;номер файла первый видимый
+348   81B7              print_panel_r_cl ;цикл
+349   81B7 C5           	push bc
+350   81B8 D5           	push de ;xy
+351   81B9              	OS_SET_XY
+351   81B9 0E 01       >    ld c,#01
+351   81BB E7          >    rst #20
+352   81BC
+353   81BC              	;получить адрес элемента
+354   81BC FD E5        	push iy
+355   81BE E1           	pop hl
+356   81BF CD EC 80     	call calc_deskr
+357   81C2
+358   81C2 CD DD 81     	call print_file_info ;напечатать строку
+359   81C5              print_panel_r_skip
+360   81C5 D1           	pop de
+361   81C6 14           	inc d ;y++
+362   81C7 FD 23        	inc iy ;текущий файл
+363   81C9              	;проверка на конец каталога
+364   81C9 2A CF 86     	ld hl,(file_r_all)
+365   81CC FD E5        	push iy
+366   81CE C1           	pop bc
+367   81CF A7           	and a
+368   81D0 ED 42        	sbc hl,bc
+369   81D2 C1           	pop bc
+370   81D3 38 07        	jr c,print_panel_r_ex2
+371   81D5 28 05        	jr z,print_panel_r_ex2
+372   81D7 10 DE        	djnz print_panel_r_cl
+373   81D9 C9           	ret
+374   81DA              print_panel_r_ex
+375   81DA D1           	pop de
+376   81DB C1           	pop bc
+377   81DC              print_panel_r_ex2
+378   81DC              	;тут, возможно, надо допечатать пустые строки
+379   81DC C9           	ret
+380   81DD
+381   81DD
+382   81DD
+383   81DD              print_file_info ;печать строчки о файле
+384   81DD 11 D3 88     	ld de,file_info_string ;скопировать
+385   81E0 01 08 00     	ld bc,8 ;file_info_lenght
+386   81E3 ED B0        	ldir
+387   81E5 3E 20        	ld a,' '
+388   81E7 12           	ld (de),a
+389   81E8 13           	inc de
+390   81E9 01 03 00     	ld bc,3
+391   81EC ED B0        	ldir
+392   81EE
+393   81EE CD FD 81     	call get_color_item
+394   81F1
+395   81F1 06 0C        	ld b,#c
+396   81F3              	OS_SET_COLOR
+396   81F3 0E 06       >    ld c,#06
+396   81F5 E7          >    rst #20
+397   81F6 21 D3 88     	ld hl,file_info_string
+398   81F9              	OS_PRINTZ
+398   81F9 0E 09       >    ld c,#09
+398   81FB E7          >    rst #20
+399   81FC C9           	ret
+400   81FD
+401   81FD
+402   81FD
+403   81FD              get_color_item ;получить цвет элемента
+404   81FD              ;вх: IX - адрес в каталоге, IY - порядковый номер (0-511)
+405   81FD              ;вых: A - цвет
+406   81FD ED 4B ED 88  	ld bc,(file_r_num_cur) ;позиция курсора справа
+407   8201 FD E5        	push iy
+408   8203 E1           	pop hl
+409   8204 A7           	and a
+410   8205 ED 42        	sbc hl,bc ;сравнить
+411   8207 28 11        	jr z,get_color_item_no_cursor
+412   8209              	;цвета курсора
+413   8209 3E 0E        	ld a,color_dir ;простая
+414   820B 32 31 82     	ld (get_color_item_dir+1),a
+415   820E 3E 0C        	ld a,color_apg ;простая
+416   8210 32 39 82     	ld (get_color_item_apg+1),a
+417   8213 3E 0F        	ld a,color_backgr ;простая
+418   8215 32 3C 82     	ld (get_color_item_backgr+1),a
+419   8218 18 0F        	jr get_color_item_set
+420   821A
+421   821A              get_color_item_no_cursor
+422   821A              	;цвета обычные
+423   821A 3E 28        	ld a,color_dir_hi ;под курсором
+424   821C 32 31 82     	ld (get_color_item_dir+1),a
+425   821F 3E 28        	ld a,color_apg_hi ;под курсором
+426   8221 32 39 82     	ld (get_color_item_apg+1),a
+427   8224 3E 28        	ld a,color_backgr_hi ;под курсором
+428   8226 32 3C 82     	ld (get_color_item_backgr+1),a
+429   8229
+430   8229              get_color_item_set
+431   8229              	;задать цвет
+432   8229 DD 7E 0B     	ld a,(ix+#0b)
+433   822C FE 10        	cp #10 ;признак каталога
+434   822E 20 03        	jr nz,get_color_item_no_dir
+435   8230              	;если папка
+436   8230              get_color_item_dir
+437   8230 3E 00        	ld a,0
+438   8232 C9           	ret
+439   8233
+440   8233              get_color_item_no_dir
+441   8233 CD 91 81     	call check_apg ;расширение apg
+442   8236 20 03        	jr nz,get_color_item_no_apg
+443   8238              	;если приложение
+444   8238              get_color_item_apg
+445   8238 3E 00        	ld a,0
+446   823A C9           	ret
+447   823B
+448   823B              get_color_item_no_apg
+449   823B              	;если обычный файл
+450   823B              get_color_item_backgr
+451   823B 3E 00        	ld a,0
+452   823D C9           	ret
 453   823E
-454   823E 11 89 85     	ld de,file_name_cur ;куда
-455   8241 01 FF 08     	ld bc,#08ff
-456   8244              format_name_cl
-457   8244 7E           	ld a,(hl)
-458   8245 FE 21        	cp " "+1
-459   8247 38 04        	jr c,format_name_skip
-460   8249 ED A0        	ldi
-461   824B 10 F7        	djnz format_name_cl
-462   824D              format_name_skip
-463   824D 3E 2E        	ld a,"."
-464   824F 12           	ld (de),a
-465   8250
-466   8250 13           	inc de
-467   8251 E1           	pop hl
-468   8252 01 08 00     	ld bc,8 ;перейти на расширение
-469   8255 09           	add hl,bc
-470   8256
-471   8256 01 FF 03     	ld bc,#03ff
-472   8259              format_name_cl2
-473   8259 7E           	ld a,(hl)
-474   825A FE 21        	cp " "+1
-475   825C 38 04        	jr c,format_name_skip2
-476   825E ED A0        	ldi
-477   8260 10 F7        	djnz format_name_cl2
-478   8262              format_name_skip2
-479   8262 C9           	ret
-480   8263
-481   8263              print_rect_r ;печать рамки правой
-482   8263 3E 0F        	ld a,color_backgr ;цвет
-483   8265 06 0C        	ld b,#c
-484   8267              	OS_SET_COLOR
-484   8267 0E 06       >    ld c,#06
-484   8269 E7          >    rst #20
-485   826A 11 28 00     	ld de,#0028 ;xy
-486   826D              	OS_SET_XY
-486   826D 0E 01       >    ld c,#01
-486   826F E7          >    rst #20
-487   8270 21 AA 87     	ld hl,rect_1
-488   8273              	OS_PRINTZ
-488   8273 0E 09       >    ld c,#09
-488   8275 E7          >    rst #20
-489   8276
-490   8276 11 28 01     	ld de,#0128 ;xy
-491   8279 06 16        	ld b,24-2 ;цикл
-492   827B              print_rect_r_cl
-493   827B C5           	push bc
-494   827C D5           	push de
-495   827D              	OS_SET_XY
-495   827D 0E 01       >    ld c,#01
-495   827F E7          >    rst #20
-496   8280 21 D3 87     	ld hl,rect_2
-497   8283              	OS_PRINTZ
-497   8283 0E 09       >    ld c,#09
-497   8285 E7          >    rst #20
-498   8286 D1           	pop de
-499   8287 14           	inc d
-500   8288 C1           	pop bc
-501   8289 10 F0        	djnz print_rect_r_cl
-502   828B
-503   828B
-504   828B 11 28 17     	ld de,#1728 ;xy
-505   828E              	OS_SET_XY
-505   828E 0E 01       >    ld c,#01
-505   8290 E7          >    rst #20
-506   8291 21 FC 87     	ld hl,rect_3
-507   8294              	OS_PRINTZ
-507   8294 0E 09       >    ld c,#09
-507   8296 E7          >    rst #20
-508   8297 C9           	ret
-509   8298
-510   8298              print_menu_main ;печать основного меню
-511   8298 3E 28        	ld a,color_backgr_hi ;цвет
-512   829A 06 0C        	ld b,#c
-513   829C              	OS_SET_COLOR
-513   829C 0E 06       >    ld c,#06
-513   829E E7          >    rst #20
-514   829F 11 18 18     	ld de,#1800+3*8
-515   82A2              	OS_SET_XY
-515   82A2 0E 01       >    ld c,#01
-515   82A4 E7          >    rst #20
-516   82A5 21 25 88     	ld hl,msg_menu_main
-517   82A8              	OS_PRINTZ
-517   82A8 0E 09       >    ld c,#09
-517   82AA E7          >    rst #20
-518   82AB C9           	ret
-519   82AC
-520   82AC
-521   82AC              	include nc_view.asm ;просмотрщик
+454   823E
+455   823E
+456   823E              ; format_dir ;подготовить каталог, убрать лишнее
+457   823E              	; ; ld a,2
+458   823E              	; ; out (254),a
+459   823E              	; ld iy,0 ;счётчик файлов
+460   823E              	; ;найти конец каталога
+461   823E              	; ld hl,buffer_cat
+462   823E              	; ld a,(hl)
+463   823E              	; or a
+464   823E              	; ret z ;защита
+465   823E              	; ld bc,32
+466   823E              ; format_dir_prep_cl
+467   823E              	; ld a,(hl)
+468   823E              	; or a
+469   823E              	; jr z,format_dir_prep_ex
+470   823E              	; add hl,bc
+471   823E              	; ld a,h
+472   823E              	; or a ;если вышли за границу
+473   823E              	; jr z,format_dir_prep_ex
+474   823E              	; jr format_dir_prep_cl
+475   823E              ; format_dir_prep_ex
+476   823E              	; ld bc,32
+477   823E              	; and a
+478   823E              	; sbc hl,bc
+479   823E              	; ld (format_dir_top),hl ;конец каталога
+480   823E
+481   823E
+482   823E
+483   823E              	; ld ix,buffer_cat
+484   823E              	; ;ld b,panel_hight ;высота панели
+485   823E              ; format_dir_cl ;цикл
+486   823E              	; ld a,(ix)
+487   823E              	; or a ;конец каталога
+488   823E              	; jr z,format_dir_ex
+489   823E              	; cp #e5 ;удалённый
+490   823E              	; jr z,format_dir_skip
+491   823E              	; cp #05 ;удалённый
+492   823E              	; jr z,format_dir_skip
+493   823E              	; ld a,(ix+#0b)
+494   823E              	; cp #0f ;длинный
+495   823E              	; jr z,format_dir_skip
+496   823E
+497   823E              	; ;проверка на папку "." (этот же каталог)
+498   823E              	; ld a,(ix+#00)
+499   823E              	; cp "." ;
+500   823E              	; jr nz,format_dir_add
+501   823E              	; ld a,(ix+#01)
+502   823E              	; cp " " ;
+503   823E              	; jr z,format_dir_skip
+504   823E
+505   823E
+506   823E              ; format_dir_add
+507   823E              	; inc iy ;++
+508   823E              	; ld bc,32 ;на другой элемент каталога
+509   823E              	; add ix,bc
+510   823E              	; ld a,ixh
+511   823E              	; or a ;если вышли за границу
+512   823E              	; jr z,format_dir_ex
+513   823E              	; jr format_dir_cl
+514   823E              ; format_dir_skip
+515   823E              	; ;сдвинуть элементы вниз
+516   823E              	; push ix
+517   823E              	; push ix
+518   823E              	; pop hl
+519   823E              	; pop de ;куда
+520   823E              	; ld hl,(format_dir_top) ;0-32
+521   823E              	; and a
+522   823E              	; sbc hl,de
+523   823E              	; ld b,h
+524   823E              	; ld c,l ;длина
+525   823E              	; push bc
+526   823E
+527   823E              	; push ix
+528   823E              	; pop hl ;откуда
+529   823E              	; ld bc,32 ;на другой элемент каталога
+530   823E              	; add hl,bc ;откуда
+531   823E
+532   823E              	; pop bc
+533   823E              	; ldir
+534   823E
+535   823E              	; xor a
+536   823E              	; ld (de),a ;очистить ненужный элемент
+537   823E
+538   823E              	; jr format_dir_cl
+539   823E
+540   823E              ; format_dir_ex
+541   823E              	; ld (file_r_all),iy
+542   823E              	; ;здесь почистить остаток каталога
+543   823E              	; ; ld a,0
+544   823E              	; ; out (254),a
+545   823E              	; ret
+546   823E              ; format_dir_top	dw 0 ;временно конец гаталога
+547   823E
+548   823E
+549   823E
+550   823E
+551   823E
+552   823E              sort_dir ;сортировка каталога с помощью построения индекса
+553   823E DD 21 00 C0  	ld ix,buffer_cat	;каталог тут
+554   8242 DD 7E 00     	ld a,(ix)
+555   8245 B7           	or a
+556   8246 C8           	ret z ;если пусто, выход
+557   8247 FD 21 00 00  	ld iy,0 ;счётчик
+558   824B 21 CE 89     	ld hl,cat_index ;таблица - индекс
+559   824E
+560   824E 3A 66 83     	ld a,(sort_enable_flag)
+561   8251 B7           	or a
+562   8252 CA 73 82     	jp z,sort_dir_no
+563   8255
+564   8255 AF           	xor a
+565   8256 32 72 82     	ld (sort_item),a ;образец для сравнения
+566   8259              sort_dir_cl
+567   8259 CD F7 82     	call sort_dir_one ;один проход по папкам
+568   825C 3A 72 82     	ld a,(sort_item)
+569   825F 3C           	inc a ;следующий образец
+570   8260 32 72 82     	ld (sort_item),a
+571   8263 20 F4        	jr nz,sort_dir_cl
+572   8265
+573   8265              	; xor a
+574   8265              	; ld (sort_item),a ;образец для сравнения
+575   8265              sort_file_cl
+576   8265 CD B3 82     	call sort_file_one ;один проход по файлам
+577   8268 3A 72 82     	ld a,(sort_item)
+578   826B 3C           	inc a ;следующий образец
+579   826C 32 72 82     	ld (sort_item),a
+580   826F 20 F4        	jr nz,sort_file_cl
+581   8271
+582   8271 C9           	ret
+583   8272
+584   8272 00           sort_item db 0; текущий образец
+585   8273
+586   8273
+587   8273
+588   8273              ;без сортировки
+589   8273              sort_dir_no
+590   8273 DD 21 00 C0  	ld ix,buffer_cat	;каталог тут
+591   8277              sort_dir_no_cl ;цикл по каталогам
+592   8277 DD 7E 00     	ld a,(ix)
+593   827A B7           	or a ;конец каталога
+594   827B 28 31        	jr z,sort_dir_no_ex
+595   827D FE E5        	cp #e5 ;удалённый
+596   827F 28 22        	jr z,sort_dir_no_skip
+597   8281 FE 05        	cp #05 ;удалённый
+598   8283 28 1E        	jr z,sort_dir_no_skip
+599   8285 DD 7E 0B     	ld a,(ix+#0b)
+600   8288 FE 0F        	cp #0f ;длинный
+601   828A 28 17        	jr z,sort_dir_no_skip
+602   828C
+603   828C              	;проверка на папку "." (этот же каталог)
+604   828C DD 7E 00     	ld a,(ix+#00)
+605   828F FE 2E        	cp "." ;
+606   8291 20 07        	jr nz,sort_dir_no_add
+607   8293 DD 7E 01     	ld a,(ix+#01)
+608   8296 FE 20        	cp " " ;
+609   8298 28 09        	jr z,sort_dir_no_skip
+610   829A
+611   829A              sort_dir_no_add
+612   829A FD 23        	inc iy ;++
+613   829C              	;записать в таблицу (индекс)
+614   829C DD E5        	push ix
+615   829E C1           	pop bc
+616   829F 71           	ld (hl),c
+617   82A0 23           	inc hl
+618   82A1 70           	ld (hl),b
+619   82A2 23           	inc hl
+620   82A3
+621   82A3
+622   82A3              sort_dir_no_skip
+623   82A3 01 20 00     	ld bc,32
+624   82A6 DD 09        	add ix,bc ;на следующий
+625   82A8 DD 7C        	ld a,ixh ;проверка на конец буфера
+626   82AA FE C0        	cp #c0
+627   82AC 30 C9        	jr nc,sort_dir_no_cl
+628   82AE
+629   82AE              sort_dir_no_ex
+630   82AE FD 22 CF 86  	ld (file_r_all),iy
+631   82B2 C9           	ret
+632   82B3
+633   82B3
+634   82B3              ;сортировка файлов
+635   82B3              sort_file_one
+636   82B3 DD 21 00 C0  	ld ix,buffer_cat	;каталог тут
+637   82B7              sort_file_one_cl ;цикл по каталогам
+638   82B7 DD 7E 00     	ld a,(ix)
+639   82BA B7           	or a ;конец каталога
+640   82BB 28 35        	jr z,sort_file_one_ex
+641   82BD DD 7E 0B     	ld a,(ix+#0b)
+642   82C0 FE 10        	cp #10 ;признак каталога
+643   82C2 28 23        	jr z,sort_file_one_skip
+644   82C4 DD 7E 00     	ld a,(ix)
+645   82C7 FE E5        	cp #e5 ;удалённый
+646   82C9 28 1C        	jr z,sort_file_one_skip
+647   82CB FE 05        	cp #05 ;удалённый
+648   82CD 28 18        	jr z,sort_file_one_skip
+649   82CF DD 7E 0B     	ld a,(ix+#0b)
+650   82D2 FE 0F        	cp #0f ;длинный
+651   82D4 28 11        	jr z,sort_file_one_skip
+652   82D6
+653   82D6              	; ;проверка на папку "." (этот же каталог)
+654   82D6              	; ld a,(ix+#00)
+655   82D6              	; cp "." ;
+656   82D6              	; jr nz,sort_file_one_add
+657   82D6              	; ld a,(ix+#01)
+658   82D6              	; cp " " ;
+659   82D6              	; jr z,sort_file_one_skip
+660   82D6
+661   82D6
+662   82D6              sort_file_one_add
+663   82D6 3A 72 82     	ld a,(sort_item)
+664   82D9 DD BE 00     	cp (ix+#00) ;первая буква имени
+665   82DC 20 09        	jr nz,sort_file_one_skip ;пока не подошла
+666   82DE
+667   82DE FD 23        	inc iy ;++
+668   82E0              	;записать в таблицу (индекс)
+669   82E0 DD E5        	push ix
+670   82E2 C1           	pop bc
+671   82E3 71           	ld (hl),c
+672   82E4 23           	inc hl
+673   82E5 70           	ld (hl),b
+674   82E6 23           	inc hl
+675   82E7
+676   82E7
+677   82E7              sort_file_one_skip
+678   82E7 01 20 00     	ld bc,32
+679   82EA DD 09        	add ix,bc ;на следующий
+680   82EC DD 7C        	ld a,ixh ;проверка на конец буфера
+681   82EE FE C0        	cp #c0
+682   82F0 30 C5        	jr nc,sort_file_one_cl
+683   82F2
+684   82F2              sort_file_one_ex
+685   82F2 FD 22 CF 86  	ld (file_r_all),iy
+686   82F6 C9           	ret
+687   82F7
+688   82F7
+689   82F7
+690   82F7
+691   82F7
+692   82F7              ;сортировка папок
+693   82F7              sort_dir_one
+694   82F7 DD 21 00 C0  	ld ix,buffer_cat	;каталог тут
+695   82FB              sort_dir_one_cl ;цикл по каталогам
+696   82FB DD 7E 00     	ld a,(ix)
+697   82FE B7           	or a ;конец каталога
+698   82FF 28 43        	jr z,sort_dir_one_ex
+699   8301 DD 7E 0B     	ld a,(ix+#0b)
+700   8304 FE 10        	cp #10 ;признак каталога
+701   8306 20 31        	jr nz,sort_dir_one_skip
+702   8308 DD 7E 00     	ld a,(ix)
+703   830B FE E5        	cp #e5 ;удалённый
+704   830D 28 2A        	jr z,sort_dir_one_skip
+705   830F FE 05        	cp #05 ;удалённый
+706   8311 28 26        	jr z,sort_dir_one_skip
+707   8313 DD 7E 0B     	ld a,(ix+#0b)
+708   8316 FE 0F        	cp #0f ;длинный
+709   8318 28 1F        	jr z,sort_dir_one_skip
+710   831A
+711   831A              	;проверка на папку "." (этот же каталог)
+712   831A DD 7E 00     	ld a,(ix+#00)
+713   831D FE 2E        	cp "." ;
+714   831F 20 07        	jr nz,sort_dir_one_add
+715   8321 DD 7E 01     	ld a,(ix+#01)
+716   8324 FE 20        	cp " " ;
+717   8326 28 11        	jr z,sort_dir_one_skip
+718   8328
+719   8328              sort_dir_one_add
+720   8328 3A 72 82     	ld a,(sort_item)
+721   832B DD BE 00     	cp (ix+#00) ;первая буква имени
+722   832E 20 09        	jr nz,sort_dir_one_skip ;пока не подошла
+723   8330
+724   8330 FD 23        	inc iy ;++
+725   8332              	;записать в таблицу (индекс)
+726   8332 DD E5        	push ix
+727   8334 C1           	pop bc
+728   8335 71           	ld (hl),c
+729   8336 23           	inc hl
+730   8337 70           	ld (hl),b
+731   8338 23           	inc hl
+732   8339
+733   8339
+734   8339              sort_dir_one_skip
+735   8339 01 20 00     	ld bc,32
+736   833C DD 09        	add ix,bc ;на следующий
+737   833E DD 7C        	ld a,ixh ;проверка на конец буфера
+738   8340 FE C0        	cp #c0
+739   8342 30 B7        	jr nc,sort_dir_one_cl
+740   8344
+741   8344              sort_dir_one_ex
+742   8344 FD 22 CF 86  	ld (file_r_all),iy
+743   8348 C9           	ret
+744   8349
+745   8349
+746   8349
+747   8349
+748   8349
+749   8349
+750   8349
+751   8349              sort_toggle ;переключение сортировки
+752   8349 3A 66 83     	ld a,(sort_enable_flag)
+753   834C EE 01        	xor 1
+754   834E 32 66 83     	ld (sort_enable_flag),a
+755   8351 3E 4E        	ld a,"N" ;вкл
+756   8353 20 02        	jr nz,sort_toggle1
+757   8355 3E 66        	ld a,"f";выкл
+758   8357              sort_toggle1
+759   8357 32 76 89     	ld (msg_menu_main2+6),a
+760   835A
+761   835A CD 3E 82     	call sort_dir
+762   835D CD D1 83     	call print_menu_main
+763   8360 CD A5 81     	call print_panel_r
+764   8363
+765   8363 C3 56 80     	jp nc_wait
+766   8366 00           sort_enable_flag db 0 ;флаг сортировки
+767   8367
+768   8367
+769   8367
+770   8367              format_name ;подогнать имя под стандарт filename.ext
+771   8367              ;вх: HL - имя в каталоге
+772   8367 E5           	push hl
+773   8368 21 D3 86     	ld hl,file_name_cur
+774   836B 11 D4 86     	ld de,file_name_cur+1 ;почистить
+775   836E 01 FF 00     	ld bc,256-1
+776   8371 36 00        	ld (hl),0
+777   8373 ED B0        	ldir
+778   8375
+779   8375 E1           	pop hl
+780   8376 E5           	push hl
+781   8377
+782   8377 11 D3 86     	ld de,file_name_cur ;куда
+783   837A 01 FF 08     	ld bc,#08ff
+784   837D              format_name_cl
+785   837D 7E           	ld a,(hl)
+786   837E FE 21        	cp " "+1
+787   8380 38 04        	jr c,format_name_skip
+788   8382 ED A0        	ldi
+789   8384 10 F7        	djnz format_name_cl
+790   8386              format_name_skip
+791   8386 3E 2E        	ld a,"."
+792   8388 12           	ld (de),a
+793   8389
+794   8389 13           	inc de
+795   838A E1           	pop hl
+796   838B 01 08 00     	ld bc,8 ;перейти на расширение
+797   838E 09           	add hl,bc
+798   838F
+799   838F 01 FF 03     	ld bc,#03ff
+800   8392              format_name_cl2
+801   8392 7E           	ld a,(hl)
+802   8393 FE 21        	cp " "+1
+803   8395 38 04        	jr c,format_name_skip2
+804   8397 ED A0        	ldi
+805   8399 10 F7        	djnz format_name_cl2
+806   839B              format_name_skip2
+807   839B C9           	ret
+808   839C
+809   839C              print_rect_r ;печать рамки правой
+810   839C 3E 0F        	ld a,color_backgr ;цвет
+811   839E 06 0C        	ld b,#c
+812   83A0              	OS_SET_COLOR
+812   83A0 0E 06       >    ld c,#06
+812   83A2 E7          >    rst #20
+813   83A3 11 28 00     	ld de,#0028 ;xy
+814   83A6              	OS_SET_XY
+814   83A6 0E 01       >    ld c,#01
+814   83A8 E7          >    rst #20
+815   83A9 21 F5 88     	ld hl,rect_1
+816   83AC              	OS_PRINTZ
+816   83AC 0E 09       >    ld c,#09
+816   83AE E7          >    rst #20
+817   83AF
+818   83AF 11 28 01     	ld de,#0128 ;xy
+819   83B2 06 16        	ld b,24-2 ;цикл
+820   83B4              print_rect_r_cl
+821   83B4 C5           	push bc
+822   83B5 D5           	push de
+823   83B6              	OS_SET_XY
+823   83B6 0E 01       >    ld c,#01
+823   83B8 E7          >    rst #20
+824   83B9 21 1E 89     	ld hl,rect_2
+825   83BC              	OS_PRINTZ
+825   83BC 0E 09       >    ld c,#09
+825   83BE E7          >    rst #20
+826   83BF D1           	pop de
+827   83C0 14           	inc d
+828   83C1 C1           	pop bc
+829   83C2 10 F0        	djnz print_rect_r_cl
+830   83C4
+831   83C4
+832   83C4 11 28 17     	ld de,#1728 ;xy
+833   83C7              	OS_SET_XY
+833   83C7 0E 01       >    ld c,#01
+833   83C9 E7          >    rst #20
+834   83CA 21 47 89     	ld hl,rect_3
+835   83CD              	OS_PRINTZ
+835   83CD 0E 09       >    ld c,#09
+835   83CF E7          >    rst #20
+836   83D0 C9           	ret
+837   83D1
+838   83D1              print_menu_main ;печать основного меню
+839   83D1 3E 28        	ld a,color_backgr_hi ;цвет
+840   83D3 06 0C        	ld b,#c
+841   83D5              	OS_SET_COLOR
+841   83D5 0E 06       >    ld c,#06
+841   83D7 E7          >    rst #20
+842   83D8 11 10 18     	ld de,#1800+2*8
+843   83DB              	OS_SET_XY
+843   83DB 0E 01       >    ld c,#01
+843   83DD E7          >    rst #20
+844   83DE 21 70 89     	ld hl,msg_menu_main2
+845   83E1              	OS_PRINTZ
+845   83E1 0E 09       >    ld c,#09
+845   83E3 E7          >    rst #20
+846   83E4 11 18 18     	ld de,#1800+3*8
+847   83E7              	OS_SET_XY
+847   83E7 0E 01       >    ld c,#01
+847   83E9 E7          >    rst #20
+848   83EA 21 78 89     	ld hl,msg_menu_main3
+849   83ED              	OS_PRINTZ
+849   83ED 0E 09       >    ld c,#09
+849   83EF E7          >    rst #20
+850   83F0 C9           	ret
+851   83F1
+852   83F1
+853   83F1              	include nc_view.asm ;просмотрщик
 # file opened: nc_view.asm
-  1+  82AC              view_file
-  2+  82AC              	;просмотр файла как текста
-  3+  82AC
-  4+  82AC 2A 87 85     	ld hl,(file_r_all)
-  5+  82AF 7D           	ld a,l
-  6+  82B0 B4           	or h
-  7+  82B1 CA 7B 83     	jp z,view_file_ex ;защита
-  8+  82B4 CD CC 80     	call calc_deskr
-  9+  82B7 DD 7E 0B     	ld a,(ix+#0b)
- 10+  82BA FE 10        	cp #10 ;признак каталога
- 11+  82BC CA 7B 83     	jp z,view_file_ex
- 12+  82BF
- 13+  82BF CD 2E 82     	call format_name ;обработать имя файла
- 14+  82C2
- 15+  82C2
- 16+  82C2
- 17+  82C2              	OS_CLS ;почистить экран
- 17+  82C2 0E 00       >    ld c,#00
- 17+  82C4 E7          >    rst #20
- 18+  82C5
- 19+  82C5              	;обнулить переменные
- 20+  82C5 AF           	xor a
- 21+  82C6 32 84 85     	ld (view_file_load_all),a ;флаг что файл весь прочитан
- 22+  82C9              	;ld (view_file_bot_flag),a  ;
- 23+  82C9 21 FF FF     	ld hl,#ffff
- 24+  82CC 22 85 85     	ld (view_file_end),hl ;конец файла тут
- 25+  82CF 23           	inc hl
- 26+  82D0 22 7C 85     	ld (view_move_right_val),hl
- 27+  82D3
- 28+  82D3 C5           	push bc
- 29+  82D4 CD 7C 80     	call clear_buf
- 30+  82D7 C1           	pop bc
- 31+  82D8
- 32+  82D8 21 89 85     	ld hl,file_name_cur		;строка с именем
- 33+  82DB              	OS_FILE_OPEN
- 33+  82DB 0E 21       >    ld c,#21
- 33+  82DD E7          >    rst #20
- 34+  82DE 30 0E        	jr nc,view_file_open_ok
- 35+  82E0              view_file_file_error
- 36+  82E0 21 2C 88     	ld hl,msg_file_error
- 37+  82E3              	OS_PRINTZ
- 37+  82E3 0E 09       >    ld c,#09
- 37+  82E5 E7          >    rst #20
- 38+  82E6 06 64        	ld b,2*50
- 39+  82E8 CD 78 80     	call delay1
- 40+  82EB C3 75 83     	jp view_file_wait_ex
- 41+  82EE
- 42+  82EE              view_file_open_ok
- 43+  82EE 32 A6 87     	ld (file_id_cur_r),a
- 44+  82F1              	;проверка длины файла не больше #4000
- 45+  82F1 7A           	ld	a,d ;самые старшие байты длины
- 46+  82F2 B3           	or e
- 47+  82F3 28 11        	jr z,view_file_size_ok ;если не слищком большой
- 48+  82F5              view_file_too_big
- 49+  82F5              	;файл больше буфера
- 50+  82F5 11 00 40     	ld de,#4000 ;размер одной первой части
- 51+  82F8 21 00 C0     	ld hl,buffer_cat
- 52+  82FB 3A A6 87     	ld a,(file_id_cur_r)
- 53+  82FE              	OS_FILE_READ ;загрузить
- 53+  82FE 0E 23       >    ld c,#23
- 53+  8300 E7          >    rst #20
- 54+  8301 38 DD        	jr c,view_file_file_error
- 55+  8303
- 56+  8303 C3 2F 83     	jp view_file_readed
- 57+  8306
- 58+  8306              view_file_size_ok
- 59+  8306 78           	ld	a,b ;младший старший байт длины
- 60+  8307 FE 40        	cp #40
- 61+  8309 38 06        	jr c,view_file_size_ok_small
- 62+  830B 20 E8        	jr nz,view_file_too_big
- 63+  830D 0C           	inc c
- 64+  830E 0D           	dec c
- 65+  830F 20 E4        	jr nz,view_file_too_big
- 66+  8311
- 67+  8311
- 68+  8311              view_file_size_ok_small
- 69+  8311              	;проверка на 0
- 70+  8311 78           	ld a,b
- 71+  8312 B1           	or c
- 72+  8313 CA E0 82     	jp z,view_file_file_error
- 73+  8316              	;узнать где конец файла
- 74+  8316 21 00 C0     	ld hl,buffer_cat
- 75+  8319 09           	add hl,bc
- 76+  831A 22 85 85     	ld (view_file_end),hl ;конец файла тут
- 77+  831D              	;размер не большой, прочитаем
- 78+  831D 50           	ld d,b ;размер
- 79+  831E 59           	ld e,c
- 80+  831F 21 00 C0     	ld hl,buffer_cat
- 81+  8322 3A A6 87     	ld a,(file_id_cur_r)
- 82+  8325              	OS_FILE_READ ;загрузить
- 82+  8325 0E 23       >    ld c,#23
- 82+  8327 E7          >    rst #20
- 83+  8328 38 B6        	jr c,view_file_file_error
- 84+  832A
- 85+  832A 3E 01        	ld a,1
- 86+  832C 32 84 85     	ld (view_file_load_all),a ;флаг что файл весь прочитан
- 87+  832F
- 88+  832F              view_file_readed
- 89+  832F              	;файл прочитан
- 90+  832F
- 91+  832F 21 00 C0     	ld hl,buffer_cat
- 92+  8332 22 7E 85     	ld (view_file_pos_cur),hl ;позиция просмотра на начало
- 93+  8335 22 80 85     	ld (view_file_pos_cur_focus),hl ;позиция фокуса
- 94+  8338
- 95+  8338 CD 3A 84     	call print_file_text
- 96+  833B
- 97+  833B
- 98+  833B CD 05 84     	call print_menu_view ;меню
- 99+  833E CD 20 84     	call print_menu_view_top ;инфо
-100+  8341
-101+  8341 CD 8A 80     	call release_key
-102+  8344
-103+  8344              view_file_wait ;цикл ожидания клавиши
-104+  8344              	OS_WAIT
-104+  8344 DF          >	rst #18
-105+  8345              	OS_GET_CHAR
-105+  8345 0E 10       >    ld c,#10
-105+  8347 E7          >    rst #20
-106+  8348 FE FF        	cp 255
-107+  834A 28 F8        	jr z,view_file_wait
-108+  834C FE 33        	cp "3"
-109+  834E 28 25        	jr z,view_file_wait_ex
-110+  8350 FE 0A        	cp 10 ;вниз
-111+  8352 CA 7E 83     	jp z,view_line_down
-112+  8355 FE 0B        	cp 11 ;вверх
-113+  8357 CA 94 83     	jp z,view_line_up
-114+  835A FE 09        	cp 09 ;вправо
-115+  835C CA AA 83     	jp z,view_right
-116+  835F FE 08        	cp 08 ;влево
-117+  8361 CA BA 83     	jp z,view_left
-118+  8364 FE 04        	cp 04 ;вправо
-119+  8366 CA CB 83     	jp z,view_page_up
-120+  8369 FE 05        	cp 05 ;влево
-121+  836B CA E8 83     	jp z,view_page_down
-122+  836E FE 18        	cp 24 ;break
-123+  8370 CA 18 81     	jp z,exit
-124+  8373 18 CF        	jr view_file_wait
-125+  8375
-126+  8375              view_file_wait_ex
-127+  8375              	;почистить экран
-128+  8375              	OS_CLS
-128+  8375 0E 00       >    ld c,#00
-128+  8377 E7          >    rst #20
-129+  8378 C3 23 80     	jp start_nc_warm ;перезагрузить папку
-130+  837B
-131+  837B              view_file_ex
-132+  837B C3 53 80     	jp nc_wait
-133+  837E
-134+  837E
-135+  837E
-136+  837E              view_line_down ;вниз на строчку
-137+  837E 2A 80 85     	ld hl,(view_file_pos_cur_focus) ;фокус
-138+  8381 22 7E 85     	ld (view_file_pos_cur),hl
-139+  8384 CD 4F 85     	call next_line ;вперёд на строку
-140+  8387 38 BB        	jr c,view_file_wait ;если не удачно
-141+  8389 2A 7E 85     	ld hl,(view_file_pos_cur) ;запомнить фокус
-142+  838C 22 80 85     	ld (view_file_pos_cur_focus),hl
-143+  838F CD 3A 84     	call print_file_text ;напечатать всю страницу
-144+  8392 18 B0        	jr view_file_wait
-145+  8394
-146+  8394              view_line_up ;вверх на строчку
-147+  8394 2A 80 85     	ld hl,(view_file_pos_cur_focus) ;фокус
-148+  8397 22 7E 85     	ld (view_file_pos_cur),hl
-149+  839A CD 5D 85     	call prev_line ;
-150+  839D 38 A5        	jr c,view_file_wait ;если не удачно
-151+  839F 2A 7E 85     	ld hl,(view_file_pos_cur) ;запомнить фокус
-152+  83A2 22 80 85     	ld (view_file_pos_cur_focus),hl
-153+  83A5 CD 3A 84     	call print_file_text ;напечатать всю страницу
-154+  83A8 18 9A        	jr view_file_wait
-155+  83AA
-156+  83AA
-157+  83AA              view_right ;вправо
-158+  83AA 2A 7C 85     	ld hl,(view_move_right_val)
-159+  83AD 23           	inc hl
-160+  83AE 7C           	ld a,h
-161+  83AF B5           	or l
-162+  83B0 28 92        	jr z,view_file_wait
-163+  83B2 22 7C 85     	ld (view_move_right_val),hl
-164+  83B5 CD 3A 84     	call print_file_text ;напечатать всю страницу
-165+  83B8 18 8A        	jr view_file_wait
-166+  83BA
-167+  83BA              view_left ;влево
-168+  83BA 2A 7C 85     	ld hl,(view_move_right_val)
-169+  83BD 7C           	ld a,h
-170+  83BE B5           	or l
-171+  83BF 28 83        	jr z,view_file_wait
-172+  83C1 2B           	dec hl
-173+  83C2 22 7C 85     	ld (view_move_right_val),hl
-174+  83C5 CD 3A 84     	call print_file_text ;напечатать всю страницу
-175+  83C8 C3 44 83     	jp view_file_wait
-176+  83CB
-177+  83CB
-178+  83CB
-179+  83CB              view_page_up ;на страницу назад
-180+  83CB 2A 80 85     	ld hl,(view_file_pos_cur_focus) ;фокус
-181+  83CE 22 7E 85     	ld (view_file_pos_cur),hl
-182+  83D1 06 16        	ld b,view_text_bot-2
-183+  83D3              view_page_up_cl
-184+  83D3 CD 5D 85     	call prev_line ;
-185+  83D6 38 04        	jr c,view_page_up_ex ;если не удачно
-186+  83D8 28 02        	jr z,view_page_up_ex
-187+  83DA 10 F7        	djnz view_page_up_cl
-188+  83DC              view_page_up_ex
-189+  83DC 2A 7E 85     	ld hl,(view_file_pos_cur) ;запомнить фокус
-190+  83DF 22 80 85     	ld (view_file_pos_cur_focus),hl
-191+  83E2 CD 3A 84     	call print_file_text ;напечатать всю страницу
-192+  83E5 C3 44 83     	jp view_file_wait
-193+  83E8
-194+  83E8
-195+  83E8
-196+  83E8              view_page_down ;на страницу вперёд
-197+  83E8 2A 80 85     	ld hl,(view_file_pos_cur_focus) ;фокус
-198+  83EB 22 7E 85     	ld (view_file_pos_cur),hl
-199+  83EE 06 16        	ld b,view_text_bot-2
-200+  83F0              view_page_down_cl
-201+  83F0 CD 4F 85     	call next_line ;
-202+  83F3 38 04        	jr c,view_page_down_ex ;если не удачно
-203+  83F5 28 02        	jr z,view_page_down_ex
-204+  83F7 10 F7        	djnz view_page_down_cl
-205+  83F9              view_page_down_ex
-206+  83F9 2A 7E 85     	ld hl,(view_file_pos_cur) ;запомнить фокус
-207+  83FC 22 80 85     	ld (view_file_pos_cur_focus),hl
-208+  83FF CD 3A 84     	call print_file_text ;напечатать всю страницу
-209+  8402 C3 44 83     	jp view_file_wait
-210+  8405
-211+  8405
-212+  8405
-213+  8405              print_menu_view ;печать меню просмотрщика
-214+  8405 3E 18        	ld a,#18
-215+  8407 06 28        	ld b,color_backgr_hi ;цвет
-216+  8409              	OS_PAINT_LINE ;линия внизу
-216+  8409 0E 04       >    ld c,#04
-216+  840B E7          >    rst #20
-217+  840C 3E 28        	ld a,color_backgr_hi ;цвет
-218+  840E 06 0C        	ld b,#c
-219+  8410              	OS_SET_COLOR
-219+  8410 0E 06       >    ld c,#06
-219+  8412 E7          >    rst #20
-220+  8413 11 18 18     	ld de,#1800+3*8
-221+  8416              	OS_SET_XY
-221+  8416 0E 01       >    ld c,#01
-221+  8418 E7          >    rst #20
-222+  8419 21 75 85     	ld hl,msg_menu_view
-223+  841C              	OS_PRINTZ
-223+  841C 0E 09       >    ld c,#09
-223+  841E E7          >    rst #20
-224+  841F C9           	ret
-225+  8420
-226+  8420              print_menu_view_top ;печать меню просмотрщика верхнее
-227+  8420 AF           	xor a
-228+  8421 06 28        	ld b,color_backgr_hi ;цвет
-229+  8423              	OS_PAINT_LINE ;линия вверху
-229+  8423 0E 04       >    ld c,#04
-229+  8425 E7          >    rst #20
-230+  8426 3E 28        	ld a,color_backgr_hi ;цвет
-231+  8428 06 0C        	ld b,#c
-232+  842A              	OS_SET_COLOR
-232+  842A 0E 06       >    ld c,#06
-232+  842C E7          >    rst #20
-233+  842D 11 24 00     	ld de,#0024
-234+  8430              	OS_SET_XY
-234+  8430 0E 01       >    ld c,#01
-234+  8432 E7          >    rst #20
-235+  8433 21 89 85     	ld hl,file_name_cur
-236+  8436              	OS_PRINTZ
-236+  8436 0E 09       >    ld c,#09
-236+  8438 E7          >    rst #20
-237+  8439 C9           	ret
-238+  843A
-239+  843A
-240+  843A
-241+  843A              print_file_text	;печать текущей части файла в консоль
-242+  843A 3E 04        	ld a,4 ;цвет
-243+  843C 06 0C        	ld b,#c
-244+  843E              	OS_SET_COLOR
-244+  843E 0E 06       >    ld c,#06
-244+  8440 E7          >    rst #20
-245+  8441
-246+  8441 3E 01        	ld a,view_text_top ;первая строка
-247+  8443 32 82 85     	ld (view_file_y_cur),a
-248+  8446 2A 80 85     	ld hl,(view_file_pos_cur_focus) ;печать видимой части
-249+  8449 22 7E 85     	ld (view_file_pos_cur),hl
-250+  844C              print_file_text_cl
-251+  844C 2A 7E 85     	ld hl,(view_file_pos_cur)
-252+  844F CD 75 84     	call print_line_text
-253+  8452 38 0C        	jr c,print_file_text_ex
-254+  8454
-255+  8454              	; call next_line ;найти следующую строку
-256+  8454              	; ret c
-257+  8454
-258+  8454 3A 82 85     	ld a,(view_file_y_cur)
-259+  8457 3C           	inc a
-260+  8458 32 82 85     	ld (view_file_y_cur),a
-261+  845B FE 18        	cp view_text_bot
-262+  845D 38 ED        	jr c,print_file_text_cl
-263+  845F C9           	ret
-264+  8460
-265+  8460              print_file_text_ex
-266+  8460              	;тут очистить остальные строки
-267+  8460 3A 82 85     	ld a,(view_file_y_cur)
-268+  8463 FE 18        	cp view_text_bot
-269+  8465 30 0C        	jr nc,print_file_text_ex2
-270+  8467 67           	ld h,a
-271+  8468 3C           	inc a
-272+  8469 32 82 85     	ld (view_file_y_cur),a
-273+  846C 3E 20        	ld a," "
-274+  846E              	OS_FILL_LINE ;очистить строку
-274+  846E 0E 03       >    ld c,#03
-274+  8470 E7          >    rst #20
-275+  8471 18 ED        	jr print_file_text_ex
-276+  8473              print_file_text_ex2
-277+  8473 37           	scf
-278+  8474 C9           	ret
-279+  8475
-280+  8475
-281+  8475
-282+  8475              print_line_text ;печать одной строки до кода 13, или до правого края экрана, или до конца файла
-283+  8475              ;вх: hl - адрес строки
-284+  8475 CD B9 84     	call view_move_right ;промотать направо. если надо
-285+  8478              	;установить позицию
-286+  8478 3A 82 85     	ld a,(view_file_y_cur)
-287+  847B 57           	ld d,a
-288+  847C AF           	xor a
-289+  847D 32 83 85     	ld (view_file_x_cur),a
-290+  8480 5F           	ld e,a
-291+  8481              	OS_SET_XY 	;yx
-291+  8481 0E 01       >    ld c,#01
-291+  8483 E7          >    rst #20
-292+  8484              print_line_text_cl ;цикл
-293+  8484
-294+  8484 7E           	ld a,(hl)
-295+  8485 FE 0A        	cp 10 ;этот код не печатаем
-296+  8487 28 14        	jr z,print_line_text_skip
-297+  8489 FE FF        	cp #ff ;этот код не печатаем
-298+  848B 28 10        	jr z,print_line_text_skip
-299+  848D FE 0D        	cp 13
-300+  848F 28 12        	jr z,print_line_text_ex_ok
-301+  8491              	OS_PRINT_CHARF ;печать
-301+  8491 D7          >	rst #10
-302+  8492
-303+  8492              	;на следующую позицию
-304+  8492 3A 83 85     	ld a,(view_file_x_cur)
-305+  8495 3C           	inc a
-306+  8496 FE 50        	cp 80 ;правый край экрана
-307+  8498 32 83 85     	ld (view_file_x_cur),a
-308+  849B 30 18        	jr nc,print_line_text_right ;дошли до правого края
-309+  849D
-310+  849D              print_line_text_skip
-311+  849D CD F1 84     	call view_file_next_pos ;следующий
-312+  84A0 30 E2        	jr nc,print_line_text_cl ;на следующий символ
-313+  84A2 C9           	ret
-314+  84A3
-315+  84A3
-316+  84A3              print_line_text_ex_ok ;выход норма
-317+  84A3              	;тут надо добить строку пробелами
-318+  84A3 3E 20        	ld a," "
-319+  84A5              	OS_PRINT_CHARF ;печать
-319+  84A5 D7          >	rst #10
-320+  84A6 3A 83 85     	ld a,(view_file_x_cur)
-321+  84A9 3C           	inc a
-322+  84AA FE 50        	cp 80 ;правый край экрана
-323+  84AC 32 83 85     	ld (view_file_x_cur),a
-324+  84AF 38 F2        	jr c,print_line_text_ex_ok
-325+  84B1
-326+  84B1
-327+  84B1 CD F1 84     	call view_file_next_pos ;следующий
-328+  84B4
-329+  84B4 C9           	ret
-330+  84B5              ; print_line_text_ex_end ;выход если кончился файл
-331+  84B5              	; scf
-332+  84B5              	; ret
-333+  84B5
-334+  84B5              print_line_text_right
-335+  84B5 CD 4F 85     	call next_line ;позицию  до конца строки
-336+  84B8 C9           	ret
-337+  84B9
-338+  84B9
-339+  84B9
-340+  84B9              view_move_right ;перемотка строки направо
-341+  84B9 ED 4B 7C 85  	ld bc,(view_move_right_val) ;на сколько символов вправо промотать
-342+  84BD 78           	ld a,b
-343+  84BE B1           	or c
-344+  84BF C8           	ret z
-345+  84C0 2A 7E 85     	ld hl,(view_file_pos_cur)
-346+  84C3              view_move_right1
-347+  84C3 7E           	ld a,(hl)
-348+  84C4 FE 0A        	cp 10 ;этот код пропускаем
-349+  84C6 20 07        	jr nz,view_move_right2
-350+  84C8 CD F1 84     	call view_file_next_pos
-351+  84CB D8           	ret c
-352+  84CC C8           	ret z
-353+  84CD 18 F4        	jr view_move_right1
-354+  84CF              view_move_right2
-355+  84CF FE FF        	cp #ff ;этот код пропускаем
-356+  84D1 20 07        	jr nz,view_move_right3
-357+  84D3 CD F1 84     	call view_file_next_pos
-358+  84D6 D8           	ret c
-359+  84D7 C8           	ret z
-360+  84D8 18 E9        	jr view_move_right1
-361+  84DA              view_move_right3
-362+  84DA 7E           	ld a,(hl)
-363+  84DB FE 0D        	cp 13 ;
-364+  84DD C8           	ret z
-365+  84DE              view_move_right_cl
-366+  84DE CD F1 84     	call view_file_next_pos
-367+  84E1 D8           	ret c
-368+  84E2 C8           	ret z
-369+  84E3 7E           	ld a,(hl)
-370+  84E4 FE 0D        	cp 13
-371+  84E6 C8           	ret z
-372+  84E7 FE 0A        	cp 10 ;этот код пропускаем
-373+  84E9 28 F3        	jr z,view_move_right_cl
-374+  84EB 0B           	dec bc
-375+  84EC 78           	ld a,b
-376+  84ED B1           	or c
-377+  84EE 20 EE        	jr nz,view_move_right_cl
-378+  84F0              	;call view_file_next_pos ;следующий
-379+  84F0 C9           	ret
-380+  84F1
-381+  84F1
-382+  84F1
-383+  84F1              ;получение следующей позиции
-384+  84F1              view_file_next_pos
-385+  84F1 3A 84 85     	ld a,(view_file_load_all) ;флаг что файл весь в памяти
-386+  84F4 B7           	or a
-387+  84F5 28 14        	jr z,view_file_next_pos_big
-388+  84F7              	;если текст не большой
-389+  84F7 2A 85 85     	ld hl,(view_file_end) ;конец текста известен
-390+  84FA ED 5B 7E 85  	ld de,(view_file_pos_cur)
-391+  84FE 13           	inc de ;вперёд
-392+  84FF A7           	and a
-393+  8500 ED 52        	sbc hl,de
-394+  8502 38 15        	jr c,view_file_next_pos_end
-395+  8504 ED 53 7E 85  	ld (view_file_pos_cur),de
-396+  8508 EB           	ex de,hl ;на выходе адрес в HL
-397+  8509 B7           	or a
-398+  850A C9           	ret
-399+  850B
-400+  850B
-401+  850B
-402+  850B              view_file_next_pos_big
-403+  850B              	;если текст большой
-404+  850B 2A 7E 85     	ld hl,(view_file_pos_cur)	;текущая позиция
-405+  850E 23           	inc hl ;вперёд
-406+  850F 7C           	ld a,h
-407+  8510 FE C0        	cp #c0 ;если вышли за пределы окна
-408+  8512 38 05        	jr c,view_file_next_pos_end
-409+  8514 22 7E 85     	ld (view_file_pos_cur),hl
-410+  8517 B7           	or a
-411+  8518 C9           	ret
-412+  8519
-413+  8519              view_file_next_pos_end
-414+  8519              	;не смогли шагнуть вперёд
-415+  8519              	; ld a,1 ;флаг что внизу
-416+  8519              	; ld (view_file_bot_flag),a
-417+  8519 37           	scf ;ошибка
-418+  851A C9           	ret
-419+  851B
-420+  851B
-421+  851B
-422+  851B
-423+  851B
-424+  851B
-425+  851B              ;получение предыдущей позиции
-426+  851B              view_file_prev_pos
-427+  851B 3A 84 85     	ld a,(view_file_load_all) ;флаг что файл весь в памяти
-428+  851E B7           	or a
-429+  851F 28 1E        	jr z,view_file_prev_pos_big
-430+  8521              	;если текст не большой
-431+  8521 21 00 C0     	ld hl,buffer_cat ;тут лежит текст
-432+  8524 ED 5B 7E 85  	ld de,(view_file_pos_cur) ;текущая позиция
-433+  8528 1B           	dec de ;назад
-434+  8529 A7           	and a
-435+  852A ED 52        	sbc hl,de
-436+  852C 28 0A        	jr z,view_file_prev_pos_top ;если пришли в начало
-437+  852E 30 1D        	jr nc,view_file_prev_pos_end
-438+  8530              	;можно шагнуть назад
-439+  8530 ED 53 7E 85  	ld (view_file_pos_cur),de
-440+  8534 EB           	ex de,hl ;на выходе адрес в HL
-441+  8535 AF           	xor a
-442+  8536 3C           	inc a ;a=1
-443+  8537 C9           	ret
-444+  8538              view_file_prev_pos_top
-445+  8538              	;если в начале
-446+  8538 ED 53 7E 85  	ld (view_file_pos_cur),de
-447+  853C EB           	ex de,hl ;на выходе адрес в HL
-448+  853D AF           	xor a ;a=0
-449+  853E C9           	ret
-450+  853F
-451+  853F
-452+  853F              view_file_prev_pos_big
-453+  853F              	;если текст большой
-454+  853F 2A 7E 85     	ld hl,(view_file_pos_cur)	;текущая позиция
-455+  8542 2B           	dec hl ;назад
-456+  8543 7C           	ld a,h
-457+  8544 FE C0        	cp #c0 ;если вышли за пределы окна
-458+  8546 38 05        	jr c,view_file_prev_pos_end
-459+  8548 22 7E 85     	ld (view_file_pos_cur),hl
-460+  854B B7           	or a
-461+  854C C9           	ret
-462+  854D
-463+  854D              view_file_prev_pos_end
-464+  854D              	;не смогли шагнуть назад
-465+  854D              	; ld hl,buffer_cat ;тут лежит текст
-466+  854D              	; ld (view_file_pos_cur),hl ;текущая позиция в самом начале
-467+  854D 37           	scf ;ошибка
-468+  854E C9           	ret
-469+  854F
-470+  854F
-471+  854F
-472+  854F
-473+  854F              next_line ;поиск следующей строки
-474+  854F CD F1 84     	call view_file_next_pos
-475+  8552 D8           	ret c
-476+  8553 C8           	ret z
-477+  8554 7E           	ld a,(hl)
-478+  8555 FE 0D        	cp 13
-479+  8557 20 F6        	jr nz,next_line
-480+  8559 CD F1 84     	call view_file_next_pos ;ещё на символ
-481+  855C C9           	ret
-482+  855D
-483+  855D
-484+  855D
-485+  855D              prev_line ;поиск предыдущей строки
-486+  855D              	;сначала в конец предыдущей
-487+  855D CD 1B 85     	call view_file_prev_pos
-488+  8560 C8           	ret z
-489+  8561 D8           	ret c
-490+  8562 7E           	ld a,(hl)
-491+  8563 FE 0D        	cp 13
-492+  8565 20 F6        	jr nz,prev_line
-493+  8567              	;теперь в начало предыдущей
-494+  8567              prev_line1
-495+  8567 CD 1B 85     	call view_file_prev_pos
-496+  856A C8           	ret z
-497+  856B D8           	ret c
-498+  856C 7E           	ld a,(hl)
-499+  856D FE 0D        	cp 13
-500+  856F 20 F6        	jr nz,prev_line1
-501+  8571 CD F1 84     	call view_file_next_pos ;ещё на символ обратно
-502+  8574 C9           	ret
-503+  8575
-504+  8575
-505+  8575
-506+  8575              view_text_bot equ 24 ;последняя строка для печати
-507+  8575              view_text_top equ 1 ;первая строка
-508+  8575              view_text_lines equ 25-2 ;видимых строк на экране
-509+  8575
-510+  8575              msg_menu_view
-511+  8575 33 20 45 78  	db "3 Exit",0
-511+  8579 69 74 00
-512+  857C
-513+  857C              ;view_file_position ds 4 ;текущая позиция в файле
-514+  857C              ;view_file_bot_flag db 0 ;флаг что домотали вниз до конца
-515+  857C 00 00        view_move_right_val dw 0 ;сдвиг вправо
-516+  857E 00 00        view_file_pos_cur dw 0;текущая позиция
-517+  8580 00 00        view_file_pos_cur_focus dw 0 ;позиция фокуса
-518+  8582 00           view_file_y_cur db 0;текущая строка
-519+  8583 00           view_file_x_cur db 0;текущий столбец
-520+  8584 00           view_file_load_all db 0 ;флаг что файл весь загружен
-521+  8585 00 00        view_file_end dw 0 ;конец файлв, или текущего куска
-522+  8587
-523+  8587
+  1+  83F1              view_file
+  2+  83F1              	;просмотр файла как текста
+  3+  83F1
+  4+  83F1 2A CF 86     	ld hl,(file_r_all)
+  5+  83F4 7D           	ld a,l
+  6+  83F5 B4           	or h
+  7+  83F6 CA C3 84     	jp z,view_file_ex ;защита
+  8+  83F9 2A ED 88     	ld hl,(file_r_num_cur)
+  9+  83FC CD EC 80     	call calc_deskr
+ 10+  83FF DD 7E 0B     	ld a,(ix+#0b)
+ 11+  8402 FE 10        	cp #10 ;признак каталога
+ 12+  8404 CA C3 84     	jp z,view_file_ex
+ 13+  8407
+ 14+  8407 CD 67 83     	call format_name ;обработать имя файла
+ 15+  840A
+ 16+  840A
+ 17+  840A
+ 18+  840A              	OS_CLS ;почистить экран
+ 18+  840A 0E 00       >    ld c,#00
+ 18+  840C E7          >    rst #20
+ 19+  840D
+ 20+  840D              	;обнулить переменные
+ 21+  840D AF           	xor a
+ 22+  840E 32 CC 86     	ld (view_file_load_all),a ;флаг что файл весь прочитан
+ 23+  8411              	;ld (view_file_bot_flag),a  ;
+ 24+  8411 21 FF FF     	ld hl,#ffff
+ 25+  8414 22 CD 86     	ld (view_file_end),hl ;конец файла тут
+ 26+  8417 23           	inc hl
+ 27+  8418 22 C4 86     	ld (view_move_right_val),hl
+ 28+  841B
+ 29+  841B C5           	push bc
+ 30+  841C CD 99 80     	call clear_buf
+ 31+  841F C1           	pop bc
+ 32+  8420
+ 33+  8420 21 D3 86     	ld hl,file_name_cur		;строка с именем
+ 34+  8423              	OS_FILE_OPEN
+ 34+  8423 0E 21       >    ld c,#21
+ 34+  8425 E7          >    rst #20
+ 35+  8426 30 0E        	jr nc,view_file_open_ok
+ 36+  8428              view_file_file_error
+ 37+  8428 21 7F 89     	ld hl,msg_file_error
+ 38+  842B              	OS_PRINTZ
+ 38+  842B 0E 09       >    ld c,#09
+ 38+  842D E7          >    rst #20
+ 39+  842E 06 64        	ld b,2*50
+ 40+  8430 CD 95 80     	call delay1
+ 41+  8433 C3 BD 84     	jp view_file_wait_ex
+ 42+  8436
+ 43+  8436              view_file_open_ok
+ 44+  8436 32 F0 88     	ld (file_id_cur_r),a
+ 45+  8439              	;проверка длины файла не больше #4000
+ 46+  8439 7A           	ld	a,d ;самые старшие байты длины
+ 47+  843A B3           	or e
+ 48+  843B 28 11        	jr z,view_file_size_ok ;если не слищком большой
+ 49+  843D              view_file_too_big
+ 50+  843D              	;файл больше буфера
+ 51+  843D 11 00 40     	ld de,#4000 ;размер одной первой части
+ 52+  8440 21 00 C0     	ld hl,buffer_cat
+ 53+  8443 3A F0 88     	ld a,(file_id_cur_r)
+ 54+  8446              	OS_FILE_READ ;загрузить
+ 54+  8446 0E 23       >    ld c,#23
+ 54+  8448 E7          >    rst #20
+ 55+  8449 38 DD        	jr c,view_file_file_error
+ 56+  844B
+ 57+  844B C3 77 84     	jp view_file_readed
+ 58+  844E
+ 59+  844E              view_file_size_ok
+ 60+  844E 78           	ld	a,b ;младший старший байт длины
+ 61+  844F FE 40        	cp #40
+ 62+  8451 38 06        	jr c,view_file_size_ok_small
+ 63+  8453 20 E8        	jr nz,view_file_too_big
+ 64+  8455 0C           	inc c
+ 65+  8456 0D           	dec c
+ 66+  8457 20 E4        	jr nz,view_file_too_big
+ 67+  8459
+ 68+  8459
+ 69+  8459              view_file_size_ok_small
+ 70+  8459              	;проверка на 0
+ 71+  8459 78           	ld a,b
+ 72+  845A B1           	or c
+ 73+  845B CA 28 84     	jp z,view_file_file_error
+ 74+  845E              	;узнать где конец файла
+ 75+  845E 21 00 C0     	ld hl,buffer_cat
+ 76+  8461 09           	add hl,bc
+ 77+  8462 22 CD 86     	ld (view_file_end),hl ;конец файла тут
+ 78+  8465              	;размер не большой, прочитаем
+ 79+  8465 50           	ld d,b ;размер
+ 80+  8466 59           	ld e,c
+ 81+  8467 21 00 C0     	ld hl,buffer_cat
+ 82+  846A 3A F0 88     	ld a,(file_id_cur_r)
+ 83+  846D              	OS_FILE_READ ;загрузить
+ 83+  846D 0E 23       >    ld c,#23
+ 83+  846F E7          >    rst #20
+ 84+  8470 38 B6        	jr c,view_file_file_error
+ 85+  8472
+ 86+  8472 3E 01        	ld a,1
+ 87+  8474 32 CC 86     	ld (view_file_load_all),a ;флаг что файл весь прочитан
+ 88+  8477
+ 89+  8477              view_file_readed
+ 90+  8477              	;файл прочитан
+ 91+  8477
+ 92+  8477 21 00 C0     	ld hl,buffer_cat
+ 93+  847A 22 C6 86     	ld (view_file_pos_cur),hl ;позиция просмотра на начало
+ 94+  847D 22 C8 86     	ld (view_file_pos_cur_focus),hl ;позиция фокуса
+ 95+  8480
+ 96+  8480 CD 82 85     	call print_file_text
+ 97+  8483
+ 98+  8483
+ 99+  8483 CD 4D 85     	call print_menu_view ;меню
+100+  8486 CD 68 85     	call print_menu_view_top ;инфо
+101+  8489
+102+  8489 CD A7 80     	call release_key
+103+  848C
+104+  848C              view_file_wait ;цикл ожидания клавиши
+105+  848C              	OS_WAIT
+105+  848C DF          >	rst #18
+106+  848D              	OS_GET_CHAR
+106+  848D 0E 10       >    ld c,#10
+106+  848F E7          >    rst #20
+107+  8490 FE FF        	cp 255
+108+  8492 28 F8        	jr z,view_file_wait
+109+  8494 FE 33        	cp "3"
+110+  8496 28 25        	jr z,view_file_wait_ex
+111+  8498 FE 0A        	cp 10 ;вниз
+112+  849A CA C6 84     	jp z,view_line_down
+113+  849D FE 0B        	cp 11 ;вверх
+114+  849F CA DC 84     	jp z,view_line_up
+115+  84A2 FE 09        	cp 09 ;вправо
+116+  84A4 CA F2 84     	jp z,view_right
+117+  84A7 FE 08        	cp 08 ;влево
+118+  84A9 CA 02 85     	jp z,view_left
+119+  84AC FE 04        	cp 04 ;страница вверх
+120+  84AE CA 13 85     	jp z,view_page_up
+121+  84B1 FE 05        	cp 05 ;страница вниз
+122+  84B3 CA 30 85     	jp z,view_page_down
+123+  84B6 FE 18        	cp 24 ;break
+124+  84B8 CA 8D 81     	jp z,exit
+125+  84BB 18 CF        	jr view_file_wait
+126+  84BD
+127+  84BD              view_file_wait_ex
+128+  84BD              	;почистить экран
+129+  84BD              	OS_CLS
+129+  84BD 0E 00       >    ld c,#00
+129+  84BF E7          >    rst #20
+130+  84C0 C3 23 80     	jp start_nc_warm ;перезагрузить папку
+131+  84C3
+132+  84C3              view_file_ex
+133+  84C3 C3 56 80     	jp nc_wait
+134+  84C6
+135+  84C6
+136+  84C6
+137+  84C6              view_line_down ;вниз на строчку
+138+  84C6 2A C8 86     	ld hl,(view_file_pos_cur_focus) ;фокус
+139+  84C9 22 C6 86     	ld (view_file_pos_cur),hl
+140+  84CC CD 97 86     	call next_line ;вперёд на строку
+141+  84CF 38 BB        	jr c,view_file_wait ;если не удачно
+142+  84D1 2A C6 86     	ld hl,(view_file_pos_cur) ;запомнить фокус
+143+  84D4 22 C8 86     	ld (view_file_pos_cur_focus),hl
+144+  84D7 CD 82 85     	call print_file_text ;напечатать всю страницу
+145+  84DA 18 B0        	jr view_file_wait
+146+  84DC
+147+  84DC              view_line_up ;вверх на строчку
+148+  84DC 2A C8 86     	ld hl,(view_file_pos_cur_focus) ;фокус
+149+  84DF 22 C6 86     	ld (view_file_pos_cur),hl
+150+  84E2 CD A5 86     	call prev_line ;
+151+  84E5 38 A5        	jr c,view_file_wait ;если не удачно
+152+  84E7 2A C6 86     	ld hl,(view_file_pos_cur) ;запомнить фокус
+153+  84EA 22 C8 86     	ld (view_file_pos_cur_focus),hl
+154+  84ED CD 82 85     	call print_file_text ;напечатать всю страницу
+155+  84F0 18 9A        	jr view_file_wait
+156+  84F2
+157+  84F2
+158+  84F2              view_right ;вправо
+159+  84F2 2A C4 86     	ld hl,(view_move_right_val)
+160+  84F5 23           	inc hl
+161+  84F6 7C           	ld a,h
+162+  84F7 B5           	or l
+163+  84F8 28 92        	jr z,view_file_wait
+164+  84FA 22 C4 86     	ld (view_move_right_val),hl
+165+  84FD CD 82 85     	call print_file_text ;напечатать всю страницу
+166+  8500 18 8A        	jr view_file_wait
+167+  8502
+168+  8502              view_left ;влево
+169+  8502 2A C4 86     	ld hl,(view_move_right_val)
+170+  8505 7C           	ld a,h
+171+  8506 B5           	or l
+172+  8507 28 83        	jr z,view_file_wait
+173+  8509 2B           	dec hl
+174+  850A 22 C4 86     	ld (view_move_right_val),hl
+175+  850D CD 82 85     	call print_file_text ;напечатать всю страницу
+176+  8510 C3 8C 84     	jp view_file_wait
+177+  8513
+178+  8513
+179+  8513
+180+  8513              view_page_up ;на страницу назад
+181+  8513 2A C8 86     	ld hl,(view_file_pos_cur_focus) ;фокус
+182+  8516 22 C6 86     	ld (view_file_pos_cur),hl
+183+  8519 06 16        	ld b,view_text_bot-2
+184+  851B              view_page_up_cl
+185+  851B CD A5 86     	call prev_line ;
+186+  851E 38 04        	jr c,view_page_up_ex ;если не удачно
+187+  8520 28 02        	jr z,view_page_up_ex
+188+  8522 10 F7        	djnz view_page_up_cl
+189+  8524              view_page_up_ex
+190+  8524 2A C6 86     	ld hl,(view_file_pos_cur) ;запомнить фокус
+191+  8527 22 C8 86     	ld (view_file_pos_cur_focus),hl
+192+  852A CD 82 85     	call print_file_text ;напечатать всю страницу
+193+  852D C3 8C 84     	jp view_file_wait
+194+  8530
+195+  8530
+196+  8530
+197+  8530              view_page_down ;на страницу вперёд
+198+  8530 2A C8 86     	ld hl,(view_file_pos_cur_focus) ;фокус
+199+  8533 22 C6 86     	ld (view_file_pos_cur),hl
+200+  8536 06 16        	ld b,view_text_bot-2
+201+  8538              view_page_down_cl
+202+  8538 CD 97 86     	call next_line ;
+203+  853B 38 04        	jr c,view_page_down_ex ;если не удачно
+204+  853D 28 02        	jr z,view_page_down_ex
+205+  853F 10 F7        	djnz view_page_down_cl
+206+  8541              view_page_down_ex
+207+  8541 2A C6 86     	ld hl,(view_file_pos_cur) ;запомнить фокус
+208+  8544 22 C8 86     	ld (view_file_pos_cur_focus),hl
+209+  8547 CD 82 85     	call print_file_text ;напечатать всю страницу
+210+  854A C3 8C 84     	jp view_file_wait
+211+  854D
+212+  854D
+213+  854D
+214+  854D              print_menu_view ;печать меню просмотрщика
+215+  854D 3E 18        	ld a,#18
+216+  854F 06 28        	ld b,color_backgr_hi ;цвет
+217+  8551              	OS_PAINT_LINE ;линия внизу
+217+  8551 0E 04       >    ld c,#04
+217+  8553 E7          >    rst #20
+218+  8554 3E 28        	ld a,color_backgr_hi ;цвет
+219+  8556 06 0C        	ld b,#c
+220+  8558              	OS_SET_COLOR
+220+  8558 0E 06       >    ld c,#06
+220+  855A E7          >    rst #20
+221+  855B 11 18 18     	ld de,#1800+3*8
+222+  855E              	OS_SET_XY
+222+  855E 0E 01       >    ld c,#01
+222+  8560 E7          >    rst #20
+223+  8561 21 BD 86     	ld hl,msg_menu_view
+224+  8564              	OS_PRINTZ
+224+  8564 0E 09       >    ld c,#09
+224+  8566 E7          >    rst #20
+225+  8567 C9           	ret
+226+  8568
+227+  8568              print_menu_view_top ;печать меню просмотрщика верхнее
+228+  8568 AF           	xor a
+229+  8569 06 28        	ld b,color_backgr_hi ;цвет
+230+  856B              	OS_PAINT_LINE ;линия вверху
+230+  856B 0E 04       >    ld c,#04
+230+  856D E7          >    rst #20
+231+  856E 3E 28        	ld a,color_backgr_hi ;цвет
+232+  8570 06 0C        	ld b,#c
+233+  8572              	OS_SET_COLOR
+233+  8572 0E 06       >    ld c,#06
+233+  8574 E7          >    rst #20
+234+  8575 11 24 00     	ld de,#0024
+235+  8578              	OS_SET_XY
+235+  8578 0E 01       >    ld c,#01
+235+  857A E7          >    rst #20
+236+  857B 21 D3 86     	ld hl,file_name_cur
+237+  857E              	OS_PRINTZ
+237+  857E 0E 09       >    ld c,#09
+237+  8580 E7          >    rst #20
+238+  8581 C9           	ret
+239+  8582
+240+  8582
+241+  8582
+242+  8582              print_file_text	;печать текущей части файла в консоль
+243+  8582 3E 04        	ld a,4 ;цвет
+244+  8584 06 0C        	ld b,#c
+245+  8586              	OS_SET_COLOR
+245+  8586 0E 06       >    ld c,#06
+245+  8588 E7          >    rst #20
+246+  8589
+247+  8589 3E 01        	ld a,view_text_top ;первая строка
+248+  858B 32 CA 86     	ld (view_file_y_cur),a
+249+  858E 2A C8 86     	ld hl,(view_file_pos_cur_focus) ;печать видимой части
+250+  8591 22 C6 86     	ld (view_file_pos_cur),hl
+251+  8594              print_file_text_cl
+252+  8594 2A C6 86     	ld hl,(view_file_pos_cur)
+253+  8597 CD BD 85     	call print_line_text
+254+  859A 38 0C        	jr c,print_file_text_ex
+255+  859C
+256+  859C              	; call next_line ;найти следующую строку
+257+  859C              	; ret c
+258+  859C
+259+  859C 3A CA 86     	ld a,(view_file_y_cur)
+260+  859F 3C           	inc a
+261+  85A0 32 CA 86     	ld (view_file_y_cur),a
+262+  85A3 FE 18        	cp view_text_bot
+263+  85A5 38 ED        	jr c,print_file_text_cl
+264+  85A7 C9           	ret
+265+  85A8
+266+  85A8              print_file_text_ex
+267+  85A8              	;тут очистить остальные строки
+268+  85A8 3A CA 86     	ld a,(view_file_y_cur)
+269+  85AB FE 18        	cp view_text_bot
+270+  85AD 30 0C        	jr nc,print_file_text_ex2
+271+  85AF 67           	ld h,a
+272+  85B0 3C           	inc a
+273+  85B1 32 CA 86     	ld (view_file_y_cur),a
+274+  85B4 3E 20        	ld a," "
+275+  85B6              	OS_FILL_LINE ;очистить строку
+275+  85B6 0E 03       >    ld c,#03
+275+  85B8 E7          >    rst #20
+276+  85B9 18 ED        	jr print_file_text_ex
+277+  85BB              print_file_text_ex2
+278+  85BB 37           	scf
+279+  85BC C9           	ret
+280+  85BD
+281+  85BD
+282+  85BD
+283+  85BD              print_line_text ;печать одной строки до кода 13, или до правого края экрана, или до конца файла
+284+  85BD              ;вх: hl - адрес строки
+285+  85BD CD 01 86     	call view_move_right ;промотать направо. если надо
+286+  85C0              	;установить позицию
+287+  85C0 3A CA 86     	ld a,(view_file_y_cur)
+288+  85C3 57           	ld d,a
+289+  85C4 AF           	xor a
+290+  85C5 32 CB 86     	ld (view_file_x_cur),a
+291+  85C8 5F           	ld e,a
+292+  85C9              	OS_SET_XY 	;yx
+292+  85C9 0E 01       >    ld c,#01
+292+  85CB E7          >    rst #20
+293+  85CC              print_line_text_cl ;цикл
+294+  85CC
+295+  85CC 7E           	ld a,(hl)
+296+  85CD FE 0A        	cp 10 ;этот код не печатаем
+297+  85CF 28 14        	jr z,print_line_text_skip
+298+  85D1 FE FF        	cp #ff ;этот код не печатаем
+299+  85D3 28 10        	jr z,print_line_text_skip
+300+  85D5 FE 0D        	cp 13
+301+  85D7 28 12        	jr z,print_line_text_ex_ok
+302+  85D9              	OS_PRINT_CHARF ;печать
+302+  85D9 D7          >	rst #10
+303+  85DA
+304+  85DA              	;на следующую позицию
+305+  85DA 3A CB 86     	ld a,(view_file_x_cur)
+306+  85DD 3C           	inc a
+307+  85DE FE 50        	cp 80 ;правый край экрана
+308+  85E0 32 CB 86     	ld (view_file_x_cur),a
+309+  85E3 30 18        	jr nc,print_line_text_right ;дошли до правого края
+310+  85E5
+311+  85E5              print_line_text_skip
+312+  85E5 CD 39 86     	call view_file_next_pos ;следующий
+313+  85E8 30 E2        	jr nc,print_line_text_cl ;на следующий символ
+314+  85EA C9           	ret
+315+  85EB
+316+  85EB
+317+  85EB              print_line_text_ex_ok ;выход норма
+318+  85EB              	;тут надо добить строку пробелами
+319+  85EB 3E 20        	ld a," "
+320+  85ED              	OS_PRINT_CHARF ;печать
+320+  85ED D7          >	rst #10
+321+  85EE 3A CB 86     	ld a,(view_file_x_cur)
+322+  85F1 3C           	inc a
+323+  85F2 FE 50        	cp 80 ;правый край экрана
+324+  85F4 32 CB 86     	ld (view_file_x_cur),a
+325+  85F7 38 F2        	jr c,print_line_text_ex_ok
+326+  85F9
+327+  85F9
+328+  85F9 CD 39 86     	call view_file_next_pos ;следующий
+329+  85FC
+330+  85FC C9           	ret
+331+  85FD              ; print_line_text_ex_end ;выход если кончился файл
+332+  85FD              	; scf
+333+  85FD              	; ret
+334+  85FD
+335+  85FD              print_line_text_right
+336+  85FD CD 97 86     	call next_line ;позицию  до конца строки
+337+  8600 C9           	ret
+338+  8601
+339+  8601
+340+  8601
+341+  8601              view_move_right ;перемотка строки направо
+342+  8601 ED 4B C4 86  	ld bc,(view_move_right_val) ;на сколько символов вправо промотать
+343+  8605 78           	ld a,b
+344+  8606 B1           	or c
+345+  8607 C8           	ret z
+346+  8608 2A C6 86     	ld hl,(view_file_pos_cur)
+347+  860B              view_move_right1
+348+  860B 7E           	ld a,(hl)
+349+  860C FE 0A        	cp 10 ;этот код пропускаем
+350+  860E 20 07        	jr nz,view_move_right2
+351+  8610 CD 39 86     	call view_file_next_pos
+352+  8613 D8           	ret c
+353+  8614 C8           	ret z
+354+  8615 18 F4        	jr view_move_right1
+355+  8617              view_move_right2
+356+  8617 FE FF        	cp #ff ;этот код пропускаем
+357+  8619 20 07        	jr nz,view_move_right3
+358+  861B CD 39 86     	call view_file_next_pos
+359+  861E D8           	ret c
+360+  861F C8           	ret z
+361+  8620 18 E9        	jr view_move_right1
+362+  8622              view_move_right3
+363+  8622 7E           	ld a,(hl)
+364+  8623 FE 0D        	cp 13 ;
+365+  8625 C8           	ret z
+366+  8626              view_move_right_cl
+367+  8626 CD 39 86     	call view_file_next_pos
+368+  8629 D8           	ret c
+369+  862A C8           	ret z
+370+  862B 7E           	ld a,(hl)
+371+  862C FE 0D        	cp 13
+372+  862E C8           	ret z
+373+  862F FE 0A        	cp 10 ;этот код пропускаем
+374+  8631 28 F3        	jr z,view_move_right_cl
+375+  8633 0B           	dec bc
+376+  8634 78           	ld a,b
+377+  8635 B1           	or c
+378+  8636 20 EE        	jr nz,view_move_right_cl
+379+  8638              	;call view_file_next_pos ;следующий
+380+  8638 C9           	ret
+381+  8639
+382+  8639
+383+  8639
+384+  8639              ;получение следующей позиции
+385+  8639              view_file_next_pos
+386+  8639 3A CC 86     	ld a,(view_file_load_all) ;флаг что файл весь в памяти
+387+  863C B7           	or a
+388+  863D 28 14        	jr z,view_file_next_pos_big
+389+  863F              	;если текст не большой
+390+  863F 2A CD 86     	ld hl,(view_file_end) ;конец текста известен
+391+  8642 ED 5B C6 86  	ld de,(view_file_pos_cur)
+392+  8646 13           	inc de ;вперёд
+393+  8647 A7           	and a
+394+  8648 ED 52        	sbc hl,de
+395+  864A 38 15        	jr c,view_file_next_pos_end
+396+  864C ED 53 C6 86  	ld (view_file_pos_cur),de
+397+  8650 EB           	ex de,hl ;на выходе адрес в HL
+398+  8651 B7           	or a
+399+  8652 C9           	ret
+400+  8653
+401+  8653
+402+  8653
+403+  8653              view_file_next_pos_big
+404+  8653              	;если текст большой
+405+  8653 2A C6 86     	ld hl,(view_file_pos_cur)	;текущая позиция
+406+  8656 23           	inc hl ;вперёд
+407+  8657 7C           	ld a,h
+408+  8658 FE C0        	cp #c0 ;если вышли за пределы окна
+409+  865A 38 05        	jr c,view_file_next_pos_end
+410+  865C 22 C6 86     	ld (view_file_pos_cur),hl
+411+  865F B7           	or a
+412+  8660 C9           	ret
+413+  8661
+414+  8661              view_file_next_pos_end
+415+  8661              	;не смогли шагнуть вперёд
+416+  8661              	; ld a,1 ;флаг что внизу
+417+  8661              	; ld (view_file_bot_flag),a
+418+  8661 37           	scf ;ошибка
+419+  8662 C9           	ret
+420+  8663
+421+  8663
+422+  8663
+423+  8663
+424+  8663
+425+  8663
+426+  8663              ;получение предыдущей позиции
+427+  8663              view_file_prev_pos
+428+  8663 3A CC 86     	ld a,(view_file_load_all) ;флаг что файл весь в памяти
+429+  8666 B7           	or a
+430+  8667 28 1E        	jr z,view_file_prev_pos_big
+431+  8669              	;если текст не большой
+432+  8669 21 00 C0     	ld hl,buffer_cat ;тут лежит текст
+433+  866C ED 5B C6 86  	ld de,(view_file_pos_cur) ;текущая позиция
+434+  8670 1B           	dec de ;назад
+435+  8671 A7           	and a
+436+  8672 ED 52        	sbc hl,de
+437+  8674 28 0A        	jr z,view_file_prev_pos_top ;если пришли в начало
+438+  8676 30 1D        	jr nc,view_file_prev_pos_end
+439+  8678              	;можно шагнуть назад
+440+  8678 ED 53 C6 86  	ld (view_file_pos_cur),de
+441+  867C EB           	ex de,hl ;на выходе адрес в HL
+442+  867D AF           	xor a
+443+  867E 3C           	inc a ;a=1
+444+  867F C9           	ret
+445+  8680              view_file_prev_pos_top
+446+  8680              	;если в начале
+447+  8680 ED 53 C6 86  	ld (view_file_pos_cur),de
+448+  8684 EB           	ex de,hl ;на выходе адрес в HL
+449+  8685 AF           	xor a ;a=0
+450+  8686 C9           	ret
+451+  8687
+452+  8687
+453+  8687              view_file_prev_pos_big
+454+  8687              	;если текст большой
+455+  8687 2A C6 86     	ld hl,(view_file_pos_cur)	;текущая позиция
+456+  868A 2B           	dec hl ;назад
+457+  868B 7C           	ld a,h
+458+  868C FE C0        	cp #c0 ;если вышли за пределы окна
+459+  868E 38 05        	jr c,view_file_prev_pos_end
+460+  8690 22 C6 86     	ld (view_file_pos_cur),hl
+461+  8693 B7           	or a
+462+  8694 C9           	ret
+463+  8695
+464+  8695              view_file_prev_pos_end
+465+  8695              	;не смогли шагнуть назад
+466+  8695              	; ld hl,buffer_cat ;тут лежит текст
+467+  8695              	; ld (view_file_pos_cur),hl ;текущая позиция в самом начале
+468+  8695 37           	scf ;ошибка
+469+  8696 C9           	ret
+470+  8697
+471+  8697
+472+  8697
+473+  8697
+474+  8697              next_line ;поиск следующей строки
+475+  8697 CD 39 86     	call view_file_next_pos
+476+  869A D8           	ret c
+477+  869B C8           	ret z
+478+  869C 7E           	ld a,(hl)
+479+  869D FE 0D        	cp 13
+480+  869F 20 F6        	jr nz,next_line
+481+  86A1 CD 39 86     	call view_file_next_pos ;ещё на символ
+482+  86A4 C9           	ret
+483+  86A5
+484+  86A5
+485+  86A5
+486+  86A5              prev_line ;поиск предыдущей строки
+487+  86A5              	;сначала в конец предыдущей
+488+  86A5 CD 63 86     	call view_file_prev_pos
+489+  86A8 C8           	ret z
+490+  86A9 D8           	ret c
+491+  86AA 7E           	ld a,(hl)
+492+  86AB FE 0D        	cp 13
+493+  86AD 20 F6        	jr nz,prev_line
+494+  86AF              	;теперь в начало предыдущей
+495+  86AF              prev_line1
+496+  86AF CD 63 86     	call view_file_prev_pos
+497+  86B2 C8           	ret z
+498+  86B3 D8           	ret c
+499+  86B4 7E           	ld a,(hl)
+500+  86B5 FE 0D        	cp 13
+501+  86B7 20 F6        	jr nz,prev_line1
+502+  86B9 CD 39 86     	call view_file_next_pos ;ещё на символ обратно
+503+  86BC C9           	ret
+504+  86BD
+505+  86BD
+506+  86BD
+507+  86BD              view_text_bot equ 24 ;последняя строка для печати
+508+  86BD              view_text_top equ 1 ;первая строка
+509+  86BD              view_text_lines equ 25-2 ;видимых строк на экране
+510+  86BD
+511+  86BD              msg_menu_view
+512+  86BD 33 20 45 78  	db "3 Exit",0
+512+  86C1 69 74 00
+513+  86C4
+514+  86C4              ;view_file_position ds 4 ;текущая позиция в файле
+515+  86C4              ;view_file_bot_flag db 0 ;флаг что домотали вниз до конца
+516+  86C4 00 00        view_move_right_val dw 0 ;сдвиг вправо
+517+  86C6 00 00        view_file_pos_cur dw 0;текущая позиция
+518+  86C8 00 00        view_file_pos_cur_focus dw 0 ;позиция фокуса
+519+  86CA 00           view_file_y_cur db 0;текущая строка
+520+  86CB 00           view_file_x_cur db 0;текущий столбец
+521+  86CC 00           view_file_load_all db 0 ;флаг что файл весь загружен
+522+  86CD 00 00        view_file_end dw 0 ;конец файлв, или текущего куска
+523+  86CF
+524+  86CF
 # file closed: nc_view.asm
-522   8587
-523   8587
-524   8587              color_backgr equ 1*8+7 ;цвет фона
-525   8587              color_apg equ 1*8+4 ;цвет приложений
-526   8587              color_dir equ 1*8+6 ;цвет папок
-527   8587
-528   8587              color_backgr_hi equ 5*8+0 ;цвет фона курсор
-529   8587              color_apg_hi equ 5*8+0 ;цвет приложений курсор
-530   8587              color_dir_hi equ 5*8+0 ;цвет папок курсор
-531   8587
-532   8587              file_info_lenght equ 11 ;длина инфо о файле
-533   8587              panel_hight equ 22;высота панели
-534   8587              panel_r_xy equ #0129
-535   8587              buffer_cat equ #c000 ;адрес буфера каталога
-536   8587
-537   8587 00 00        file_r_all dw 0;всего файлов справа
-538   8589 00 00 00...  file_name_cur ds 256 ;имя файла текущее
-539   8689 00 00 00...  dir_name_cur ds 256 ;имя файла текущее
-540   8789 00 00 00...  file_info_string ds file_info_lenght+1 ;буфер инфо
-541   8795 20 20 20 20  file_info_clear db "            ",0 ;для очистки
-541   8799 20 20 20 20
-541   879D 20 20 20 20
-541   87A1 00
-542   87A2 00           buffer_cat_page_r db 0 ;страница буфера каталога правый
-543   87A3
-544   87A3 00 00        file_r_num_cur dw 0 ;текущий файл справа
-545   87A5 00           key_pressed db 0 ;последняя клавиша
-546   87A6 00           file_id_cur_r db 0 ;id файла справа
-547   87A7
-548   87A7
-549   87A7 00           page_ext01 db 0 ;номер дополнительной страницы
-550   87A8 00 00        page_main dw 0 ;основные номера страниц слота 2,3
-551   87AA
-552   87AA              rect_1
-553   87AA C9           	db #c9
-554   87AB              	dup 40-2
-555   87AB CD          >	db #cd
-555   87AC CD          >	db #cd
-555   87AD CD          >	db #cd
-555   87AE CD          >	db #cd
-555   87AF CD          >	db #cd
-555   87B0 CD          >	db #cd
-555   87B1 CD          >	db #cd
-555   87B2 CD          >	db #cd
-555   87B3 CD          >	db #cd
-555   87B4 CD          >	db #cd
-555   87B5 CD          >	db #cd
-555   87B6 CD          >	db #cd
-555   87B7 CD          >	db #cd
-555   87B8 CD          >	db #cd
-555   87B9 CD          >	db #cd
-555   87BA CD          >	db #cd
-555   87BB CD          >	db #cd
-555   87BC CD          >	db #cd
-555   87BD CD          >	db #cd
-555   87BE CD          >	db #cd
-555   87BF CD          >	db #cd
-555   87C0 CD          >	db #cd
-555   87C1 CD          >	db #cd
-555   87C2 CD          >	db #cd
-555   87C3 CD          >	db #cd
-555   87C4 CD          >	db #cd
-555   87C5 CD          >	db #cd
-555   87C6 CD          >	db #cd
-555   87C7 CD          >	db #cd
-555   87C8 CD          >	db #cd
-555   87C9 CD          >	db #cd
-555   87CA CD          >	db #cd
-555   87CB CD          >	db #cd
-555   87CC CD          >	db #cd
-555   87CD CD          >	db #cd
-555   87CE CD          >	db #cd
-555   87CF CD          >	db #cd
-555   87D0 CD          >	db #cd
-556   87D1              	edup
-557   87D1 BB 00        	db #bb,0
-558   87D3
-559   87D3              rect_2
-560   87D3 BA           	db #ba
-561   87D4              	dup 40-2
-562   87D4 20          >	db " "
-562   87D5 20          >	db " "
-562   87D6 20          >	db " "
-562   87D7 20          >	db " "
-562   87D8 20          >	db " "
-562   87D9 20          >	db " "
-562   87DA 20          >	db " "
-562   87DB 20          >	db " "
-562   87DC 20          >	db " "
-562   87DD 20          >	db " "
-562   87DE 20          >	db " "
-562   87DF 20          >	db " "
-562   87E0 20          >	db " "
-562   87E1 20          >	db " "
-562   87E2 20          >	db " "
-562   87E3 20          >	db " "
-562   87E4 20          >	db " "
-562   87E5 20          >	db " "
-562   87E6 20          >	db " "
-562   87E7 20          >	db " "
-562   87E8 20          >	db " "
-562   87E9 20          >	db " "
-562   87EA 20          >	db " "
-562   87EB 20          >	db " "
-562   87EC 20          >	db " "
-562   87ED 20          >	db " "
-562   87EE 20          >	db " "
-562   87EF 20          >	db " "
-562   87F0 20          >	db " "
-562   87F1 20          >	db " "
-562   87F2 20          >	db " "
-562   87F3 20          >	db " "
-562   87F4 20          >	db " "
-562   87F5 20          >	db " "
-562   87F6 20          >	db " "
-562   87F7 20          >	db " "
-562   87F8 20          >	db " "
-562   87F9 20          >	db " "
-563   87FA              	edup
-564   87FA BA 00        	db #ba,0
-565   87FC
-566   87FC              rect_3
-567   87FC C8           	db #c8
-568   87FD              	dup 40-2
-569   87FD CD          >	db #cd
-569   87FE CD          >	db #cd
-569   87FF CD          >	db #cd
-569   8800 CD          >	db #cd
-569   8801 CD          >	db #cd
-569   8802 CD          >	db #cd
-569   8803 CD          >	db #cd
-569   8804 CD          >	db #cd
-569   8805 CD          >	db #cd
-569   8806 CD          >	db #cd
-569   8807 CD          >	db #cd
-569   8808 CD          >	db #cd
-569   8809 CD          >	db #cd
-569   880A CD          >	db #cd
-569   880B CD          >	db #cd
-569   880C CD          >	db #cd
-569   880D CD          >	db #cd
-569   880E CD          >	db #cd
-569   880F CD          >	db #cd
-569   8810 CD          >	db #cd
-569   8811 CD          >	db #cd
-569   8812 CD          >	db #cd
-569   8813 CD          >	db #cd
-569   8814 CD          >	db #cd
-569   8815 CD          >	db #cd
-569   8816 CD          >	db #cd
-569   8817 CD          >	db #cd
-569   8818 CD          >	db #cd
-569   8819 CD          >	db #cd
-569   881A CD          >	db #cd
-569   881B CD          >	db #cd
-569   881C CD          >	db #cd
-569   881D CD          >	db #cd
-569   881E CD          >	db #cd
-569   881F CD          >	db #cd
-569   8820 CD          >	db #cd
-569   8821 CD          >	db #cd
-569   8822 CD          >	db #cd
-570   8823              	edup
-571   8823 BC 00        	db #bc,0
-572   8825
-573   8825              msg_menu_main
-574   8825 33 20 56 69  	db "3 View",0
-574   8829 65 77 00
-575   882C              msg_file_error
-576   882C 46 69 6C 65  	db "File error",10,13,0
-576   8830 20 65 72 72
-576   8834 6F 72 0A 0D
-576   8838 00
-577   8839              msg_file_too_big
-578   8839 46 69 6C 65  	db "File too big",10,13,0
-578   883D 20 74 6F 6F
-578   8841 20 62 69 67
-578   8845 0A 0D 00
-579   8848              msg_mem_err
-580   8848 47 65 74 20  	db "Get memory error",10,13,0
-580   884C 6D 65 6D 6F
-580   8850 72 79 20 65
-580   8854 72 72 6F 72
-580   8858 0A 0D 00
-581   885B              msg_title_nc
-582   885B 4E 6F 6E 65  	db "None Commander ver 2025.06.17",10,13,0
-582   885F 20 43 6F 6D
-582   8863 6D 61 6E 64
-582   8867 65 72 20 76
-582   886B 65 72 20 32
-582   886F 30 32 35 2E
-582   8873 30 36 2E 31
-582   8877 37 0A 0D 00
-583   887B
-584   887B              end_nc
-585   887B              	savebin "nc.apg",start_nc,$-start_nc
+854   86CF
+855   86CF
+856   86CF              color_backgr equ 1*8+7 ;цвет фона
+857   86CF              color_apg equ 1*8+4 ;цвет приложений
+858   86CF              color_dir equ 1*8+6 ;цвет папок
+859   86CF
+860   86CF              color_backgr_hi equ 5*8+0 ;цвет фона курсор
+861   86CF              color_apg_hi equ 5*8+0 ;цвет приложений курсор
+862   86CF              color_dir_hi equ 5*8+0 ;цвет папок курсор
+863   86CF
+864   86CF              file_info_lenght equ 11 ;длина инфо о файле
+865   86CF              panel_hight equ 22;высота панели
+866   86CF              panel_r_xy equ #0129
+867   86CF              buffer_cat equ #c000 ;адрес буфера каталога
+868   86CF
+869   86CF 00 00        file_r_all dw 0;всего файлов справа
+870   86D1 00 00        file_r_cur_focus dw 0;первый видимый
+871   86D3 00 00 00...  file_name_cur ds 256 ;имя файла текущее
+872   87D3 00 00 00...  dir_name_cur ds 256 ;имя файла текущее
+873   88D3 00 00 00...  file_info_string ds file_info_lenght+1 ;буфер инфо
+874   88DF 20 20 20 20  file_info_clear db "            ",0 ;для очистки
+874   88E3 20 20 20 20
+874   88E7 20 20 20 20
+874   88EB 00
+875   88EC 00           buffer_cat_page_r db 0 ;страница буфера каталога правый
+876   88ED
+877   88ED 00 00        file_r_num_cur dw 0 ;текущий файл справа
+878   88EF 00           key_pressed db 0 ;последняя клавиша
+879   88F0 00           file_id_cur_r db 0 ;id файла справа
+880   88F1
+881   88F1
+882   88F1 00           page_ext01 db 0 ;номер дополнительной страницы
+883   88F2 00 00        page_main dw 0 ;основные номера страниц слота 2,3
+884   88F4 00           print_panel_r_flag db 0 ;флаг что надо обновить правую панель
+885   88F5
+886   88F5              rect_1
+887   88F5 C9           	db #c9
+888   88F6              	dup 40-2
+889   88F6 CD          >	db #cd
+889   88F7 CD          >	db #cd
+889   88F8 CD          >	db #cd
+889   88F9 CD          >	db #cd
+889   88FA CD          >	db #cd
+889   88FB CD          >	db #cd
+889   88FC CD          >	db #cd
+889   88FD CD          >	db #cd
+889   88FE CD          >	db #cd
+889   88FF CD          >	db #cd
+889   8900 CD          >	db #cd
+889   8901 CD          >	db #cd
+889   8902 CD          >	db #cd
+889   8903 CD          >	db #cd
+889   8904 CD          >	db #cd
+889   8905 CD          >	db #cd
+889   8906 CD          >	db #cd
+889   8907 CD          >	db #cd
+889   8908 CD          >	db #cd
+889   8909 CD          >	db #cd
+889   890A CD          >	db #cd
+889   890B CD          >	db #cd
+889   890C CD          >	db #cd
+889   890D CD          >	db #cd
+889   890E CD          >	db #cd
+889   890F CD          >	db #cd
+889   8910 CD          >	db #cd
+889   8911 CD          >	db #cd
+889   8912 CD          >	db #cd
+889   8913 CD          >	db #cd
+889   8914 CD          >	db #cd
+889   8915 CD          >	db #cd
+889   8916 CD          >	db #cd
+889   8917 CD          >	db #cd
+889   8918 CD          >	db #cd
+889   8919 CD          >	db #cd
+889   891A CD          >	db #cd
+889   891B CD          >	db #cd
+890   891C              	edup
+891   891C BB 00        	db #bb,0
+892   891E
+893   891E              rect_2
+894   891E BA           	db #ba
+895   891F              	dup 40-2
+896   891F 20          >	db " "
+896   8920 20          >	db " "
+896   8921 20          >	db " "
+896   8922 20          >	db " "
+896   8923 20          >	db " "
+896   8924 20          >	db " "
+896   8925 20          >	db " "
+896   8926 20          >	db " "
+896   8927 20          >	db " "
+896   8928 20          >	db " "
+896   8929 20          >	db " "
+896   892A 20          >	db " "
+896   892B 20          >	db " "
+896   892C 20          >	db " "
+896   892D 20          >	db " "
+896   892E 20          >	db " "
+896   892F 20          >	db " "
+896   8930 20          >	db " "
+896   8931 20          >	db " "
+896   8932 20          >	db " "
+896   8933 20          >	db " "
+896   8934 20          >	db " "
+896   8935 20          >	db " "
+896   8936 20          >	db " "
+896   8937 20          >	db " "
+896   8938 20          >	db " "
+896   8939 20          >	db " "
+896   893A 20          >	db " "
+896   893B 20          >	db " "
+896   893C 20          >	db " "
+896   893D 20          >	db " "
+896   893E 20          >	db " "
+896   893F 20          >	db " "
+896   8940 20          >	db " "
+896   8941 20          >	db " "
+896   8942 20          >	db " "
+896   8943 20          >	db " "
+896   8944 20          >	db " "
+897   8945              	edup
+898   8945 BA 00        	db #ba,0
+899   8947
+900   8947              rect_3
+901   8947 C8           	db #c8
+902   8948              	dup 40-2
+903   8948 CD          >	db #cd
+903   8949 CD          >	db #cd
+903   894A CD          >	db #cd
+903   894B CD          >	db #cd
+903   894C CD          >	db #cd
+903   894D CD          >	db #cd
+903   894E CD          >	db #cd
+903   894F CD          >	db #cd
+903   8950 CD          >	db #cd
+903   8951 CD          >	db #cd
+903   8952 CD          >	db #cd
+903   8953 CD          >	db #cd
+903   8954 CD          >	db #cd
+903   8955 CD          >	db #cd
+903   8956 CD          >	db #cd
+903   8957 CD          >	db #cd
+903   8958 CD          >	db #cd
+903   8959 CD          >	db #cd
+903   895A CD          >	db #cd
+903   895B CD          >	db #cd
+903   895C CD          >	db #cd
+903   895D CD          >	db #cd
+903   895E CD          >	db #cd
+903   895F CD          >	db #cd
+903   8960 CD          >	db #cd
+903   8961 CD          >	db #cd
+903   8962 CD          >	db #cd
+903   8963 CD          >	db #cd
+903   8964 CD          >	db #cd
+903   8965 CD          >	db #cd
+903   8966 CD          >	db #cd
+903   8967 CD          >	db #cd
+903   8968 CD          >	db #cd
+903   8969 CD          >	db #cd
+903   896A CD          >	db #cd
+903   896B CD          >	db #cd
+903   896C CD          >	db #cd
+903   896D CD          >	db #cd
+904   896E              	edup
+905   896E BC 00        	db #bc,0
+906   8970
+907   8970              msg_menu_main2
+908   8970 32 20 41 5A  	db "2 AZ Of",0
+908   8974 20 4F 66 00
+909   8978              msg_menu_main3
+910   8978 33 20 56 69  	db "3 View",0
+910   897C 65 77 00
+911   897F              msg_file_error
+912   897F 46 69 6C 65  	db "File error",10,13,0
+912   8983 20 65 72 72
+912   8987 6F 72 0A 0D
+912   898B 00
+913   898C              msg_file_too_big
+914   898C 46 69 6C 65  	db "File too big",10,13,0
+914   8990 20 74 6F 6F
+914   8994 20 62 69 67
+914   8998 0A 0D 00
+915   899B              msg_mem_err
+916   899B 47 65 74 20  	db "Get memory error",10,13,0
+916   899F 6D 65 6D 6F
+916   89A3 72 79 20 65
+916   89A7 72 72 6F 72
+916   89AB 0A 0D 00
+917   89AE              msg_title_nc
+918   89AE 4E 6F 6E 65  	db "None Commander ver 2025.06.19",10,13,0
+918   89B2 20 43 6F 6D
+918   89B6 6D 61 6E 64
+918   89BA 65 72 20 76
+918   89BE 65 72 20 32
+918   89C2 30 32 35 2E
+918   89C6 30 36 2E 31
+918   89CA 39 0A 0D 00
+919   89CE
+920   89CE              end_nc
+921   89CE              ;ниже не включается в файл
+922   89CE 00 00 00...  cat_index ds 1024 ;буфер для индекса (вектора) сортировки
+923   8DCE
+924   8DCE              	savebin "nc.apg",start_nc,$-start_nc
 # file closed: nc.asm
