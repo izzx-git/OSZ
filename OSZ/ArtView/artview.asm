@@ -1227,7 +1227,7 @@ save_file_prep_name_cl ;цикл
 	cp '"'
 	jr z,save_file_prep_name_ex
 	ldi 
-	jr save_file_prep_name_cl
+	djnz save_file_prep_name_cl
 	
 save_file_prep_name_ex
 	xor a
@@ -1256,7 +1256,7 @@ save_file_prep_name_no
 	jr save_file_prep_name_ex
 	
 	
-save_file_name_max_lenght equ 250 ;максимальная длина имени
+save_file_name_max_lenght equ 255 ;максимальная длина имени
 path_download db "\\OSZ\\Download\\ArtView",0	
 msg_save_file db 13,"Save file: "	
 save_file_name  ;тут имя файла
@@ -1376,7 +1376,7 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_artview
-	db "ArtView ver 2025.06.18",10,13,0
+	db "ArtView ver 2025.06.20",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки

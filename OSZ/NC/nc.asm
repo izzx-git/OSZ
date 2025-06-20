@@ -75,6 +75,10 @@ nc_wait
 	call z,key_right 
 	cp 08 ;влево
 	call z,key_left
+	cp 04 ;страница вверх
+	call z,key_left
+	cp 05 ;страница вниз
+	call z,key_right
 	cp "2" ;переключение сортировки
 	jp z,sort_toggle
 	cp "3" ;просмотр файла
@@ -129,6 +133,9 @@ key_enter
 	call calc_deskr
 	ld a,(ix+#0b) 
 	cp #10 ;признак каталога
+	jr z,key_enter_dir
+	
+	cp #30 ;признак каталога
 	jr z,key_enter_dir
 	
 	;проверка расширения ;APG
@@ -431,7 +438,9 @@ get_color_item_set
 	;задать цвет	
 	ld a,(ix+#0b)
 	cp #10 ;признак каталога
-	jr nz,get_color_item_no_dir
+	jr z,get_color_item_dir
+	cp #30 ;признак каталога
+	jr nz,get_color_item_no_dir	
 	;если папка
 get_color_item_dir	
 	ld a,0
@@ -641,6 +650,8 @@ sort_file_one_cl ;цикл по каталогам
 	ld a,(ix+#0b) 
 	cp #10 ;признак каталога
 	jr z,sort_file_one_skip
+	cp #30 ;признак каталога
+	jr z,sort_file_one_skip
 	ld a,(ix)
 	cp #e5 ;удалённый
 	jr z,sort_file_one_skip
@@ -698,7 +709,10 @@ sort_dir_one_cl ;цикл по каталогам
 	jr z,sort_dir_one_ex
 	ld a,(ix+#0b) 
 	cp #10 ;признак каталога
+	jr z,sort_dir_one_skip_no
+	cp #30 ;признак каталога
 	jr nz,sort_dir_one_skip
+sort_dir_one_skip_no
 	ld a,(ix)	
 	cp #e5 ;удалённый
 	jr z,sort_dir_one_skip
