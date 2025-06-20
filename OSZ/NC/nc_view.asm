@@ -218,7 +218,7 @@ print_menu_view ;печать меню просмотрщика
 	ld a,color_backgr_hi ;цвет
 	ld b,#c
 	OS_SET_COLOR
-	ld de,#1800+3*8
+	ld de,#1800+2*8
 	OS_SET_XY
 	ld hl,msg_menu_view
 	OS_PRINTZ

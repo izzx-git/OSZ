@@ -2115,7 +2115,7 @@ function_table ;таблица функций
 	dw Dos.open_dir ;#27 (39 dec) - вход в каталог/выход в родительский каталог
 	dw Dos.file_position ;#28 (40 dec) - установка/чтение указателя в файле
 	dw Dos.find_path ;#29 (41 dec) - ; поиск файла или каталога по заданному пути, начиная от корневого, со входом в подкаталоги
-
+	dw Dos.get_LFN ;#2a (42 dec) - ; получение длинного имени файла
 
 
 	align 16
@@ -2565,7 +2565,7 @@ uart_port equ #EF ;порт
 outputBuffer equ #c000 ;адрес файла для плеера AY
 proc_color_def equ 7 ;цвет текста консоли
 proc_color2_def equ #c ;цвет текста консоли 2 яркий
-function_max equ 41+1 ;всего функций
+function_max equ 42+1 ;всего функций
 proc_size_max equ #80 ;максимальный размер приложения старший байт
 proc_descr_size equ 256 ;область памяти на одно приложение
 proc_max equ 8 ;максимальное количество приложений
@@ -2594,7 +2594,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.06.17",13,10,0
+	db "OS ver 2025.06.20",13,10,0
 	
 
 

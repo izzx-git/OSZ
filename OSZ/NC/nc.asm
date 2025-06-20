@@ -79,6 +79,8 @@ nc_wait
 	call z,key_left
 	cp 05 ;страница вниз
 	call z,key_right
+	cp "1" ;переключение длинных имён (LFN)
+	jp z,LFN_toggle
 	cp "2" ;переключение сортировки
 	jp z,sort_toggle
 	cp "3" ;просмотр файла
@@ -387,7 +389,79 @@ print_panel_r_ex2
 
 
 	
-print_file_info ;печать строчки о файле
+	
+	
+print_file_info ;печать строки о файле
+	ld a,(LFN_enable_flag)
+	or a
+	jr z,print_file_info_SFN
+	
+
+
+print_file_info_LFN ;печать длинного имени
+	;узнать номер записи
+	ld bc,#c000
+	and a
+	sbc hl,bc
+;разделить на 32
+	srl h ; младший бит придёт на флаг C , на старший бит придёт 0
+	rr l ; младший бит придёт на флаг C, на старший флаг C
+	srl h ; /4
+	rr l ; 
+	srl h ; /8
+	rr l ; 
+	srl h ; /16
+	rr l ; 
+	srl h ; /32
+	rr l ; 
+
+
+	ex de,hl ;de - порядковый номер записи
+	
+	ld hl,file_info_string ;куда
+	OS_GET_LFN ;получить длинное имя
+	
+	call get_color_item
+	
+	ld b,#c	
+	OS_SET_COLOR	
+	
+	;печать не длиннее 80/2 символов
+	ld hl,file_info_string
+	ld b,80/2-2
+	ld c,40 ;колонка
+print_file_info_LFN_cl
+	push hl
+	push bc
+	ld a,(hl)
+	or a
+	jr z,print_file_info_LFN_cl_ex
+	OS_PRINT_CHARF
+	pop bc
+	inc c
+	pop hl
+	inc hl
+	djnz print_file_info_LFN_cl
+	jr print_file_info_LFN_ex
+print_file_info_LFN_cl_ex
+	pop bc
+	pop hl
+print_file_info_LFN_ex
+	;допечатать пробелы до правого края, зависит от длины имени
+print_file_info_LFN_cl2
+	ld a,c
+	cp 80-2
+	ret nc
+	push bc
+	ld a,' '
+	OS_PRINT_CHARF
+	pop bc
+	inc c
+	jr print_file_info_LFN_cl2
+
+
+
+print_file_info_SFN ;печать короткого имени
 	ld de,file_info_string ;скопировать
 	ld bc,8 ;file_info_lenght
 	ldir
@@ -396,12 +470,17 @@ print_file_info ;печать строчки о файле
 	inc de
 	ld bc,3
 	ldir
+	xor a
+	ld (de),a
 
 	call get_color_item
 	
 	ld b,#c	
 	OS_SET_COLOR	
 	ld hl,file_info_string
+	OS_PRINTZ
+	;допечатать пробелы до правого края, длина имени постоянная
+	ld hl,file_info_string_SFN_end
 	OS_PRINTZ
 	ret
 	
@@ -774,10 +853,34 @@ sort_toggle1
 	
 	call sort_dir
 	call print_menu_main
-	call print_panel_r
+	ld a,1
+	ld (print_panel_r_flag),a
 	
 	jp nc_wait
 sort_enable_flag db 0 ;флаг сортировки
+
+
+
+
+LFN_toggle ;переключение сортировки
+	ld a,(LFN_enable_flag)
+	xor 1
+	ld (LFN_enable_flag),a
+	ld a,"N" ;вкл
+	jr nz,LFN_toggle1
+	ld a,"f";выкл
+LFN_toggle1	
+	ld (msg_menu_main1+6),a
+	
+	;call sort_dir
+	call print_menu_main
+	ld a,1
+	ld (print_panel_r_flag),a
+	
+	jp nc_wait
+LFN_enable_flag db 0 ;флаг сортировки
+
+
 
 	
 	
@@ -853,11 +956,16 @@ print_menu_main ;печать основного меню
 	ld a,color_backgr_hi ;цвет
 	ld b,#c
 	OS_SET_COLOR
-	ld de,#1800+2*8
+	
+	ld de,#1800+0*8
+	OS_SET_XY
+	ld hl,msg_menu_main1
+	OS_PRINTZ	
+	ld de,#1800+1*8
 	OS_SET_XY
 	ld hl,msg_menu_main2
 	OS_PRINTZ
-	ld de,#1800+3*8
+	ld de,#1800+2*8
 	OS_SET_XY
 	ld hl,msg_menu_main3
 	OS_PRINTZ
@@ -875,7 +983,7 @@ color_backgr_hi equ 5*8+0 ;цвет фона курсор
 color_apg_hi equ 5*8+0 ;цвет приложений курсор
 color_dir_hi equ 5*8+0 ;цвет папок курсор
 
-file_info_lenght equ 11 ;длина инфо о файле
+file_info_lenght equ 255 ;длина инфо о файле
 panel_hight equ 22;высота панели	
 panel_r_xy equ #0129	
 buffer_cat equ #c000 ;адрес буфера каталога
@@ -884,7 +992,6 @@ file_r_all dw 0;всего файлов справа
 file_r_cur_focus dw 0;первый видимый
 file_name_cur ds 256 ;имя файла текущее
 dir_name_cur ds 256 ;имя файла текущее
-file_info_string ds file_info_lenght+1 ;буфер инфо
 file_info_clear db "            ",0 ;для очистки
 buffer_cat_page_r db 0 ;страница буфера каталога правый
 
@@ -896,6 +1003,7 @@ file_id_cur_r db 0 ;id файла справа
 page_ext01 db 0 ;номер дополнительной страницы
 page_main dw 0 ;основные номера страниц слота 2,3
 print_panel_r_flag db 0 ;флаг что надо обновить правую панель
+file_info_string_SFN_end db '                          ',0 ;пробелы для забоя конца строки
 
 rect_1 
 	db #c9
@@ -918,6 +1026,9 @@ rect_3
 	edup
 	db #bc,0	
 
+
+msg_menu_main1
+	db "1 LF Of",0
 msg_menu_main2
 	db "2 AZ Of",0
 msg_menu_main3	
@@ -929,10 +1040,11 @@ msg_file_too_big
 msg_mem_err
 	db "Get memory error",10,13,0
 msg_title_nc
-	db "None Commander ver 2025.06.19",10,13,0
+	db "None Commander ver 2025.06.20",10,13,0
 
 end_nc
 ;ниже не включается в файл
 cat_index ds 1024 ;буфер для индекса (вектора) сортировки
+file_info_string ds file_info_lenght+1 ;буфер инфо
 
 	savebin "nc.apg",start_nc,$-start_nc
