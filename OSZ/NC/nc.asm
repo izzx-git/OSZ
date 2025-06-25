@@ -849,7 +849,7 @@ sort_toggle ;переключение сортировки
 	jr nz,sort_toggle1
 	ld a,"f";выкл
 sort_toggle1	
-	ld (msg_menu_main2+6),a
+	ld (msg_menu_main2+5),a
 	
 	call sort_dir
 	call print_menu_main
@@ -870,7 +870,7 @@ LFN_toggle ;переключение сортировки
 	jr nz,LFN_toggle1
 	ld a,"f";выкл
 LFN_toggle1	
-	ld (msg_menu_main1+6),a
+	ld (msg_menu_main1+5),a
 	
 	;call sort_dir
 	call print_menu_main
@@ -953,19 +953,37 @@ print_rect_r_cl
 	ret
 
 print_menu_main ;печать основного меню
-	ld a,color_backgr_hi ;цвет
+	ld a,color_default ;цвет
 	ld b,#c
 	OS_SET_COLOR
 	
 	ld de,#1800+0*8
 	OS_SET_XY
+	ld a,"1" ;пункт 1
+	OS_PRINT_CHARF
+	ld de,#1800+1*8
+	OS_SET_XY
+	ld a,"2" ;пункт 2
+	OS_PRINT_CHARF
+	ld de,#1800+2*8
+	OS_SET_XY
+	ld a,"3" ;пункт 3
+	OS_PRINT_CHARF
+
+
+	ld a,color_backgr_hi ;цвет
+	ld b,#c
+	OS_SET_COLOR
+	
+	ld de,#1800+0*8+1
+	OS_SET_XY
 	ld hl,msg_menu_main1
 	OS_PRINTZ	
-	ld de,#1800+1*8
+	ld de,#1800+1*8+1
 	OS_SET_XY
 	ld hl,msg_menu_main2
 	OS_PRINTZ
-	ld de,#1800+2*8
+	ld de,#1800+2*8+1
 	OS_SET_XY
 	ld hl,msg_menu_main3
 	OS_PRINTZ
@@ -974,6 +992,8 @@ print_menu_main ;печать основного меню
 	
 	include nc_view.asm ;просмотрщик
 
+color_default equ 0*8+7 ;цвет обычный системный
+color_view_text equ 4 ;цвет текста в просмотрщике
 
 color_backgr equ 1*8+7 ;цвет фона
 color_apg equ 1*8+4 ;цвет приложений
@@ -1028,11 +1048,11 @@ rect_3
 
 
 msg_menu_main1
-	db "1 LF Of",0
+	db " LF Of",0
 msg_menu_main2
-	db "2 AZ Of",0
+	db " AZ Of",0
 msg_menu_main3	
-	db "3 View",0
+	db " View",0
 msg_file_error
 	db "File error",10,13,0
 msg_file_too_big
@@ -1040,7 +1060,7 @@ msg_file_too_big
 msg_mem_err
 	db "Get memory error",10,13,0
 msg_title_nc
-	db "None Commander ver 2025.06.20",10,13,0
+	db "None Commander ver 2025.06.25",10,13,0
 
 end_nc
 ;ниже не включается в файл

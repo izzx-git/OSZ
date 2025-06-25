@@ -148,7 +148,7 @@ view_line_up ;вверх на строчку
 	ld hl,(view_file_pos_cur_focus) ;фокус
 	ld (view_file_pos_cur),hl
 	call prev_line ;
-	jr c,view_file_wait ;если не удачно
+	;jr c,view_file_wait ;если не удачно
 	ld hl,(view_file_pos_cur) ;запомнить фокус
 	ld (view_file_pos_cur_focus),hl
 	call print_file_text ;напечатать всю страницу
@@ -240,7 +240,7 @@ print_menu_view_top ;печать меню просмотрщика верхне
 	
 	
 print_file_text	;печать текущей части файла в консоль
-	ld a,4 ;цвет
+	ld a,color_view_text ;цвет
 	ld b,#c	
 	OS_SET_COLOR
 
@@ -266,10 +266,10 @@ print_file_text_cl
 print_file_text_ex
 	;тут очистить остальные строки
 	ld a,(view_file_y_cur)
+	inc a
 	cp view_text_bot
 	jr nc,print_file_text_ex2
 	ld h,a
-	inc a
 	ld (view_file_y_cur),a
 	ld a," "
 	OS_FILL_LINE ;очистить строку
@@ -310,31 +310,38 @@ print_line_text_cl ;цикл
 	
 print_line_text_skip
 	call view_file_next_pos ;следующий
-	jr nc,print_line_text_cl ;на следующий символ
-	ret
-
+	jr c,print_line_text_ex_end ;на следующий символ
+	jr print_line_text_cl
 	
-print_line_text_ex_ok ;выход норма
-	;тут надо добить строку пробелами
+print_line_text_ex_ok ;выход норма по коду 13
 	ld a," "
 	OS_PRINT_CHARF ;печать
-	ld a,(view_file_x_cur)
-	inc a
-	cp 80 ;правый край экрана
-	ld (view_file_x_cur),a
-	jr c,print_line_text_ex_ok	
-
+	call printe_clear_end ;добить до конца строки
+	jp view_file_next_pos ;следующий, чтобы пропустить код 13
+	;ret
 	
-	call view_file_next_pos ;следующий
-	
-	ret
-; print_line_text_ex_end ;выход если кончился файл
-	; scf
-	; ret	
+print_line_text_ex_end ;выход если кончился файл
+	call printe_clear_end
+	scf
+	ret	
 	
 print_line_text_right
 	call next_line ;позицию  до конца строки
 	ret
+
+
+printe_clear_end
+	;добить строку пробелами
+	ld a,(view_file_x_cur)
+	inc a
+	cp 80 ;правый край экрана
+	ld (view_file_x_cur),a
+	ret nc
+	ld a," "
+	OS_PRINT_CHARF ;печать
+	jr printe_clear_end
+
+
 
 
 
@@ -463,9 +470,10 @@ view_file_prev_pos_big
 	
 view_file_prev_pos_end
 	;не смогли шагнуть назад
-	; ld hl,buffer_cat ;тут лежит текст
-	; ld (view_file_pos_cur),hl ;текущая позиция в самом начале
-	scf ;ошибка
+	ld hl,buffer_cat ;тут лежит текст
+	ld (view_file_pos_cur),hl ;текущая позиция в самом начале
+	;вернулись в начало
+	xor a ;a=0
 	ret	
 	
 	
@@ -484,6 +492,7 @@ next_line ;поиск следующей строки
 
 
 prev_line ;поиск предыдущей строки
+;если достигнуто начало файла - вернёт адрес начальный 
 	;сначала в конец предыдущей
 	call view_file_prev_pos
 	ret z
@@ -501,9 +510,9 @@ prev_line1
 	jr nz,prev_line1
 	call view_file_next_pos ;ещё на символ обратно	
 	ret
+
 	
-	
-	
+
 view_text_bot equ 24 ;последняя строка для печати
 view_text_top equ 1 ;первая строка
 view_text_lines equ 25-2 ;видимых строк на экране
