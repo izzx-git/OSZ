@@ -1,6 +1,6 @@
     device	zxspectrum128
 	include "../os_defs.asm"  
-    org PROGSTART
+    org PROG_START
 asmOrg:
     jp start
     

@@ -1,9 +1,9 @@
-;OS GMX (izzx, 2024-2025)
+﻿;OS GMX (izzx, 2024-2025)
    device ZXSPECTRUM128
 	include "os_defs.asm"  
 
 ;sys - системный процесс для OS
-	org PROGSTART
+	org PROG_START
 	;bank 1
 start_sys
 	ei
@@ -301,6 +301,7 @@ sys_print_info_files_cl
 	jr z,sys_print_info_files_skip
 	inc c
 sys_print_info_files_skip
+	inc hl
 	djnz sys_print_info_files_cl
 	
 	ld l,c
@@ -503,7 +504,7 @@ end_sys
 
 
 ;sys - сетевой процесс для OS
-	org PROGSTART
+	org PROG_START
 start_net
 
 	ld hl,msg_ver_net
@@ -1025,7 +1026,7 @@ Start_warm
 
 	ld a,proc_id_system
 	ld (ix),a
-	jp PROGSTART ;старт сначала на заглушку
+	jp PROG_START ;старт сначала на заглушку
 
 
 
@@ -1160,6 +1161,13 @@ proc_run_prepar_name_tmp dw 0 ;временно имя нового процес
 proc_run_prepar_id_tmp db 0 ;временно id нового процесса	
 proc_run_file_id_tmp db 0 ;временно id файла
 proc_run_prepar_deskr_tmp dw 0 ;временно дескриптор процесса
+
+
+
+
+proc_find_ram_ ;для вызова из процесса
+	ld a,(proc_id_cur)
+	ld (proc_run_prepar_id_tmp),a
 	
 proc_find_ram	;поиск свободной страницы памяти
 ;вых: a - номер страницы, также записан id процесса в таблицу proc_page_table
@@ -1183,6 +1191,9 @@ proc_find_ram_ok1
 	ld a,(de) ;вернуть номер страницы
 	or a
 	ret
+	
+	
+
 	
 	
 proc_clear_ram ;освбождение всех страниц памяти процесса
@@ -1358,7 +1369,7 @@ file_size_ok
 	ld a,(ix+3)
 	call drvgmx.PageSlot3		
 	
-	ld hl,PROGSTART
+	ld hl,PROG_START
 	ld a,(proc_run_file_id_tmp)
 	ld d,b ;размер
 	ld e,c
@@ -1439,7 +1450,7 @@ file_load_ok ;загрузился нормально
 	;подготовить правильный старт
 	ld l,(ix+6) ;адрес стека
 	ld h,(ix+7) ;адрес стека
-	ld bc,PROGSTART ;возврат сюда
+	ld bc,PROG_START ;возврат сюда
 	dec hl
 	ld (hl),b
 	dec hl
@@ -1631,28 +1642,22 @@ set_page_slot2	;включить страницу в слот 2 (#8000);
 	ret c
 	ex af,af'
 	ld a,(proc_id_cur)
-	ld hl,proc_table - 256
-	add h
-	ld h,a 
-	push hl
-	pop ix ;дескриптор 
+	call get_proc_descr
 	ex af,af'
 	ld (ix+#02),a ;запомнить текущую страницу процесса
+	ld (page_slot2_cur),a
 	jp drvgmx.PageSlot2 ;включить
 	
 
-set_page_slot3	;включить страницу в слот 2 (#8000);
+set_page_slot3	;включить страницу в слот 3 (#c000);
 	call page_check_owner ;проверить принадлежит ли страница процессу
 	ret c
 	ex af,af'
 	ld a,(proc_id_cur)
-	ld hl,proc_table - 256
-	add h
-	ld h,a 
-	push hl
-	pop ix ;дескриптор 
+	call get_proc_descr
 	ex af,af'
 	ld (ix+#03),a ;запомнить текущую страницу процесса	
+	ld (page_slot3_cur),a
 	jp drvgmx.PageSlot3
 	
 
@@ -1660,11 +1665,7 @@ set_page_slot3	;включить страницу в слот 2 (#8000);
 set_interrupt ;установка адреса обработчика прерываний процесса;
 	ex de,hl
 	ld a,(proc_id_cur)
-	ld hl,proc_table - 256
-	add h
-	ld h,a 
-	push hl
-	pop ix ;дескриптор 
+	call get_proc_descr ;узнать адрес дескриптора
 	ex de,hl
 	ld (ix+#0e),l ;адрес
 	ld (ix+#0f),h ;адрес
@@ -2041,6 +2042,35 @@ get_proc_descr
 	ret
 
 
+;освободить страницу памяти
+;вх: a - номер страницы	
+proc_del_ram
+	ld hl,drvgmx.page_table ;таблица возможных вариантов с номерами страниц
+	ld b,page_max ;цикл сколько всего страниц в таблице	
+	ld c,0 ;счётчик
+proc_del_ram_cl ;
+	cp (hl) ;совпадает с номером страницы?
+	jr nz,proc_del_ram1
+	ld hl,proc_page_table
+	ld b,0
+	add hl,bc ;адрес записи
+	ld a,(proc_id_cur)
+	cp (hl)
+	jr nz,proc_del_ram_err ;если чужая страница
+	ld (hl),0 ;освободить
+	or a
+	ret
+	
+proc_del_ram1
+	inc hl
+	inc c
+	djnz proc_del_ram_cl
+proc_del_ram_err
+	scf ;не нашли страницы
+	ret
+
+
+
 
 ;выбор функции (вызова)
 function
@@ -2099,13 +2129,13 @@ function_table ;таблица функций
 	dw set_VTPL_MUTE ;#17 (23 dec) - заглушить плеер AY;
 	dw get_VTPL_SETUP ;#18 (24 dec) - получить значение переменной плеера;
 	dw page_copy ;#19 (25 dec) - скопировать данные из страницы в страницу
-	dw proc_find_ram ;#1A (26 dec) - получить дополнительную страницу памяти;
+	dw proc_find_ram_ ;#1A (26 dec) - получить дополнительную страницу памяти;
 	dw set_page_slot2 ;#1B (27 dec) - включить страницу в слот 2 (#8000);
 	dw set_page_slot3 ;#1C (28 dec) - включить страницу в слот 3 (#c000);
 	dw set_scr ;#1D (29 dec) - включить экран N;
 	dw get_proc_page ;#1E (30 dec) - получить номера страниц процесса;
 	dw get_timer ;#1F (31 dec) - получить значение системного таймера
-	dw 0 ;#20 (32 dec) - ;инициализация?
+	dw proc_del_ram ;#20 (32 dec) - освободить страницу памяти
 	dw Dos.fopen_r ;#21 (33 dec) - открыть файл для чтения или записи;
 	dw Dos.fopen_c ;#22 (34 dec) - создать файл;
 	dw Dos.fread ;#23 (35 dec) - прочитать из файла;
@@ -2232,6 +2262,9 @@ Interrupts_key_ex
 	xor %00000010
 	ld (Interrupts_cur_page_slot2),a	
 	
+	ld a,(proc_id_cur) ;сохранить текущий процесс
+	ld (proc_id_cur_tmp),a
+	
 	
 	
 	
@@ -2246,19 +2279,57 @@ Interrupts_key_ex
 	call VTPL.PLAY ;играть
 	
 	
+Interrupts_ay_skip
+
+	;проверить обработчики прерываний всех процессов
+	ld a,1 ;первый
+	call get_proc_descr ;узнать адрес дескриптора
+	ld b,proc_max ;цикл всего процессов
+Interrupts_proc_cl
+	xor a
+	or (ix+#00) ;рабочий процесс?
+	jr z,Interrupts_proc_cl_skip
+	
+	ld a,(ix+#0e) ;адрес
+	or (ix+#0f) ;адрес
+	;задан адрес прерываний?
+	jr z,Interrupts_proc_cl_skip	
+	
+	;вызов обработчика
+	push ix
+	push bc
+	
+	ld a,(ix+#00)
+	ld (proc_id_cur),a ;временно установить номер процесса
+	
+	ld a,(ix+#02) ;страницы процесса
+	call drvgmx.PageSlot2
+	ld a,(ix+#03) ;страницы процесса
+	call drvgmx.PageSlot3	
+	ld hl,Interrupts_proc_cl_ret
+	push hl ;адрес возврата
+	ld l,(ix+#0e) ;адрес
+	ld h,(ix+#0f) ;адрес
+	push hl ;адрес очередного обработчика
+	ret ;запустить
+	
+Interrupts_proc_cl_ret	
+	pop bc
+	pop ix
+	
+Interrupts_proc_cl_skip
+	inc ixh ;следующий
+	djnz Interrupts_proc_cl
+
+
 ;вернуть страницы
 	ld a,(Interrupts_cur_page_slot2)
 	call drvgmx.PageSlot2
 	ld a,(Interrupts_cur_page_slot3)
 	call drvgmx.PageSlot3
 
-	
-Interrupts_ay_skip
-
-
-
-
-
+	ld a,(proc_id_cur_tmp) ;вернуть текущий процесс
+	ld (proc_id_cur),a
 
 
 
@@ -2501,7 +2572,7 @@ file_id_cur db 0 ;временно id файла
 proc_id_next db 0 ;код следующего процесса
 proc_stack_adr_tmp dw 0 ;временно адрес стека
 proc_id_cur db 0 ;id текущего процесса
-;proc_id_cur_tmp db 0 ;временно id процесса
+proc_id_cur_tmp db 0 ;временно id процесса
 ;proc_sys_name db "SYS        ",0 ;имя системного процесса
 ;proc_cmd_name db "CMD        ",0 ;имя процесса консоль
 sys_timer ds 4 ;таймер - счётчик прерываний
@@ -2594,7 +2665,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.06.20",13,10,0
+	db "OS ver 2025.07.23",13,10,0
 	
 
 

@@ -494,7 +494,7 @@ fread: ;(id=1)
 	R8FAT r8f08_FileRead	;читать файл
 	jp c,file_error
 
-	ld bc,(file_size_tmp) ;размер
+	;ld bc,(file_size_tmp) ;размер
 	or a
 	ret
 
@@ -520,7 +520,7 @@ fwrite: ;
 	R8FAT r8f09_FileWrite	;записать в файл
 	jp c,file_error
 
-	ld bc,(file_size_tmp) ;размер
+	;ld bc,(file_size_tmp) ;размер
 	or a
 	ret
 ;---------------------------------------

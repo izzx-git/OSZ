@@ -1,7 +1,7 @@
-;Tetris - приложение для OS GMX
+﻿;Tetris - приложение для OS GMX
    device ZXSPECTRUM128
 	include "../os_defs.asm"  
-	org PROGSTART	
+	org PROG_START	
 	
 start_tetris
 	; ld a,13 ;новая строка

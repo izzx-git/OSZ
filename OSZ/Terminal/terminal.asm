@@ -1,7 +1,7 @@
-;Terminal - приложение для OS GMX
+﻿;Terminal - приложение для OS GMX
    device ZXSPECTRUM128
 	include "../os_defs.asm"  
-	org PROGSTART	
+	org PROG_START	
 	
 start_terminal
 	; ld a,13 ;новая строка

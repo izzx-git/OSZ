@@ -1,7 +1,7 @@
-;OS Update - приложение для OS GMX
+﻿;OS Update - приложение для OS GMX
    device ZXSPECTRUM128
 	include "../os_defs.asm"  
-	org PROGSTART	
+	org PROG_START	
 	
 start_update
 	; ld a,13 ;новая строка

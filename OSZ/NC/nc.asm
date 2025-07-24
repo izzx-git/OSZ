@@ -1,7 +1,7 @@
-;None Commander - приложение для OS GMX
+﻿;None Commander - приложение для OS GMX
    device ZXSPECTRUM128
 	include "../os_defs.asm"  
-	org PROGSTART	
+	org PROG_START	
 
 start_nc
 	ld hl,msg_title_nc ;имя приложения
@@ -58,6 +58,9 @@ start_nc_warm ;тёплый старт
 	ld de,#0100
 	OS_SET_XY
 	
+	ld hl,msg_menu_info
+	OS_PRINTZ
+	
 
 
 nc_wait
@@ -85,6 +88,8 @@ nc_wait
 	jp z,sort_toggle
 	cp "3" ;просмотр файла
 	jp z,view_file	
+	cp 25 ;CS+Enter
+	jp z,nc_play_all 
 	cp 24 ;break
 	jp z,exit
 
@@ -115,6 +120,24 @@ clear_buf
 	ret
 
 
+;очистить левую панель
+clear_left_panel
+	ld a,color_backgr ;цвет
+	ld b,#c
+	OS_SET_COLOR
+	ld b,panel_hight+2 ;высота
+	ld de,0
+	OS_SET_XY
+clear_left_panel_cl
+	push bc
+	ld hl,txt_clear_panel
+	OS_PRINTZ
+	pop bc
+	djnz clear_left_panel_cl
+	ld de,0
+	OS_SET_XY
+	ret
+txt_clear_panel db "                                        ",13,0 ;40 пробелов
 
 
 release_key ;ждать отпускания клавиши
@@ -135,17 +158,18 @@ key_enter
 	call calc_deskr
 	ld a,(ix+#0b) 
 	cp #10 ;признак каталога
-	jr z,key_enter_dir
+	jp z,key_enter_dir
 	
 	cp #30 ;признак каталога
-	jr z,key_enter_dir
-	
-	;проверка расширения ;APG
-	call check_apg
-	jp nz,key_enter_ex
-	;тут запуск приложения
+	jp z,key_enter_dir
+
+
 	call format_name
 	
+	;проверка расширения APG
+	call check_apg
+	jp nz,key_enter_1
+	;тут запуск приложения
 	ld hl,file_name_cur		;строка с именем
 	OS_PROC_RUN ;запустить прогу
 	;обработка ошибки
@@ -153,9 +177,150 @@ key_enter
 	
 	ld a,(ix)
 	OS_PROC_SET_FOCUS ;на передний план
+	jr key_enter_ex
+
+
+
+key_enter_1
+	;проверка расширения VGM
+	call check_vgm
+	jp nz,key_enter_2
+	
+	call clear_left_panel ;почистить часть экрана
+	
+	ld a,(page_ext01) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
+	
+	call start_gplay
+	
+	ld a,(page_main) ;основная страница
+	OS_SET_PAGE_SLOT3
+	
+	jr key_enter_ex
+
+
+key_enter_2
+	;проверка расширения SCR
+	call check_scr
+	jp nz,key_enter_3
+	
+	
+	ld a,(page_ext01) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
+	
+	ld hl,file_name_cur		;строка с именем	
+	OS_FILE_OPEN
+	jr nc,key_enter_2_file_open_ok
+key_enter_2_file_error
+	ld hl,msg_file_error
+	OS_PRINTZ	
+	; ld b,2*50
+	; call delay1
+	jp key_enter_ex
+	
+key_enter_2_file_open_ok
+	ld (file_id_cur_r),a
+	ld de,6912
+	ld hl,#c000
+	;ld a,(file_id_cur_r)
+	OS_FILE_READ ;загрузить
+	jr c,key_enter_2_file_error	
+	ld a,(file_id_cur_r)
+	OS_FILE_CLOSE
+	
+	call display ;показать
+	
+	ld a,(page_main) ;основная страница
+	OS_SET_PAGE_SLOT3
+	
+	jr key_enter_ex
+
+
+key_enter_3
+
+
+
 	
 key_enter_ex
 	jp nc_wait
+	
+	
+
+
+
+
+	
+nc_play_all
+	;Воспроизведение всего по порядку
+	ld hl,(file_r_all)
+	ld a,l
+	or h
+	jp z,nc_play_ex ;защита
+	ld hl,(file_r_num_cur)
+	call calc_deskr
+	ld a,(ix+#0b) 
+	cp #10 ;признак каталога
+	jr z,nc_play_all_down
+	
+	cp #30 ;признак каталога
+	jr z,nc_play_all_down
+
+
+	call format_name
+
+nc_play_1
+	;проверка расширения ;VGM
+	call check_vgm
+	jp nz,nc_play_2
+	
+	call clear_left_panel ;почистить часть экрана
+	
+	ld a,(page_ext01) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
+	
+	call start_gplay
+	
+	push af
+	ld a,(page_main) ;основная страница
+	OS_SET_PAGE_SLOT3
+	pop af
+	cp "s"
+	jr z,nc_play_ex
+	cp "S"
+	jr z,nc_play_ex
+	cp 24 ;break
+	jr z,nc_play_ex
+	
+	jr nc_play_all_down
+
+
+nc_play_2
+	jr nc_play_all_down
+
+
+	
+nc_play_ex
+	jp nc_wait
+	
+	
+nc_play_all_down ;вниз по списку
+	ld bc,(file_r_num_cur)
+	push bc
+	call key_down
+	call print_panel_r ;обновить каталог
+	pop bc
+	ld hl,(file_r_num_cur)
+	and a
+	sbc hl,bc ;если не сдвинулась позиция, то всё
+	jr z,nc_play_ex
+	jp nc_play_all
+	
+	
+	
+	
+	
+	
+	
 
 key_enter_dir
 	;тут открытие папки
@@ -332,13 +497,65 @@ exit ;выход в DOS
 
 check_apg ;проверка на расширение APG
 	ld a,(ix+8)
+	cp "a"
+	jr z,check_apg1
 	cp "A"
 	ret nz
+check_apg1
 	ld a,(ix+9)
+	cp "p"
+	jr z,check_apg2
 	cp "P"
 	ret nz
+check_apg2
 	ld a,(ix+10)
+	cp "g"
+	ret z
 	cp "G"
+	ret nz
+	xor a ;равен
+	ret
+	
+	
+check_vgm ;проверка на расширение VGM
+	ld a,(ix+8)
+	cp "v"
+	jr z,check_vgm1
+	cp "V"
+	ret nz
+check_vgm1
+	ld a,(ix+9)
+	cp "g"
+	jr z,check_vgm2
+	cp "G"
+	ret nz
+check_vgm2
+	ld a,(ix+10)
+	cp "m"
+	ret z
+	cp "M"
+	ret nz
+	xor a ;равен
+	ret
+
+	
+check_scr ;проверка на расширение SCR
+	ld a,(ix+8)
+	cp "s"
+	jr z,check_scr1
+	cp "S"
+	ret nz
+check_scr1
+	ld a,(ix+9)
+	cp "c"
+	jr z,check_scr2
+	cp "C"
+	ret nz
+check_scr2
+	ld a,(ix+10)
+	cp "r"
+	ret z
+	cp "R"
 	ret nz
 	xor a ;равен
 	ret
@@ -845,9 +1062,9 @@ sort_toggle ;переключение сортировки
 	ld a,(sort_enable_flag)
 	xor 1
 	ld (sort_enable_flag),a
-	ld a,"N" ;вкл
+	ld a,"f" ;вкл
 	jr nz,sort_toggle1
-	ld a,"f";выкл
+	ld a,"N";выкл
 sort_toggle1	
 	ld (msg_menu_main2+5),a
 	
@@ -866,9 +1083,9 @@ LFN_toggle ;переключение сортировки
 	ld a,(LFN_enable_flag)
 	xor 1
 	ld (LFN_enable_flag),a
-	ld a,"N" ;вкл
+	ld a,"f" ;вкл
 	jr nz,LFN_toggle1
-	ld a,"f";выкл
+	ld a,"N";выкл
 LFN_toggle1	
 	ld (msg_menu_main1+5),a
 	
@@ -991,6 +1208,8 @@ print_menu_main ;печать основного меню
 	
 	
 	include nc_view.asm ;просмотрщик
+	include GPlay/gplay.asm ;плеер
+	include nc_pic_view.asm ;просмотр картинок
 
 color_default equ 0*8+7 ;цвет обычный системный
 color_view_text equ 4 ;цвет текста в просмотрщике
@@ -1025,6 +1244,7 @@ page_main dw 0 ;основные номера страниц слота 2,3
 print_panel_r_flag db 0 ;флаг что надо обновить правую панель
 file_info_string_SFN_end db '                          ',0 ;пробелы для забоя конца строки
 
+
 rect_1 
 	db #c9
 	dup 40-2
@@ -1046,11 +1266,13 @@ rect_3
 	edup
 	db #bc,0	
 
-
+;file_name_test db '486 HEART ON FIRE.vgm',0
+msg_menu_info
+	db 13,"CS+Enter - Play all",0
 msg_menu_main1
-	db " LF Of",0
+	db " LF On",0
 msg_menu_main2
-	db " AZ Of",0
+	db " AZ On",0
 msg_menu_main3	
 	db " View",0
 msg_file_error
@@ -1060,11 +1282,12 @@ msg_file_too_big
 msg_mem_err
 	db "Get memory error",10,13,0
 msg_title_nc
-	db "None Commander ver 2025.06.25",10,13,0
+	db "None Commander ver 2025.07.24",10,13,0
 
 end_nc
 ;ниже не включается в файл
 cat_index ds 1024 ;буфер для индекса (вектора) сортировки
 file_info_string ds file_info_lenght+1 ;буфер инфо
+;ещё тут буферы плеера
 
 	savebin "nc.apg",start_nc,$-start_nc

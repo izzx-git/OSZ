@@ -632,7 +632,9 @@ fclose:
 fread: ;(id=1)
 	ld e,c ;сохранить длину
 	ld d,b
+	push bc
 	OS_FILE_READ
+	pop bc ;вернуть ту же длину
 	ret
 	
     ; push hl : pop ix
@@ -672,7 +674,9 @@ fread: ;(id=1)
 fwrite: ;
 	ld e,c ;сохранить длину
 	ld d,b
+	push bc
 	OS_FILE_WRITE
+	pop bc ;вернуть ту же длину
 	ret
 
     ; push hl : pop ix

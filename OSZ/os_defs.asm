@@ -1,4 +1,4 @@
-;Список всех вызовов (функций) ОС GMX
+﻿;Список всех вызовов (функций) ОС GMX
 
 ;Включить в свой код (в начале файла):
 	; include os_defs.asm
@@ -6,7 +6,7 @@
 ;Использовать только имена функций, коды могут поменяться
 
 ;например: 
-	; org PROGSTART
+	; org PROG_START
 	; ../include os_defs.asm
 	; ld hl,text
 	; OS_PRINTZ ;печать	до кода 0
@@ -14,7 +14,7 @@
 ;сохранность регистров не гарантируется
 ;на выходе обычно (но не всегда) CY=1 = ошибка
 
-PROGSTART equ #8000 ;адрес старта приложений
+PROG_START equ #8000 ;адрес старта приложений
 
 
 ;короткие вызовы (именные RST) -------------------------
@@ -196,10 +196,13 @@ PROGSTART equ #8000 ;адрес старта приложений
 ;прерывания --------------------------
 
 ;установка адреса обработчика прерываний процесса;
-    ; macro OS_SET_INTER ;(HL - address, A = 1 - On, A = 0 - Off)
-    ; ld c,#14
-    ; rst #20
-    ; endm
+;например, плеера музыки
+;включать прерывания во время работы обработчика нельзя. время работы, по возможности, минимальное
+;на время выполнения включаются обе страницы процесса
+    macro OS_SET_INTER ;(HL - address, address = 0 = отключить)
+    ld c,#14
+    rst #20
+    endm
 	
 
 ;плеер AY ----------------------------
@@ -283,11 +286,12 @@ PROGSTART equ #8000 ;адрес старта приложений
     endm	
 	
 	
-	
-    ; macro OS_ ;
-    ; ld c,#20
-    ; rst #20
-    ; endm
+;освободить страницу памяти
+;вх: a - номер страницы	
+    macro OS_DEL_PAGE ;
+    ld c,#20
+    rst #20
+    endm
 	
 	
 ;дисковые операции -------------------
@@ -325,13 +329,13 @@ PROGSTART equ #8000 ;адрес старта приложений
     endm	
 	
 ;прочитать из файла
-    macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: bc - size readed)
+    macro OS_FILE_READ ;HL - address, A - id file, DE - length (out: hl - следующий адрес для чтения)
     ld c,#23
     rst #20
     endm	
 	
 ;записать в файл
-    macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: bc - size writed)
+    macro OS_FILE_WRITE ;HL - address, A - id file, DE - length (out: hl - следующий адрес для чтения)
     ld c,#24
     rst #20
     endm	

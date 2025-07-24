@@ -1,7 +1,7 @@
-;cmd - приложение для OS
+﻿;cmd - приложение для OS
    device ZXSPECTRUM128
 	include "os_defs.asm"    
-	org PROGSTART
+	org PROG_START
 start_cmd
 
 	ld hl,msg_title_cmd

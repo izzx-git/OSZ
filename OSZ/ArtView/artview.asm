@@ -1,7 +1,7 @@
-;ArtView - приложение для OS GMX
+﻿;ArtView - приложение для OS GMX
    device ZXSPECTRUM128
 	include "../os_defs.asm"  
-	org PROGSTART	
+	org PROG_START	
 	
 ;порядок работы:
 ;открытие соединения
