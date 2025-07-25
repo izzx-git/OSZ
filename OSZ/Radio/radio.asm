@@ -1126,6 +1126,8 @@ save_file ;сохранить на диск
 	dec	a ;установить текущим
 	OS_FIND_PATH ;найти папку
 	
+	ld a,255
+	ld (file_id_cur),a	;"обнулить" id
 
 	ld hl,save_file_name ;имя
 	OS_FILE_OPEN ;если есть, откроем
@@ -1135,10 +1137,14 @@ save_file ;сохранить на диск
 	jr c,save_file_ex_err
 save_file_open_ok
 	;файл открыт в A - id файла
-	
+	ld (file_id_cur),a		
 	ld hl,(data_start)
 	ld de,(data_length)
 	OS_FILE_WRITE ;записать
+	push af
+	ld a,(file_id_cur)
+	OS_FILE_CLOSE ;закрыть
+	pop af
 	jr c,save_file_ex_err
 	
 save_file_ex_ok
@@ -1268,6 +1274,8 @@ format_ts db " ts",0
 format_tfc db "tfc",0
 order_val db 1 ;тип сортировки
 
+file_id_cur db 0 ;временно
+
 player_setup db 0;настройки плеера
 
 ;запрос списка
@@ -1307,7 +1315,7 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_radio
-	db "Radio ver 2025.06.20",10,13,0
+	db "Radio ver 2025.07.25",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки

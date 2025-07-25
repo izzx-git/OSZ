@@ -7,7 +7,7 @@ fileopenerror
 		ld hl,txt_fopenerror
 		OS_PRINTZ
 		
-		ld a,(file_id_cur)
+		ld a,(file_id_cur_r)
 		cp 255
 		jr z,fileopenerror1
 		OS_FILE_CLOSE ;A - id file
@@ -35,7 +35,7 @@ memoryerror
 		ld hl,txt_memoryerror
 		OS_PRINTZ
 		
-		ld a,(file_id_cur)
+		ld a,(file_id_cur_r)
 		cp 255
 		jr z,memoryerror1
 		OS_FILE_CLOSE ;A - id file
@@ -92,7 +92,7 @@ load_mus
         ;or a
         ;jp nz,fileopenerror
 		jp c,fileopenerror	
-		ld (file_id_cur),a
+		ld (file_id_cur_r),a
 
         ld hl,memorystreampages ;t_s98_file00_pages_list
         ld (load_s98_file_number),hl
@@ -137,7 +137,7 @@ read_file_loop:
                 ;call readstream_file    ;DE = Buffer address, HL = Number of bytes to read
                                 ;hl=actual size
 				
-				ld a,(file_id_cur)			
+				ld a,(file_id_cur_r)			
 				ld hl,$C000
                 ld de,$4000
 				OS_FILE_READ ;HL - address, A - id file, DE - length (out: hl - следующий адрес для чтения)
@@ -172,7 +172,7 @@ read_file_exit
 ;теперь нужно  скопировать првый банк в plr_page3 и прести инициаоищацию плеера
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
                 ;call closestream_file
-				ld a,(file_id_cur)
+				ld a,(file_id_cur_r)
 				OS_FILE_CLOSE ;A - id file
 
 

@@ -21,7 +21,7 @@ start_gplay
 	OS_PRINTZ	
 	
 	ld a,255
-	ld (file_id_cur),a
+	ld (file_id_cur_r),a
 	
 	call load_mus ;инициализация VGM
 	jp c,exit_gplay
@@ -249,7 +249,7 @@ decimalS	ds 6 ;десятичные цифры
 	
 	
 
-file_id_cur db 0; временно
+;file_id_cur db 0; временно
 
 txt_gplay_menu db 13,13,"Break, S - stop ",13,"Sp - Next",0
 txt_play db 13,"Play... ",0

@@ -30,6 +30,8 @@ view_file
 	call clear_buf
 	pop bc
 	
+	ld a,255
+	ld (file_id_cur_r),a
 	ld hl,file_name_cur		;строка с именем	
 	OS_FILE_OPEN
 	jr nc,view_file_open_ok
@@ -125,11 +127,21 @@ view_file_wait ;цикл ожидания клавиши
 	jr view_file_wait
 	
 view_file_wait_ex
+	ld a,(file_id_cur_r)
+	cp 255
+	jr z,view_file_wait_ex1
+	OS_FILE_CLOSE ;A - id file
+view_file_wait_ex1
 	;почистить экран
 	OS_CLS
 	jp start_nc_warm ;перезагрузить папку
 
 view_file_ex
+	ld a,(file_id_cur_r)
+	cp 255
+	jr z,view_file_ex1
+	OS_FILE_CLOSE ;A - id file
+view_file_ex1
 	jp nc_wait
 	
 	
@@ -163,13 +175,13 @@ view_right ;вправо
 	jr z,view_file_wait
 	ld (view_move_right_val),hl
 	call print_file_text ;напечатать всю страницу
-	jr view_file_wait
+	jp view_file_wait
 	
 view_left ;влево
 	ld hl,(view_move_right_val)
 	ld a,h
 	or l
-	jr z,view_file_wait
+	jp z,view_file_wait
 	dec hl
 	ld (view_move_right_val),hl
 	call print_file_text ;напечатать всю страницу

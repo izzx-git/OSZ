@@ -1165,7 +1165,7 @@ proc_run_prepar_deskr_tmp dw 0 ;временно дескриптор проце
 
 
 
-proc_find_ram_ ;для вызова из процесса
+proc_get_ram ;для вызова из процесса
 	ld a,(proc_id_cur)
 	ld (proc_run_prepar_id_tmp),a
 	
@@ -2129,7 +2129,7 @@ function_table ;таблица функций
 	dw set_VTPL_MUTE ;#17 (23 dec) - заглушить плеер AY;
 	dw get_VTPL_SETUP ;#18 (24 dec) - получить значение переменной плеера;
 	dw page_copy ;#19 (25 dec) - скопировать данные из страницы в страницу
-	dw proc_find_ram_ ;#1A (26 dec) - получить дополнительную страницу памяти;
+	dw proc_get_ram ;#1A (26 dec) - получить дополнительную страницу памяти;
 	dw set_page_slot2 ;#1B (27 dec) - включить страницу в слот 2 (#8000);
 	dw set_page_slot3 ;#1C (28 dec) - включить страницу в слот 3 (#c000);
 	dw set_scr ;#1D (29 dec) - включить экран N;
@@ -2264,7 +2264,9 @@ Interrupts_key_ex
 	
 	ld a,(proc_id_cur) ;сохранить текущий процесс
 	ld (proc_id_cur_tmp),a
-	
+	ld bc,(page_slot2_cur) ;две переменные текущие страницы
+	ld (page_slot2_cur_tmp),bc
+
 	
 	
 	
@@ -2303,8 +2305,10 @@ Interrupts_proc_cl
 	ld (proc_id_cur),a ;временно установить номер процесса
 	
 	ld a,(ix+#02) ;страницы процесса
+	ld (page_slot2_cur),a
 	call drvgmx.PageSlot2
 	ld a,(ix+#03) ;страницы процесса
+	ld (page_slot3_cur),a	
 	call drvgmx.PageSlot3	
 	ld hl,Interrupts_proc_cl_ret
 	push hl ;адрес возврата
@@ -2330,6 +2334,8 @@ Interrupts_proc_cl_skip
 
 	ld a,(proc_id_cur_tmp) ;вернуть текущий процесс
 	ld (proc_id_cur),a
+	ld bc,(page_slot2_cur_tmp) ;две переменные текущие страницы
+	ld (page_slot2_cur),bc
 
 
 
@@ -2562,8 +2568,10 @@ key_graph_flag db 0 ;флаг что нажата клавиша graph
 key_sys_focus db 0 ;кнопка sys процесс в фокус
 FlgScanKeys_addr dw 0 ;адрес флаги драйвера
 ;stack_adr_sys dw 0 ;адрес системного стека
-page_slot3_cur db 0 ;текущая страница вы слоте 3
-page_slot2_cur db 0 ;текущая страница вы слоте 2
+page_slot2_cur db 0 ;текущая страница в слоте 2
+page_slot3_cur db 0 ;текущая страница в слоте 3
+page_slot2_cur_tmp db 0 ;текущая страница в слоте 2 временно
+page_slot3_cur_tmp db 0 ;текущая страница в слоте 3 временно
 con_scr_cur db 0 ;страница активного экрана пиксели
 con_atr_cur db 0 ;страница активного экрана атрибуты
 key_cur db 0 ;печатный код нажатой клавиши
@@ -2665,7 +2673,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.07.23",13,10,0
+	db "OS ver 2025.07.25",13,10,0
 	
 
 
