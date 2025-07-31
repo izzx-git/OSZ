@@ -936,7 +936,7 @@
  443  824E E7          >    rst #20
  444  824F D8           	ret c ;сразу не удалось (может, очередь)
  445  8250              	;или подождём открытия
- 446  8250 06 64        	ld b,wait_count ;
+ 446  8250 06 96        	ld b,wait_count ;
  447  8252              radio_open_site_wait
  448  8252              	OS_WAIT
  448  8252 DF          >	rst #18
@@ -971,7 +971,7 @@
  473  8274 E7          >    rst #20
  474  8275 D8           	ret c;сразу не удалось (может, очередь)
  475  8276              	;ждём когда запрос пройдёт
- 476  8276 06 64        	ld b,wait_count ;
+ 476  8276 06 96        	ld b,wait_count ;
  477  8278              radio_request_info_wait2
  478  8278              	OS_WAIT
  478  8278 DF          >	rst #18
@@ -1001,7 +1001,7 @@
  499  8293 0E 0F       >    ld c,#0f
  499  8295 E7          >    rst #20
  500  8296 D8           	ret c ;сразу не удалось (может, очередь)
- 501  8297 06 64        	ld b,wait_count ;
+ 501  8297 06 96        	ld b,wait_count ;
  502  8299              radio_download_info_wait1
  503  8299              	OS_WAIT
  503  8299 DF          >	rst #18
@@ -1063,7 +1063,7 @@
  559  82ED              	OS_ESP_GET
  559  82ED 0E 0F       >    ld c,#0f
  559  82EF E7          >    rst #20
- 560  82F0 06 64        	ld b,wait_count ;
+ 560  82F0 06 96        	ld b,wait_count ;
  561  82F2              radio_download_info_wait2
  562  82F2              	OS_WAIT
  562  82F2 DF          >	rst #18
@@ -1165,7 +1165,7 @@
  651  8356 E7          >    rst #20
  652  8357 D8           	ret c ;сразу не удалось (может, очередь)
  653  8358              	;ждём когда запрос пройдёт
- 654  8358 06 64        	ld b,wait_count ;
+ 654  8358 06 96        	ld b,wait_count ;
  655  835A              radio_request_track_wait2
  656  835A              	OS_WAIT
  656  835A DF          >	rst #18
@@ -1196,7 +1196,7 @@
  678  8375 0E 0F       >    ld c,#0f
  678  8377 E7          >    rst #20
  679  8378 D8           	ret c ;сразу не удалось (может, очередь)
- 680  8379 06 64        	ld b,wait_count ;
+ 680  8379 06 96        	ld b,wait_count ;
  681  837B              radio_download_track_wait1
  682  837B              	OS_WAIT
  682  837B DF          >	rst #18
@@ -1259,7 +1259,7 @@
  739  83CF              	OS_ESP_GET
  739  83CF 0E 0F       >    ld c,#0f
  739  83D1 E7          >    rst #20
- 740  83D2 06 64        	ld b,wait_count ;
+ 740  83D2 06 96        	ld b,wait_count ;
  741  83D4              radio_download_track_wait2
  742  83D4              	OS_WAIT
  742  83D4 DF          >	rst #18
@@ -1796,7 +1796,7 @@
 1209  8768
 1210  8768
 1211  8768              id_lenght equ 6 ;длина кода файла
-1212  8768              wait_count equ 2*50 ;задержка в кадрах
+1212  8768              wait_count equ 3*50 ;задержка в кадрах
 1213  8768              buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
 1214  8768
 1215  8768              ; ;ответы ESP
@@ -2061,11 +2061,11 @@
 1315  8B73              ;requestbuffer_end
 1316  8B73
 1317  8B73              msg_title_radio
-1318  8B73 52 61 64 69  	db "Radio ver 2025.07.25",10,13,0
+1318  8B73 52 61 64 69  	db "Radio ver 2025.07.31",10,13,0
 1318  8B77 6F 20 76 65
 1318  8B7B 72 20 32 30
 1318  8B7F 32 35 2E 30
-1318  8B83 37 2E 32 35
+1318  8B83 37 2E 33 31
 1318  8B87 0A 0D 00
 1319  8B8A
 1320  8B8A 52 65 73 70  outputBuffer_title db "Response:",13

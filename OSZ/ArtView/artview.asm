@@ -1276,7 +1276,7 @@ save_file_name  ;тут имя файла
 
 
 id_lenght equ 6 ;длина кода файла
-wait_count equ 2*50 ;задержка в кадрах
+wait_count equ 3*50 ;задержка в кадрах
 buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
 
 ; ;ответы ESP
@@ -1384,7 +1384,7 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_artview
-	db "ArtView ver 2025.07.25",10,13,0
+	db "ArtView ver 2025.07.31",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки

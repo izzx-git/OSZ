@@ -992,7 +992,7 @@
  507  822C E7          >    rst #20
  508  822D D8           	ret c ;сразу не удалось (может, очередь)
  509  822E              	;или подождём открытия
- 510  822E 06 64        	ld b,wait_count ;
+ 510  822E 06 96        	ld b,wait_count ;
  511  8230              artview_open_site_wait
  512  8230              	OS_WAIT
  512  8230 DF          >	rst #18
@@ -1027,7 +1027,7 @@
  537  8252 E7          >    rst #20
  538  8253 D8           	ret c;сразу не удалось (может, очередь)
  539  8254              	;ждём когда запрос пройдёт
- 540  8254 06 64        	ld b,wait_count ;
+ 540  8254 06 96        	ld b,wait_count ;
  541  8256              artview_request_info_wait2
  542  8256              	OS_WAIT
  542  8256 DF          >	rst #18
@@ -1057,7 +1057,7 @@
  563  8271 0E 0F       >    ld c,#0f
  563  8273 E7          >    rst #20
  564  8274 D8           	ret c ;сразу не удалось (может, очередь)
- 565  8275 06 64        	ld b,wait_count ;
+ 565  8275 06 96        	ld b,wait_count ;
  566  8277              artview_download_info_wait1
  567  8277              	OS_WAIT
  567  8277 DF          >	rst #18
@@ -1119,7 +1119,7 @@
  623  82CB              	OS_ESP_GET
  623  82CB 0E 0F       >    ld c,#0f
  623  82CD E7          >    rst #20
- 624  82CE 06 64        	ld b,wait_count ;
+ 624  82CE 06 96        	ld b,wait_count ;
  625  82D0              artview_download_info_wait2
  626  82D0              	OS_WAIT
  626  82D0 DF          >	rst #18
@@ -1221,7 +1221,7 @@
  715  8334 E7          >    rst #20
  716  8335 D8           	ret c ;сразу не удалось (может, очередь)
  717  8336              	;ждём когда запрос пройдёт
- 718  8336 06 64        	ld b,wait_count ;
+ 718  8336 06 96        	ld b,wait_count ;
  719  8338              artview_request_art_wait2
  720  8338              	OS_WAIT
  720  8338 DF          >	rst #18
@@ -1252,7 +1252,7 @@
  742  8353 0E 0F       >    ld c,#0f
  742  8355 E7          >    rst #20
  743  8356 D8           	ret c ;сразу не удалось (может, очередь)
- 744  8357 06 64        	ld b,wait_count ;
+ 744  8357 06 96        	ld b,wait_count ;
  745  8359              artview_download_art_wait1
  746  8359              	OS_WAIT
  746  8359 DF          >	rst #18
@@ -1315,7 +1315,7 @@
  803  83AD              	OS_ESP_GET
  803  83AD 0E 0F       >    ld c,#0f
  803  83AF E7          >    rst #20
- 804  83B0 06 64        	ld b,wait_count ;
+ 804  83B0 06 96        	ld b,wait_count ;
  805  83B2              artview_download_art_wait2
  806  83B2              	OS_WAIT
  806  83B2 DF          >	rst #18
@@ -1856,7 +1856,7 @@
 1276  874C
 1277  874C
 1278  874C              id_lenght equ 6 ;длина кода файла
-1279  874C              wait_count equ 2*50 ;задержка в кадрах
+1279  874C              wait_count equ 3*50 ;задержка в кадрах
 1280  874C              buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
 1281  874C
 1282  874C              ; ;ответы ESP
@@ -2115,12 +2115,12 @@
 1384  8B26              ;requestbuffer_end
 1385  8B26
 1386  8B26              msg_title_artview
-1387  8B26 41 72 74 56  	db "ArtView ver 2025.07.25",10,13,0
+1387  8B26 41 72 74 56  	db "ArtView ver 2025.07.31",10,13,0
 1387  8B2A 69 65 77 20
 1387  8B2E 76 65 72 20
 1387  8B32 32 30 32 35
 1387  8B36 2E 30 37 2E
-1387  8B3A 32 35 0A 0D
+1387  8B3A 33 31 0A 0D
 1387  8B3E 00
 1388  8B3F
 1389  8B3F 52 65 73 70  outputBuffer_title db "Response:",13

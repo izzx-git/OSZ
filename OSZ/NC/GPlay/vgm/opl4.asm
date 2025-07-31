@@ -46,6 +46,7 @@ writewavetableindexlo
 	ld d,a
 	call opl4writewave
 ;wait for the header to load
+	ld a,MOON_BASE_HI
 	in a,(MOON_STAT)
 	and 3
 	jr nz,$-4
@@ -138,7 +139,11 @@ opl4loadsample
 	call opl4writewave
 	opl4_wait
 	ld a,6
-	out (MOON_WREG),a
+	push bc
+	ld b,MOON_BASE_HI
+	ld c,MOON_WREG
+	out (c),a
+	pop bc
 	exx
 	call setup24bitscounterloop
 	ld hl,(memorystreamcurrentaddr)
@@ -146,7 +151,11 @@ opl4loadsample
 	memory_stream_read_byte c
 	opl4_wait
 	ld a,c
-	out (MOON_WDAT),a
+	push bc
+	ld b,MOON_BASE_HI	
+	ld c,MOON_WDAT
+	out (c),a
+	pop bc
 	djnz .loop
 	dec de
 	ld a,e
@@ -202,6 +211,7 @@ opl4inittimer60hz
 	jp opl4writefm1
 
 opl4waittimer60hz
+	ld a,MOON_BASE_HI
 	in a,(MOON_STAT)
 	rla
 	jr nc,opl4waittimer60hz

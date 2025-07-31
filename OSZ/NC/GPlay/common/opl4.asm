@@ -5,10 +5,16 @@ opl4writefm1
 ;d = value
 	opl4_wait
 	ld a,e
-	out (MOON_REG1),a
+	push bc
+	ld b,MOON_BASE_HI
+	ld c,MOON_REG1
+	out (c),a
 	opl4_wait
 	ld a,d
-	out (MOON_DAT1),a
+	ld b,MOON_BASE_HI	
+	ld c,MOON_DAT1
+	out (c),a	
+	pop bc
 	ret
 
 opl4writefm2
@@ -16,10 +22,16 @@ opl4writefm2
 ;d = value
 	opl4_wait
 	ld a,e
-	out (MOON_REG2),a
+	push bc
+	ld b,MOON_BASE_HI	
+	ld c,MOON_REG2
+	out (c),a	
 	opl4_wait
 	ld a,d
-	out (MOON_DAT2),a
+	ld b,MOON_BASE_HI	
+	ld c,MOON_DAT2
+	out (c),a
+	pop bc
 	ret
 
 opl4writewave
@@ -27,18 +39,29 @@ opl4writewave
 ;d = value
 	opl4_wait
 	ld a,e
-	out (MOON_WREG),a
+	push bc
+	ld b,MOON_BASE_HI	
+	ld c,MOON_WREG
+	out (c),a
 	opl4_wait
 	ld a,d
-	out (MOON_WDAT),a
+	ld b,MOON_BASE_HI	
+	ld c,MOON_WDAT
+	out (c),a
+	pop bc	
 	ret
 
 opl4readwave
 ;e = register
 	opl4_wait
 	ld a,e
-	out (MOON_WREG),a
+	push bc
+	ld b,MOON_BASE_HI		
+	ld c,MOON_WREG
+	out (c),a	
+	pop bc
 	opl4_wait
+	ld a,MOON_BASE_HI
 	in a,(MOON_WDAT)
 	ret
 
@@ -133,7 +156,11 @@ opl4readmemory
 	call opl4writewave
 	opl4_wait
 	ld a,6
-	out (MOON_WREG),a
+	push bc
+	ld b,MOON_BASE_HI		
+	ld c,MOON_WREG
+	out (c),a
+	pop bc
 	ld de,ix
 	ld a,c
 	dec bc
@@ -142,6 +169,7 @@ opl4readmemory
 	ld b,a
 .readloop
 	opl4_wait
+	ld a,MOON_BASE_HI
 	in a,(MOON_WDAT)
 	ld (de),a
 	inc de
@@ -160,7 +188,11 @@ opl4writememory
 	call opl4writewave
 	opl4_wait
 	ld a,6
-	out (MOON_WREG),a
+	push bc
+	ld b,MOON_BASE_HI	
+	ld c,MOON_WREG
+	out (c),a
+	pop bc
 	ld de,ix
 	ld a,c
 	dec bc
@@ -170,7 +202,11 @@ opl4writememory
 .writeloop
 	opl4_wait
 	ld a,(de)
-	out (MOON_WDAT),a
+	push bc
+	ld b,MOON_BASE_HI	
+	ld c,MOON_WDAT
+	out (c),a
+	pop bc	
 	inc de
 	djnz .writeloop
 	dec c

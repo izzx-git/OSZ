@@ -259,7 +259,7 @@ txt_memoryerror:    db 13,"Memory allocation error!",0
 txt_fopenerror:     db 13,"Cannot open file: ",0
 	
 msg_title
-	db "GPlay ver 2025.07.24",10,13,0
+	db "GPlay ver 2025.07.31",10,13,0
 	
 vgm_plr
 
