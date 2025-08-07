@@ -175,7 +175,7 @@ read_file_exit
 				ld a,(file_id_cur_r)
 				OS_FILE_CLOSE ;A - id file
 
-
+read_file_ok
                 ;call store8000c000 ;*
 ;подключаем в 8000  пераую страницу загруженной музыки
                 ld hl,memorystreampages ;t_s98_file00_pages_list

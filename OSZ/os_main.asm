@@ -2016,7 +2016,14 @@ proc_close_skip2
 	call set_VTPL_MUTE
 	
 proc_close_skip4
+;выключить режим моно
+	ld hl,mono_mode_id
+	cp (hl)
+	jr nz,proc_close_skip5
+	xor a
+	ld (hl),a
 
+proc_close_skip5
 ;выход	
 	ld a,(proc_close_id_tmp)
 	ld hl,proc_id_cur
@@ -2071,6 +2078,41 @@ proc_del_ram_err
 
 
 
+;включить/выключить моно режим для приложения
+;вх: a = 0 - включить; a = 255 - выключить
+set_mono_mode
+	or a
+	jr z,set_mono_mode_on
+	;выключить
+	ld a,(proc_id_cur) ;проверка что этим процессом было занято
+	ld hl,mono_mode_id
+	cp (hl)
+	jr nz,set_mono_mode_err
+	xor a
+	ld (hl),0
+	ret
+	
+set_mono_mode_on
+	;включить
+	ld a,(mono_mode_id)
+	or a
+	jr nz,set_mono_mode_err ;кем-то занято
+	
+	ld a,(proc_id_cur)
+	ld (mono_mode_id),a
+	xor a
+	ret
+
+set_mono_mode_err
+	scf
+	ret
+
+
+
+
+
+
+
 
 ;выбор функции (вызова)
 function
@@ -2111,7 +2153,7 @@ function_table ;таблица функций
 	dw 0 ;#05 (5 dec) - 
 	dw drvgmx.set_color ;#06 (6 dec) - установить цвет текста в консоли
 	dw 0 ;#07 (7 dec) - ;
-	dw 0 ;#08 (8 dec) - ;
+	dw set_mono_mode ;#08 (8 dec) - включить/выключить моно режим для приложения
 	dw drvgmx.printZ ; #09 (9 dec) - печать в консоль до кода 0
 	dw uart_read ;#0A (10 dec) - прочитать байт из порта uart
 	dw uart_write ;#0B (11 dec) - записать байт в порт uart
@@ -2576,6 +2618,7 @@ con_scr_cur db 0 ;страница активного экрана пиксел�
 con_atr_cur db 0 ;страница активного экрана атрибуты
 key_cur db 0 ;печатный код нажатой клавиши
 file_id_cur db 0 ;временно id файла
+mono_mode_id db 0 ;id процесса в режиме моно
 
 proc_id_next db 0 ;код следующего процесса
 proc_stack_adr_tmp dw 0 ;временно адрес стека
@@ -2673,7 +2716,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.07.25",13,10,0
+	db "OS ver 2025.08.05",13,10,0
 	
 
 

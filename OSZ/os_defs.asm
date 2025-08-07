@@ -93,10 +93,14 @@ PROG_START equ #8000 ;адрес старта приложений
     ; rst #20
     ; endm
 
-    ; macro OS_ ;
-    ; ld c,#08
-    ; rst #20
-    ; endm	
+
+;включить/выключить моно режим для приложения
+;при включенном режиме разрешена запись в диапазон памяти #4000-#7fff + страницы приложения
+;вх: a = 0 - включить; a = 255 - выключить
+    macro OS_SET_MONO_MODE ;
+    ld c,#08
+    rst #20
+    endm	
 	
 	
 	
@@ -317,7 +321,7 @@ PROG_START equ #8000 ;адрес старта приложений
 	    ; значение %11 недопустимо
 		
 ;открыть файл для чтения или записи
-    macro OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size, IX - fcb)
+    macro OS_FILE_OPEN ;HL - File name (out: A - id file, de bc - size, IX - fcb)
     ld c,#21
     rst #20
     endm	

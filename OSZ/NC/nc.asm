@@ -173,28 +173,32 @@ key_enter
 	ld hl,file_name_cur		;строка с именем
 	OS_PROC_RUN ;запустить прогу
 	;обработка ошибки
-	jr c,key_enter_ex
+	jp c,key_enter_ex
 	
 	ld a,(ix)
 	OS_PROC_SET_FOCUS ;на передний план
-	jr key_enter_ex
+	jp key_enter_ex
 
 
 
 key_enter_1
+	;проверка расширения VGZ
+	call check_vgz
+	jp nz,key_enter_2_1
+	
+	ld a,"z" ;код формата
+	call start_gplay
+	
+	jr key_enter_ex	
+	
+	
+key_enter_2_1
 	;проверка расширения VGM
 	call check_vgm
 	jp nz,key_enter_2
 	
-	call clear_left_panel ;почистить часть экрана
-	
-	ld a,(page_ext01) ;доп страница для данных плеера
-	OS_SET_PAGE_SLOT3
-	
+	ld a,"m" ;код формата
 	call start_gplay
-	
-	ld a,(page_main) ;основная страница
-	OS_SET_PAGE_SLOT3
 	
 	jr key_enter_ex
 
@@ -204,10 +208,7 @@ key_enter_2
 	call check_scr
 	jp nz,key_enter_3
 	
-	
-	ld a,(page_ext01) ;доп страница для данных плеера
-	OS_SET_PAGE_SLOT3
-	
+
 	ld hl,file_name_cur		;строка с именем	
 	OS_FILE_OPEN
 	jr nc,key_enter_2_file_open_ok
@@ -229,9 +230,6 @@ key_enter_2_file_open_ok
 	OS_FILE_CLOSE
 	
 	call display ;показать
-	
-	ld a,(page_main) ;основная страница
-	OS_SET_PAGE_SLOT3
 	
 	jr key_enter_ex
 
@@ -273,17 +271,11 @@ nc_play_1
 	call check_vgm
 	jp nz,nc_play_2
 	
-	call clear_left_panel ;почистить часть экрана
-	
-	ld a,(page_ext01) ;доп страница для данных плеера
-	OS_SET_PAGE_SLOT3
-	
+	ld a,"m"
 	call start_gplay
-	
-	push af
-	ld a,(page_main) ;основная страница
-	OS_SET_PAGE_SLOT3
-	pop af
+
+nc_play_1_next
+
 	cp "s"
 	jr z,nc_play_ex
 	cp "S"
@@ -293,8 +285,18 @@ nc_play_1
 	
 	jr nc_play_all_down
 
-
 nc_play_2
+	;проверка расширения ;VGZ
+	call check_vgz
+	jp nz,nc_play_3
+	
+	ld a,"z"
+	call start_gplay
+
+	jr nc_play_1_next
+
+
+nc_play_3
 	jr nc_play_all_down
 
 
@@ -534,6 +536,27 @@ check_vgm2
 	cp "m"
 	ret z
 	cp "M"
+	ret nz
+	xor a ;равен
+	ret
+	
+check_vgz ;проверка на расширение VGZ
+	ld a,(ix+8)
+	cp "v"
+	jr z,check_vgz1
+	cp "V"
+	ret nz
+check_vgz1
+	ld a,(ix+9)
+	cp "g"
+	jr z,check_vgz2
+	cp "G"
+	ret nz
+check_vgz2
+	ld a,(ix+10)
+	cp "z"
+	ret z
+	cp "Z"
 	ret nz
 	xor a ;равен
 	ret
@@ -859,39 +882,72 @@ sort_dir ;сортировка каталога с помощью построе
 	ld a,(ix)
 	or a
 	ret z ;если пусто, выход
-	ld iy,0 ;счётчик
-	ld hl,cat_index ;таблица - индекс
-	
+	ld iy,0 ;счётчик всего файлов
+
+
 	ld a,(sort_enable_flag)
 	or a
-	jp z,sort_dir_no
+	jp z,sort_dir_no ;если без сортировки
 	
-	xor a
-	ld (sort_item),a ;образец для сравнения
-sort_dir_cl
-	call sort_dir_one ;один проход по папкам
-	ld a,(sort_item)
-	inc a ;следующий образец
-	ld (sort_item),a
-	jr nz,sort_dir_cl
+	ld hl,cat_index
+	ld (sort_item_adr_end),hl
 	
-	; xor a
-	; ld (sort_item),a ;образец для сравнения
-sort_file_cl
-	call sort_file_one ;один проход по файлам
-	ld a,(sort_item)
-	inc a ;следующий образец
-	ld (sort_item),a
-	jr nz,sort_file_cl
+	ld hl,cat_index_2 ;таблица - индекс 2
+	call sort_dir_one ;проход по папкам
+
+	ld a,iyh
+	or iyl
+	jr z,sort_dir_skip ;если не было папок
 	
+	ld ix,cat_index_2
+	call sort_index ;отсортировать по алфавиту	
+	;перенести индекс в основной
+	push iy
+	pop hl ;сколько
+	add hl,hl ;*2 по 2 байта на элемент
+	push hl
+	pop bc
+	ld hl,cat_index_2
+	ld de,cat_index
+	ldir
+	ld (sort_item_adr_end),de ;запомнить адрес последнего
+	
+sort_dir_skip
+	ld (sort_item_count),iy
+	ld iy,0 ;счётчик всего файлов
+	ld hl,cat_index_2 ;таблица - индекс 2
+	call sort_file_one ;проход по файлам
+	ld a,iyh
+	or iyl
+	jr z,sort_file_skip ;если не было файлов
+	
+	ld ix,cat_index_2
+	call sort_index ;отсортировать по алфавиту		
+	;добавить индекс к основному
+	push iy
+	pop hl ;сколько
+	add hl,hl ;*2 по 2 байта на элемент
+	push hl
+	pop bc
+	ld hl,cat_index_2	
+	ld de,(sort_item_adr_end)
+	ldir
+	
+sort_file_skip	
+	;скорректировать количество
+	ld bc,(sort_item_count)
+	add iy,bc
+	ld (file_r_all),iy	
 	ret
 	
-sort_item db 0; текущий образец
+sort_item_adr_end dw 0; временно
+sort_item_count dw 0; временно
 
 
 
 ;без сортировки
 sort_dir_no
+	ld hl,cat_index ;таблица - индекс
 	ld ix,buffer_cat	;каталог тут
 sort_dir_no_cl ;цикл по каталогам
 	ld a,(ix)
@@ -967,10 +1023,6 @@ sort_file_one_cl ;цикл по каталогам
 	
 	
 sort_file_one_add	
-	ld a,(sort_item)
-	cp (ix+#00) ;первая буква имени
-	jr nz,sort_file_one_skip ;пока не подошла
-	
 	inc iy ;++
 	;записать в таблицу (индекс)
 	push ix
@@ -989,7 +1041,7 @@ sort_file_one_skip
 	jr nc,sort_file_one_cl
 
 sort_file_one_ex
-	ld (file_r_all),iy
+	;ld (file_r_all),iy
 	ret
 	
 	
@@ -1027,10 +1079,6 @@ sort_dir_one_skip_no
 	jr z,sort_dir_one_skip	
 	
 sort_dir_one_add	
-	ld a,(sort_item)
-	cp (ix+#00) ;первая буква имени
-	jr nz,sort_dir_one_skip ;пока не подошла
-	
 	inc iy ;++
 	;записать в таблицу (индекс)
 	push ix
@@ -1049,11 +1097,68 @@ sort_dir_one_skip
 	jr nc,sort_dir_one_cl
 
 sort_dir_one_ex
-	ld (file_r_all),iy
+	;ld (file_r_all),iy
 	ret
 
 
 
+;сортировка индекса методом пузырька
+;вх: iy - сколько (>1)
+;вх: ix - адрес таблицы
+sort_index
+	ld a,iyh ;проверка, число элементов должно быть > 1
+	or a
+	jr nz,sort_index1
+	ld a,iyl
+	cp 2
+	ret c
+sort_index1	
+	push iy 
+	pop bc ;цикл проходов общий
+	dec bc ;-1
+	
+sort_index_cl_gen ;цикл основной
+	push bc
+	push ix
+
+	push iy
+	pop bc ;внутренний цикл столько же
+	dec bc ;-1
+sort_index_cl ;цикл внутренний
+	;первый элемент узнать адрес записи в каталоге
+	ld e,(ix+00)
+	ld d,(ix+01)
+	ld a,(de) ;первая буква имени
+	;второй элемент узнать адрес записи в каталоге	
+	ld l,(ix+02)
+	ld h,(ix+03)
+	;сравнить с другой первой буквой
+	cp (hl) 
+	jr c,sort_index_cl_skip
+	;поменять местами элементы индекса
+	ld (ix+00),l
+	ld (ix+01),h
+	ld (ix+02),e
+	ld (ix+03),d
+	
+sort_index_cl_skip
+	;следующий
+	inc ix
+	inc ix
+	
+	dec bc
+	ld a,b
+	or c
+	jr nz,sort_index_cl
+	
+	pop ix
+	pop bc
+	dec bc
+	ld a,b
+	or c
+	jr nz,sort_index_cl_gen	
+	
+	ret
 
 
 
@@ -1276,18 +1381,38 @@ msg_menu_main2
 msg_menu_main3	
 	db " View",0
 msg_file_error
-	db "File error",10,13,0
+	db "File error",13,0
 msg_file_too_big
-	db "File too big",10,13,0
+	db "File too big",13,0
 msg_mem_err
-	db "Get memory error",10,13,0
+	db "Get memory error",13,0
+msg_mono_err
+	db "Get mono mode error",13,0
 msg_title_nc
-	db "None Commander ver 2025.07.24",10,13,0
+	db "None Commander ver 2025.08.07",13,0
+	
+
+
+start_gp_gzip equ #4000 ;рабочий адрес модуля для распаковки
+
+start_gp_gzip_tmp
+	incbin "gp_gzip.bin" ; часть плеера для режима моно
+end_gp_gzip_tmp
+
+
 
 end_nc
+	savebin "nc.apg",start_nc,$-start_nc
+
 ;ниже не включается в файл
 cat_index ds 1024 ;буфер для индекса (вектора) сортировки
+cat_index_2 ds 1024 ;буфер для индекса (вектора) сортировки 2
 file_info_string ds file_info_lenght+1 ;буфер инфо
-;ещё тут буферы плеера
 
-	savebin "nc.apg",start_nc,$-start_nc
+end_nc_all
+
+
+
+	org 0xb800 ;
+;ещё тут буферы плеера VGM до адреса #bf00
+	

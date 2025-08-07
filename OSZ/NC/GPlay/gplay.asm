@@ -5,6 +5,16 @@
 	
 
 start_gplay	
+	push af
+	
+	call clear_left_panel ;почистить часть экрана
+	
+	ld hl,memorystreampages+$FF
+	ld (hl),0 ;количество занятых страниц
+	
+	ld a,(page_ext01) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
+	
 	ld de,0
 	OS_SET_XY
 	ld hl,msg_title ;имя приложения
@@ -23,9 +33,21 @@ start_gplay
 	ld a,255
 	ld (file_id_cur_r),a
 	
+	pop af
+	cp "z"
+	jr nz,start_gplay_vgm
+	;если VGZ
+	call load_vgz
+	jp c,exit_gplay
+	jr start_gplay_ok
+	
+start_gplay_vgm	
+	;если vgm
 	call load_mus ;инициализация VGM
 	jp c,exit_gplay
 	
+start_gplay_ok
+	;играет
 	ld hl,txt_play
 	OS_PRINTZ
 	
@@ -68,6 +90,9 @@ wait_play
 	jr wait_play
 	
 	
+	
+	
+	
 exit_gplay ;выход 
 	push af ;сохранить нажатую клавишу
 
@@ -82,6 +107,10 @@ exit_gplay ;выход
 	;освободить страницы памяти
 	ld hl,memorystreampages+$FF
     ld l,(hl)
+	inc l ;проверка на 0
+	dec l
+	jr z,free_s98_loop_skip
+	
 free_s98_loop
     dec l
     ld a,(hl)
@@ -94,10 +123,15 @@ free_s98_loop
     pop af
                 
     jr nz,free_s98_loop
-                                
+	
+free_s98_loop_skip                           
 	; call delay ;задержка	
 	; xor a
 	; OS_PROC_CLOSE
+	
+	ld a,(page_main) ;основная страница
+	OS_SET_PAGE_SLOT3
+	
 	pop af ;a - код клавиши
 	ret
 	
@@ -107,6 +141,80 @@ free_s98_loop
 	; OS_WAIT
 	; djnz delay1
 	; ret
+
+
+
+
+
+
+
+
+
+load_vgz 
+;тут запуск VGZ
+	;тут надо сначала распаковать файл
+	xor a
+	OS_SET_MONO_MODE ;запросить моно режим
+	jr nc,load_vgz1
+	
+load_vgz_err
+	;выход с ошибкой
+
+	;напечатать ошибку, если не дали режима моно
+	ld hl,msg_mono_err
+	OS_PRINTZ
+	
+	scf ;ошибка
+	ret
+	
+load_vgz1
+	;перенести модуль распаковки на рабочий адрес
+	ld hl,start_gp_gzip_tmp
+	ld de,start_gp_gzip
+	ld bc,end_gp_gzip_tmp-start_gp_gzip_tmp
+	ldir
+	
+
+	;распаковать
+	ld hl,file_name_cur ;имя файла
+	call start_gp_gzip ;decompressfiletomemorystream
+	
+	;перенести таблицу страниц
+	ld de,memorystreampages
+	ld bc,256
+	ldir
+
+	ld bc,memorystreampages+$ff
+    ld (bc),a  ;количество страниц		
+	
+	push af
+	ld a,255
+	OS_SET_MONO_MODE ;выключить моно режим
+	pop af
+	
+	jr nc,load_vgz_ok 
+	;если не распаковалос
+	scf ;ошибка
+	ret
+	
+load_vgz_ok
+	;нормально распаковалось
+	
+	call read_file_ok ;играть
+	;call start_gplay ;играть
+	
+	xor a
+	ret
+
+
+
+
+
+
+
+
+
+
 
 	
 	;печать шкалы прогресса
@@ -259,7 +367,7 @@ txt_memoryerror:    db 13,"Memory allocation error!",0
 txt_fopenerror:     db 13,"Cannot open file: ",0
 	
 msg_title
-	db "GPlay ver 2025.07.31",10,13,0
+	db "GPlay ver 2025.08.07",10,13,0
 	
 vgm_plr
 
@@ -272,12 +380,14 @@ PLR_INIT  = vgm_plr ;0x4000
 PLR_PLAY  = vgm_plr+5 ;0x4005
 PLR_MUTE  = vgm_plr+8 ;0x4008
 
-	include vgm_plr.asm
+	include vgm.asm
 	include sub_func.asm
 	;include common/muldiv.asm
 	
 end_gplay
 
+	
+	
 ;ниже не включается в файл
 ;waveheaderbuffer equ 0xc000-2048=0xb800 ;
 
