@@ -2,9 +2,6 @@
 display:
     ; call Console.waitForKeyUp
 	
-	ld a,(page_ext01) ;доп страница
-	OS_SET_PAGE_SLOT3
-	
 display_wait1
 	ld a,7
 	OS_SET_SCREEN ;включить экран
@@ -29,9 +26,6 @@ display_wait1_ok
 	xor a ;текстовый экран
 	OS_SET_SCREEN
     ;call TextMode.cls
-	
-	ld a,(page_main) ;основная страница
-	OS_SET_PAGE_SLOT3
 	
 	ret
     ;jp History.back

@@ -215,12 +215,12 @@ setsharedpages
 page8000=$+1
 	ld a,0
 	;SETPG8000
-	call OS_SET_PAGE_SLOT2_self
+	call OS_SET_PAGE_SLOT2_safe
 	
 pageC000=$+1
 	ld a,0
 	;SETPGC000
-	call OS_SET_PAGE_SLOT3_self
+	call OS_SET_PAGE_SLOT3_safe
 	ret
 
 GzipReadInputBuffer
@@ -229,7 +229,7 @@ GzipReadInputBuffer
 filedatapage=$+1
 	ld a,0
 	;SETPG8000
-	call OS_SET_PAGE_SLOT2_self
+	call OS_SET_PAGE_SLOT2_safe
 filedatasourceaddr=$+1
 	ld hl,0
 	bit 6,h
@@ -239,7 +239,7 @@ filedatasourceaddr=$+1
 	ld (filedatasourceaddr),hl
 	ld a,(page8000)
 	;SETPG8000
-	call OS_SET_PAGE_SLOT2_self
+	call OS_SET_PAGE_SLOT2_safe
 	ret
 
 loadfiledata
@@ -265,7 +265,7 @@ GzipWriteOutputBuffer
 ;hl = size
 	ld a,(memorystreamcurrentpage)
 	;SETPG8000
-	call OS_SET_PAGE_SLOT2_self
+	call OS_SET_PAGE_SLOT2_safe
 	ld bc,hl
 	add hl,de
 	bit 7,h
@@ -283,14 +283,14 @@ GzipWriteOutputBuffer
 	jr z,.write8000
 	ex (sp),hl
 	;SETPGC000
-	call OS_SET_PAGE_SLOT3_self
+	call OS_SET_PAGE_SLOT3_safe
 	ld de,0xc000
 	ld bc,0x4000
 	call memorystreamwrite
 	ld a,(pageC000)
 .write8000
 	;SETPGC000
-	call OS_SET_PAGE_SLOT3_self
+	call OS_SET_PAGE_SLOT3_safe
 	ld de,0xc000
 	pop bc
 .below8000
@@ -380,7 +380,7 @@ memorystreampageaddr=$+1
 	ld (memorystreampageaddr),hl
 	push bc
 	;SETPG8000
-	call OS_SET_PAGE_SLOT2_self
+	call OS_SET_PAGE_SLOT2_safe
 	pop bc
 	pop af
 	ld hl,0x8000
@@ -407,7 +407,7 @@ memorystreamwrite
 	ret	
 	
 	
-OS_SET_PAGE_SLOT2_self	;вызов ОС с сохранением регистров кроме af
+OS_SET_PAGE_SLOT2_safe	;вызов ОС с сохранением регистров кроме af
 	push bc,de,hl
 	exx
 	ex af,af'
@@ -421,7 +421,7 @@ OS_SET_PAGE_SLOT2_self	;вызов ОС с сохранением регистр
 	pop hl,de,bc
 	ret
 	
-OS_SET_PAGE_SLOT3_self	;вызов ОС с сохранением регистров кроме af
+OS_SET_PAGE_SLOT3_safe	;вызов ОС с сохранением регистров кроме af
 	push bc,de,hl
 	exx
 	ex af,af'

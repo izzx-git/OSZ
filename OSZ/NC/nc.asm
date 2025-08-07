@@ -197,7 +197,7 @@ key_enter_2_1
 	call check_vgm
 	jp nz,key_enter_2
 	
-	ld a,"m" ;код формата
+	ld a,"v" ;код формата
 	call start_gplay
 	
 	jr key_enter_ex
@@ -221,6 +221,11 @@ key_enter_2_file_error
 	
 key_enter_2_file_open_ok
 	ld (file_id_cur_r),a
+	
+	ld a,(page_ext01) ;доп страница
+	OS_SET_PAGE_SLOT3
+	
+	ld a,(file_id_cur_r)
 	ld de,6912
 	ld hl,#c000
 	;ld a,(file_id_cur_r)
@@ -230,15 +235,32 @@ key_enter_2_file_open_ok
 	OS_FILE_CLOSE
 	
 	call display ;показать
+
+	
+	ld a,(page_main) ;основная страница
+	OS_SET_PAGE_SLOT3
 	
 	jr key_enter_ex
 
 
 key_enter_3
-
-
-
+	;проверка расширения MOD
+	call check_mod
+	jp nz,key_enter_4
 	
+	ld a,"m" ;код формата
+	call start_gplay
+	
+	jr key_enter_ex
+
+
+
+
+key_enter_4
+
+
+
+
 key_enter_ex
 	jp nc_wait
 	
@@ -271,7 +293,7 @@ nc_play_1
 	call check_vgm
 	jp nz,nc_play_2
 	
-	ld a,"m"
+	ld a,"v"
 	call start_gplay
 
 nc_play_1_next
@@ -297,6 +319,19 @@ nc_play_2
 
 
 nc_play_3
+	;проверка расширения MOD
+	call check_mod
+	jp nz,nc_play_4
+	
+	ld a,"m"
+	call start_gplay
+
+	jr nc_play_1_next
+
+
+
+
+nc_play_4
 	jr nc_play_all_down
 
 
@@ -583,7 +618,28 @@ check_scr2
 	xor a ;равен
 	ret
 	
-
+check_mod ;проверка на расширение MOD
+	ld a,(ix+8)
+	cp "m"
+	jr z,check_mod1
+	cp "M"
+	ret nz
+check_mod1
+	ld a,(ix+9)
+	cp "o"
+	jr z,check_mod2
+	cp "O"
+	ret nz
+check_mod2
+	ld a,(ix+10)
+	cp "d"
+	ret z
+	cp "D"
+	ret nz
+	xor a ;равен
+	ret
+	
+	
 	
 print_panel_r ;печать правой панели
 	;ld ix,buffer_cat	

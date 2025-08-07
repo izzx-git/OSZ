@@ -9,6 +9,8 @@ start_gplay
 	
 	call clear_left_panel ;почистить часть экрана
 	
+	;call release_key
+	
 	ld hl,memorystreampages+$FF
 	ld (hl),0 ;количество занятых страниц
 	
@@ -34,6 +36,15 @@ start_gplay
 	ld (file_id_cur_r),a
 	
 	pop af
+	
+	cp "m"
+	jr nz,start_gplay_vgz
+	;если MOD
+	call load_mod
+	jp exit_gplay
+
+	
+start_gplay_vgz	
 	cp "z"
 	jr nz,start_gplay_vgm
 	;если VGZ
@@ -96,7 +107,7 @@ wait_play
 exit_gplay ;выход 
 	push af ;сохранить нажатую клавишу
 
-	ld hl,txt_exit
+	ld hl,txt_stop
 	OS_PRINTZ
 	
 	ld hl,0 ;отключить обработчик прерываний
@@ -211,8 +222,184 @@ load_vgz_ok
 
 
 
+load_mod
+;загрузка и игра mod
+
+	;определение наличия GS
+	; xor a ;флаг что не нашли
+	; ld (gs_yep),a
+	; ld (gs_on),a
+	LD A,#23
+	OUT (CMD), A 
+	ld b,50
+WAITCOM2: ;это WC
+	OS_WAIT
+	IN A,(CMD)
+	RRCA
+	JR NC,WAITCOM3
+	djnz WAITCOM2
+gs_no
+	ld hl,txt_no_GS
+	OS_PRINTZ
+	scf ;ошибка
+	ret
+	;jr gs_no
+WAITCOM3	
+	in a,(DATA) ;количество страниц памяти?
+	cp 255 
+	jr nz,gs_yes
+	; ld hl,txt_err_GS
+	; call loader_print
+	jr gs_no
+gs_yes	
 
 
+
+    xor a : call GeneralSound.init
+    ; ld hl, .progress : call DialogBox.msgNoWait
+    ; call makeRequest : jp c, Fetcher.fetchFromNet.error
+    call GeneralSound.loadModule
+	
+	ld hl,file_name_cur
+	OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size, IX - fcb)
+
+	jp c,loadMod_fileopenerror	
+	ld (file_id_cur_r),a
+	
+loadMod_loop
+    ;ld hl, buffer_cat, ;(buffer_pointer), hl
+    ; call Wifi.getPacket
+    ; ld a, (Wifi.closed) : and a : jr nz, .exit
+    ; ld hl, buffer_cat, bc, (Wifi.bytes_avail)
+	
+		ld a,(file_id_cur_r)			
+		ld hl,buffer_cat
+        ld de,$4000
+		OS_FILE_READ ;HL - address, A - id file, DE - length (out: hl - следующий адрес дл¤ чтени¤)
+		jp c,loadMod_fileopenerror	
+		
+        ld a,h
+		cp $c0
+        jr c,loadLoop_4000    ;>= $c0, значит остаток файла	
+		;остаток
+		ld bc,#c000
+		and a
+		sbc hl,bc
+		ld bc,hl
+		ld hl,buffer_cat
+.loadLoop2
+    ld a, b : or c : and a : jr z, loadMod_exit
+    ld a, (hl) : call GeneralSound.sendByte
+    dec bc
+    inc hl
+    jr .loadLoop2
+	jp loadMod_exit
+	
+	
+loadLoop_4000
+	ld hl,buffer_cat
+	ld bc,$4000 ;большой кусок для загрузки
+	
+.loadLoop
+    ld a, b : or c : and a : jp z, .nextFrame
+    ld a, (hl) : call GeneralSound.sendByte
+    dec bc
+    inc hl
+    jr .loadLoop
+.nextFrame
+    ;call Wifi.continue
+    jp loadMod_loop
+loadMod_exit
+    call GeneralSound.finishLoadingModule
+	
+	ld a,(file_id_cur_r)
+	OS_FILE_CLOSE ;A - id file
+    ;jp History.back
+	jp play ;MediaProcessor.processResource
+;.progress db "MOD downloading directly to GS!", 0
+	
+    macro GS_WaitCommand2
+.wait
+    in a, (CMD)
+    rrca
+    jr c, .wait
+    endm
+
+    macro GS_SendCommand2 nn
+    ld a, nn : out (CMD), a
+    endm
+	
+play:
+
+	ld hl,txt_play
+	OS_PRINTZ
+	
+    ld hl,txt_gplay_menu
+	OS_PRINTZ
+	
+    ; call Console.waitForKeyUp
+
+    ; ld hl, Gopher.requestbuffer : call DialogBox.msgNoWait
+
+    ; ;ld a, 1, (Render.play_next), a 
+	xor a
+	ld (last_song_position),a
+
+.loop
+    OS_WAIT : 
+    OS_GET_CHAR
+	cp " " ;пробел
+	jp z, .stopKey
+	cp "s" ;стоп
+	jp z, .stopKey
+	cp "S" ;чтоп
+	jp z, .stopKey
+	;call printRTC
+    ;проверка что MOD начал играть сначала
+    GS_SendCommand2 CMD_GET_SONG_POSITION
+    GS_WaitCommand2
+	ld a,(last_song_position) ;предыдущая позиция
+	ld c,a
+	in a,(DATA) ;текущая позиция
+	ld (last_song_position),a
+	cp c
+	jr nc, .loop ;если не меньше, продолжаем играть
+    ;ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
+.stop
+	push af
+    call GeneralSound.stopModule
+	pop af
+    ;call Console.waitForKeyUp
+    ret
+.stopKey
+    ;xor a : ld (Render.play_next), a ;флаг что не надо играть следующий файл
+    jr .stop
+
+
+;message db "Press key to stop...", 0
+
+
+CMD_GET_SONG_POSITION     = #60	
+last_song_position db 0
+
+;; Control ports
+CMD  = 187
+DATA = 179
+
+buffer_pointer dw 0;
+
+
+loadMod_fileopenerror
+		ld hl,txt_fopenerror
+		OS_PRINTZ
+		
+		ld a,(file_id_cur_r)
+		cp 255
+		jr z,loadMod_fileopenerror1
+		OS_FILE_CLOSE ;A - id file
+loadMod_fileopenerror1
+		scf ;ошибка
+		ret
 
 
 
@@ -361,8 +548,9 @@ decimalS	ds 6 ;десятичные цифры
 
 txt_gplay_menu db 13,13,"Break, S - stop ",13,"Sp - Next",0
 txt_play db 13,"Play... ",0
-txt_exit db 13,"Stop",0
+txt_stop db 13,"Stop",0
 txt_load db 13,"Load...",0
+txt_no_GS db 13,"GS not found!",0
 txt_memoryerror:    db 13,"Memory allocation error!",0
 txt_fopenerror:     db 13,"Cannot open file: ",0
 	
@@ -382,6 +570,7 @@ PLR_MUTE  = vgm_plr+8 ;0x4008
 
 	include vgm.asm
 	include sub_func.asm
+	include common/general-sound.asm
 	;include common/muldiv.asm
 	
 end_gplay

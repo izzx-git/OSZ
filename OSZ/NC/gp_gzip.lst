@@ -691,12 +691,12 @@
  215  4134              page8000=$+1
  216  4134 3E 00        	ld a,0
  217  4136              	;SETPG8000
- 218  4136 CD 41 42     	call OS_SET_PAGE_SLOT2_self
+ 218  4136 CD 41 42     	call OS_SET_PAGE_SLOT2_safe
  219  4139
  220  4139              pageC000=$+1
  221  4139 3E 00        	ld a,0
  222  413B              	;SETPGC000
- 223  413B CD 61 42     	call OS_SET_PAGE_SLOT3_self
+ 223  413B CD 61 42     	call OS_SET_PAGE_SLOT3_safe
  224  413E C9           	ret
  225  413F
  226  413F              GzipReadInputBuffer
@@ -705,7 +705,7 @@
  229  413F              filedatapage=$+1
  230  413F 3E 00        	ld a,0
  231  4141              	;SETPG8000
- 232  4141 CD 41 42     	call OS_SET_PAGE_SLOT2_self
+ 232  4141 CD 41 42     	call OS_SET_PAGE_SLOT2_safe
  233  4144              filedatasourceaddr=$+1
  234  4144 21 00 00     	ld hl,0
  235  4147 CB 74        	bit 6,h
@@ -715,7 +715,7 @@
  239  4151 22 45 41     	ld (filedatasourceaddr),hl
  240  4154 3A 35 41     	ld a,(page8000)
  241  4157              	;SETPG8000
- 242  4157 CD 41 42     	call OS_SET_PAGE_SLOT2_self
+ 242  4157 CD 41 42     	call OS_SET_PAGE_SLOT2_safe
  243  415A C9           	ret
  244  415B
  245  415B              loadfiledata
@@ -745,7 +745,7 @@
  265  4184              ;hl = size
  266  4184 3A 86 42     	ld a,(memorystreamcurrentpage)
  267  4187              	;SETPG8000
- 268  4187 CD 41 42     	call OS_SET_PAGE_SLOT2_self
+ 268  4187 CD 41 42     	call OS_SET_PAGE_SLOT2_safe
  269  418A 44 4D        	ld bc,hl
  270  418C 19           	add hl,de
  271  418D CB 7C        	bit 7,h
@@ -763,14 +763,14 @@
  283  41A7 28 10        	jr z,.write8000
  284  41A9 E3           	ex (sp),hl
  285  41AA              	;SETPGC000
- 286  41AA CD 61 42     	call OS_SET_PAGE_SLOT3_self
+ 286  41AA CD 61 42     	call OS_SET_PAGE_SLOT3_safe
  287  41AD 11 00 C0     	ld de,0xc000
  288  41B0 01 00 40     	ld bc,0x4000
  289  41B3 CD 27 42     	call memorystreamwrite
  290  41B6 3A 3A 41     	ld a,(pageC000)
  291  41B9              .write8000
  292  41B9              	;SETPGC000
- 293  41B9 CD 61 42     	call OS_SET_PAGE_SLOT3_self
+ 293  41B9 CD 61 42     	call OS_SET_PAGE_SLOT3_safe
  294  41BC 11 00 C0     	ld de,0xc000
  295  41BF C1           	pop bc
  296  41C0              .below8000
@@ -862,7 +862,7 @@
  380  421A 22 12 42     	ld (memorystreampageaddr),hl
  381  421D C5           	push bc
  382  421E              	;SETPG8000
- 383  421E CD 41 42     	call OS_SET_PAGE_SLOT2_self
+ 383  421E CD 41 42     	call OS_SET_PAGE_SLOT2_safe
  384  4221 C1           	pop bc
  385  4222 F1           	pop af
  386  4223 21 00 80     	ld hl,0x8000
@@ -893,7 +893,7 @@
  407  4240 C9           	ret
  408  4241
  409  4241
- 410  4241              OS_SET_PAGE_SLOT2_self	;вызов ОС с сохранением регистров кроме af
+ 410  4241              OS_SET_PAGE_SLOT2_safe	;вызов ОС с сохранением регистров кроме af
  411  4241 C5 D5 E5     	push bc,de,hl
  412  4244 D9           	exx
  413  4245 08           	ex af,af'
@@ -911,7 +911,7 @@
  421  425D E1 D1 C1     	pop hl,de,bc
  422  4260 C9           	ret
  423  4261
- 424  4261              OS_SET_PAGE_SLOT3_self	;вызов ОС с сохранением регистров кроме af
+ 424  4261              OS_SET_PAGE_SLOT3_safe	;вызов ОС с сохранением регистров кроме af
  425  4261 C5 D5 E5     	push bc,de,hl
  426  4264 D9           	exx
  427  4265 08           	ex af,af'
