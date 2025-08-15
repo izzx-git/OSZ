@@ -36,9 +36,11 @@ CMD_CLOSE_STREAM    = #D2
 init:
     and a : jr nz, .cold
     GS_SendCommand CMD_WARM_RESET
+	GS_WaitCommand
     ret
 .cold
     GS_SendCommand CMD_COLD_RESET
+	GS_WaitCommand
     ret
 
 ;; Initializes loading module

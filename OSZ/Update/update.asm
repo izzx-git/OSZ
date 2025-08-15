@@ -513,7 +513,7 @@ load_file
 	;проверка длины файла не больше #4000
 	ld	a,d ;самые старшие байты длины
 	or e
-	jr z,load_file_size_ok ;если не слищком большой
+	jr z,load_file_size_ok ;если не слишком большой
 load_file_too_big
 	;слишком большой
 	ld hl,msg_file_too_big
@@ -523,15 +523,15 @@ load_file_too_big
 	
 
 load_file_size_ok	
-	ld	a,b ;младший старший байт длины
+	ld	a,h ;младший старший байт длины
 	cp #40 ;ограничение
 	jr nc,load_file_too_big
 	;размер нормальный, прочитаем
-	ld (load_file_lenght),bc
+	ld (load_file_lenght),hl
+	ld d,h ;размер
+	ld e,l	
 	ld hl,(load_file_address)
 	ld a,(load_file_id)
-	ld d,b ;размер
-	ld e,c
 	OS_FILE_READ
 	jr nc,load_file_size_ok2
 	;если ошибка
@@ -755,7 +755,7 @@ max_list_size equ 2048
 
 
 file_list_name db "update.txt",0	;имя файла, в первой строке адрес сервера
-wait_count equ 2*50 ;задержка в кадрах
+wait_count equ 3*50 ;задержка в кадрах
 buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
 data_start dw 0 ;начало данных
 data_end dw 0 ;конец данных
@@ -797,7 +797,7 @@ msg_update_confim
 	db "Update OS from net? Y/N",13,0
 	
 msg_title_update
-	db "OS Update ver 2025.05.23",13,13,0
+	db "OS Update ver 2025.08.13",13,13,0
 
 request_buffer_title db "Request:",13
 

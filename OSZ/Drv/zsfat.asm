@@ -103,7 +103,7 @@ fcb_fat_size equ 32 ;размер дискриптора fcb
 ; HL - File name
 ; Returns:
 ;  A - file stream id
-; DE, BC - File size 
+; DE, HL - File size 
 ; IX - fcb
 ; fopen:
     ; ; push bc : push hl 
@@ -197,8 +197,8 @@ fopen_ex
 	ld (hl),a ;флаг что файл открыт (id текущего процесса)
 
 	;вернуть размер файла
-	ld	c,(ix+#14) ;младшие байты длины
-	ld	b,(ix+#15)
+	ld	l,(ix+#14) ;младшие байты длины
+	ld	h,(ix+#15)
 
 	ld	e,(ix+#16) ;старшие байты длины
 	ld  d,(ix+#17) 	

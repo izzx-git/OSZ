@@ -27,6 +27,22 @@ get_page_error
 get_page_ok
 	ld (page_ext01),a ;запомнить
 
+
+	OS_GET_PAGE ;получить лишнюю страницу для gzip
+	jr c,get_page_error
+	ld (page_ext02_gzip),a ;запомнить
+
+	
+	ld a,(page_ext02_gzip) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
+	
+	ld hl,start_gp_gzip_load
+	ld de,start_gp_gzip_ext
+	ld bc,end_gp_gzip_load-start_gp_gzip_load
+	ldir ;сохранить в доп странице
+	
+	ld a,(page_main) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
 	
 	
 start_nc_warm ;тёплый старт
@@ -208,38 +224,8 @@ key_enter_2
 	call check_scr
 	jp nz,key_enter_3
 	
-
-	ld hl,file_name_cur		;строка с именем	
-	OS_FILE_OPEN
-	jr nc,key_enter_2_file_open_ok
-key_enter_2_file_error
-	ld hl,msg_file_error
-	OS_PRINTZ	
-	; ld b,2*50
-	; call delay1
-	jp key_enter_ex
-	
-key_enter_2_file_open_ok
-	ld (file_id_cur_r),a
-	
-	ld a,(page_ext01) ;доп страница
-	OS_SET_PAGE_SLOT3
-	
-	ld a,(file_id_cur_r)
-	ld de,6912
-	ld hl,#c000
-	;ld a,(file_id_cur_r)
-	OS_FILE_READ ;загрузить
-	jr c,key_enter_2_file_error	
-	ld a,(file_id_cur_r)
-	OS_FILE_CLOSE
-	
 	call display ;показать
 
-	
-	ld a,(page_main) ;основная страница
-	OS_SET_PAGE_SLOT3
-	
 	jr key_enter_ex
 
 
@@ -254,9 +240,30 @@ key_enter_3
 	jr key_enter_ex
 
 
-
-
 key_enter_4
+	;проверка расширения PT2
+	call check_pt2
+	jp nz,key_enter_5
+	
+	ld a,"2" ;код формата
+	call start_gplay
+	
+	jr key_enter_ex
+
+
+key_enter_5
+	;проверка расширения PT3
+	call check_pt3
+	jp nz,key_enter_6
+	
+	ld a,"3" ;код формата
+	call start_gplay
+	
+	jr key_enter_ex
+
+	
+
+key_enter_6
 
 
 
@@ -329,9 +336,28 @@ nc_play_3
 	jr nc_play_1_next
 
 
-
-
 nc_play_4
+	;проверка расширения pt2
+	call check_pt2
+	jp nz,nc_play_5
+	
+	ld a,"2"
+	call start_gplay
+
+	jr nc_play_1_next
+	
+nc_play_5
+	;проверка расширения pt3
+	call check_pt3
+	jp nz,nc_play_6
+	
+	ld a,"3"
+	call start_gplay
+
+	jr nc_play_1_next
+	
+
+nc_play_6
 	jr nc_play_all_down
 
 
@@ -366,7 +392,7 @@ key_enter_dir
 	ex de,hl ;de - дескриптор для открытия
 	ld hl,dir_name_cur
 	OS_DIR_OPEN
-	jr c,key_enter_ex ;если ошибка, ничего не делаем
+	jp c,key_enter_ex ;если ошибка, ничего не делаем
 	
 	pop hl ;отменить возврат
 	jp start_nc_warm ;перезагрузить папку
@@ -639,7 +665,48 @@ check_mod2
 	xor a ;равен
 	ret
 	
-	
+
+check_pt2 ;проверка на расширение pt2
+	ld a,(ix+8)
+	cp "p"
+	jr z,check_pt21
+	cp "P"
+	ret nz
+check_pt21
+	ld a,(ix+9)
+	cp "t"
+	jr z,check_pt22
+	cp "T"
+	ret nz
+check_pt22
+	ld a,(ix+10)
+	cp "2"
+	ret z
+	cp "2"
+	ret nz
+	xor a ;равен
+	ret
+
+check_pt3 ;проверка на расширение pt3
+	ld a,(ix+8)
+	cp "p"
+	jr z,check_pt31
+	cp "P"
+	ret nz
+check_pt31
+	ld a,(ix+9)
+	cp "t"
+	jr z,check_pt32
+	cp "T"
+	ret nz
+check_pt32
+	ld a,(ix+10)
+	cp "3"
+	ret z
+	cp "3"
+	ret nz
+	xor a ;равен
+	ret	
 	
 print_panel_r ;печать правой панели
 	;ld ix,buffer_cat	
@@ -1180,6 +1247,10 @@ sort_index_cl_gen ;цикл основной
 	push iy
 	pop bc ;внутренний цикл столько же
 	dec bc ;-1
+	
+	xor a ;флаг
+	ld (sort_index_flag),a 	
+	
 sort_index_cl ;цикл внутренний
 	;первый элемент узнать адрес записи в каталоге
 	ld e,(ix+00)
@@ -1191,6 +1262,9 @@ sort_index_cl ;цикл внутренний
 	;сравнить с другой первой буквой
 	cp (hl) 
 	jr c,sort_index_cl_skip
+	
+	ld a,1
+	ld (sort_index_flag),a ;флаг были изменения
 	;поменять местами элементы индекса
 	ld (ix+00),l
 	ld (ix+01),h
@@ -1210,13 +1284,18 @@ sort_index_cl_skip
 	pop ix
 	pop bc
 	dec bc
+	
+	ld a,(sort_index_flag)
+	or a
+	ret z ;если не было изменений за проход, можно выходить
+	
 	ld a,b
 	or c
 	jr nz,sort_index_cl_gen	
 	
 	ret
 
-
+sort_index_flag db 0;
 
 
 sort_toggle ;переключение сортировки
@@ -1372,6 +1451,7 @@ print_menu_main ;печать основного меню
 	include GPlay/gplay.asm ;плеер
 	include nc_pic_view.asm ;просмотр картинок
 
+color_error equ 1*8+2 ;цвет ошибка
 color_default equ 0*8+7 ;цвет обычный системный
 color_view_text equ 4 ;цвет текста в просмотрщике
 
@@ -1401,6 +1481,7 @@ file_id_cur_r db 0 ;id файла справа
 
 
 page_ext01 db 0 ;номер дополнительной страницы
+page_ext02_gzip db 0 ;номер дополнительной страницы
 page_main dw 0 ;основные номера страниц слота 2,3
 print_panel_r_flag db 0 ;флаг что надо обновить правую панель
 file_info_string_SFN_end db '                          ',0 ;пробелы для забоя конца строки
@@ -1445,15 +1526,22 @@ msg_mem_err
 msg_mono_err
 	db "Get mono mode error",13,0
 msg_title_nc
-	db "None Commander ver 2025.08.07",13,0
+	db "None Commander ver 2025.08.15",13,0
 	
 
 
 start_gp_gzip equ #4000 ;рабочий адрес модуля для распаковки
+start_gp_gzip_ext equ #c000 ;временный адрес модуля для распаковки
 
-start_gp_gzip_tmp
-	incbin "gp_gzip.bin" ; часть плеера для режима моно
-end_gp_gzip_tmp
+cat_index equ $ ; 1024 ;буфер для индекса (вектора) сортировки
+cat_index_2 equ cat_index+1024 ; 1024 ;буфер для индекса (вектора) сортировки 2
+file_info_string equ cat_index_2+1024 ;  file_info_lenght+1 ;буфер инфо
+	
+free equ file_info_string+file_info_lenght+1 ;тут условно свободно
+
+start_gp_gzip_load
+	incbin "gp_gzip.bin" ; часть плеера для режима моно, переносится в резервную страницу
+end_gp_gzip_load
 
 
 
@@ -1461,9 +1549,7 @@ end_nc
 	savebin "nc.apg",start_nc,$-start_nc
 
 ;ниже не включается в файл
-cat_index ds 1024 ;буфер для индекса (вектора) сортировки
-cat_index_2 ds 1024 ;буфер для индекса (вектора) сортировки 2
-file_info_string ds file_info_lenght+1 ;буфер инфо
+
 
 end_nc_all
 

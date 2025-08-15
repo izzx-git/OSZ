@@ -321,7 +321,7 @@ PROG_START equ #8000 ;адрес старта приложений
 	    ; значение %11 недопустимо
 		
 ;открыть файл для чтения или записи
-    macro OS_FILE_OPEN ;HL - File name (out: A - id file, de bc - size, IX - fcb)
+    macro OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
     ld c,#21
     rst #20
     endm	

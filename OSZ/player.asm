@@ -7,7 +7,7 @@
 Release EQU "0"
 ;Conditional assembly
 ;1) Current position counters at (Vars1+0) and (Vars2+0)
-CurPosCounter=0
+CurPosCounter=1
 ;2) Allow channels allocation bits at (START+10)
 ACBBAC=0
 ;3) Allow loop checking and disabling

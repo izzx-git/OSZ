@@ -4,7 +4,7 @@ fileopenerror
 		ld c,$FF
         ld (bc),a ;запомнить сколько заняли страниц
 		
-		ld hl,txt_fopenerror
+		ld hl,msg_file_error
 		OS_PRINTZ
 		
 		ld a,(file_id_cur_r)
@@ -87,7 +87,7 @@ load_mus
         ; call openstream_file
 		
 		ld hl,file_name_cur
-		OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size, IX - fcb)
+		OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
 		
         ;or a
         ;jp nz,fileopenerror

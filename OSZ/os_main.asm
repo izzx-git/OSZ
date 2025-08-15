@@ -40,15 +40,15 @@ sys_file_too_big
 	
 
 sys_file_size_ok	
-	ld	a,b ;младший старший байт длины
+	ld	a,h ;младший старший байт длины
 	cp #80
 	jr nc,sys_file_too_big
 	;размер нормальный, прочитаем
-	ld (sys_file_autorun_lenght),bc
+	ld (sys_file_autorun_lenght),hl
+	ld d,h ;размер
+	ld e,l
 	ld hl,#c000
 	ld a,(sys_file_autorun_id_tmp)
-	ld d,b ;размер
-	ld e,c
 	call Dos.fread
 	jr nc,sys_file_size_ok2
 	;если ошибка
@@ -542,7 +542,7 @@ net_loop
 	ld a,(sys_timer) ;иногда печатаем сетевую информацию
 	and %00001110
 	call z,print_esp_link
-	
+
 	jr net_loop
 	
 	
@@ -1355,7 +1355,7 @@ file_too_big
 	
 
 file_size_ok	
-	ld	a,b ;младший старший байт длины
+	ld	a,h ;младший старший байт длины
 	cp proc_size_max+1
 	jr nc,file_too_big
 	;размер нормальный, прочитаем
@@ -1368,11 +1368,10 @@ file_size_ok
 	call drvgmx.PageSlot2
 	ld a,(ix+3)
 	call drvgmx.PageSlot3		
-	
+	ld d,h ;размер
+	ld e,l	
 	ld hl,PROG_START
 	ld a,(proc_run_file_id_tmp)
-	ld d,b ;размер
-	ld e,c
 	call Dos.fread
 	jr nc,file_size_ok2
 	;если ошибка вернуть страницы
@@ -2716,7 +2715,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.08.05",13,10,0
+	db "OS ver 2025.08.13",13,10,0
 	
 
 

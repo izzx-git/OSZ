@@ -5,7 +5,7 @@
 	
 
 start_gplay	
-	push af
+	ld (gplay_type),a ;тип формата
 	
 	call clear_left_panel ;почистить часть экрана
 	
@@ -35,13 +35,32 @@ start_gplay
 	ld a,255
 	ld (file_id_cur_r),a
 	
-	pop af
+	ld a,(gplay_type)
+	;переход в на нужный раздел
 	
+start_gplay_pt2	
+	cp "2"
+	jr nz,start_gplay_pt3
+	;если PT2
+	call load_pt2
+	jp exit_gplay
+	;jp start_gplay_ok
+	
+start_gplay_pt3
+	cp "3"
+	jr nz,start_gplay_mod
+	;если PT3
+	call load_pt3
+	jp exit_gplay
+	;jp start_gplay_ok	
+	
+start_gplay_mod	
 	cp "m"
 	jr nz,start_gplay_vgz
 	;если MOD
 	call load_mod
 	jp exit_gplay
+	;jp start_gplay_ok
 
 	
 start_gplay_vgz	
@@ -53,9 +72,12 @@ start_gplay_vgz
 	jr start_gplay_ok
 	
 start_gplay_vgm	
+	cp "v"
+	jr nz,exit_gplay
 	;если vgm
 	call load_mus ;инициализация VGM
 	jp c,exit_gplay
+	
 	
 start_gplay_ok
 	;играет
@@ -110,41 +132,31 @@ exit_gplay ;выход
 	ld hl,txt_stop
 	OS_PRINTZ
 	
-	ld hl,0 ;отключить обработчик прерываний
-	OS_SET_INTER
-	call PLR_MUTE ;выключить звук
-	
-	
-	;освободить страницы памяти
-	ld hl,memorystreampages+$FF
-    ld l,(hl)
-	inc l ;проверка на 0
-	dec l
-	jr z,free_s98_loop_skip
-	
-free_s98_loop
-    dec l
-    ld a,(hl)
-
-    push af
-    push hl
-    ;OS_DELPAGE
-	OS_DEL_PAGE
-    pop hl
-    pop af
-                
-    jr nz,free_s98_loop
-	
-free_s98_loop_skip                           
-	; call delay ;задержка	
-	; xor a
-	; OS_PROC_CLOSE
+	call gplay_stop
 	
 	ld a,(page_main) ;основная страница
 	OS_SET_PAGE_SLOT3
 	
 	pop af ;a - код клавиши
 	ret
+	
+	
+;заглушить звук
+gplay_stop
+	ld a,(gplay_type)
+	cp "2"
+	jp z,gplay_stop_ptx
+	cp "3"
+	jp z,gplay_stop_ptx
+	cp "v"
+	jp z,gplay_stop_vgm_vgz
+	cp "z"
+	jp z,gplay_stop_vgm_vgz
+	cp "m"
+	jp z,gplay_stop_mod
+	ret
+
+
 	
 ; delay ;задержка между запросами
 	; ld b,50*1 ;
@@ -180,11 +192,17 @@ load_vgz_err
 	
 load_vgz1
 	;перенести модуль распаковки на рабочий адрес
-	ld hl,start_gp_gzip_tmp
+	
+	ld a,(page_ext02_gzip) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
+	
+	ld hl,start_gp_gzip_ext
 	ld de,start_gp_gzip
-	ld bc,end_gp_gzip_tmp-start_gp_gzip_tmp
+	ld bc,end_gp_gzip_load-start_gp_gzip_load
 	ldir
 	
+	ld a,(page_ext01) ;доп страница для данных плеера
+	OS_SET_PAGE_SLOT3
 
 	;распаковать
 	ld hl,file_name_cur ;имя файла
@@ -205,7 +223,7 @@ load_vgz1
 	
 	jr nc,load_vgz_ok 
 	;если не распаковалос
-	scf ;ошибка
+	;scf ;ошибка
 	ret
 	
 load_vgz_ok
@@ -218,8 +236,47 @@ load_vgz_ok
 	ret
 
 
+;стоп игра
+gplay_stop_vgm_vgz
+	ld hl,0 ;отключить обработчик прерываний
+	OS_SET_INTER
+	call PLR_MUTE ;выключить звук
+	
+	
+	;освободить страницы памяти
+	ld hl,memorystreampages+$FF
+    ld l,(hl)
+	inc l ;проверка на 0
+	dec l
+	jr z,free_s98_loop_skip
+	
+free_s98_loop
+    dec l
+    ld a,(hl)
+
+    push af
+    push hl
+    ;OS_DELPAGE
+	OS_DEL_PAGE
+    pop hl
+    pop af
+                
+    jr nz,free_s98_loop
+	
+free_s98_loop_skip  
+	ret
+
+;стоп игра
+gplay_stop_ptx
+    OS_VTPL_MUTE
+	ret
 
 
+
+;стоп игра
+gplay_stop_mod
+    call GeneralSound.stopModule
+	ret
 
 
 load_mod
@@ -253,18 +310,17 @@ WAITCOM3
 	jr gs_no
 gs_yes	
 
+	ld hl,file_name_cur
+	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
 
-
+	jp c,load_file_error
+	ld (file_id_cur_r),a
+	
     xor a : call GeneralSound.init
     ; ld hl, .progress : call DialogBox.msgNoWait
     ; call makeRequest : jp c, Fetcher.fetchFromNet.error
-    call GeneralSound.loadModule
+    call GeneralSound.loadModule	
 	
-	ld hl,file_name_cur
-	OS_FILE_OPEN ;HL - File name (out: A - id file, bc, de - size, IX - fcb)
-
-	jp c,loadMod_fileopenerror	
-	ld (file_id_cur_r),a
 	
 loadMod_loop
     ;ld hl, buffer_cat, ;(buffer_pointer), hl
@@ -276,37 +332,37 @@ loadMod_loop
 		ld hl,buffer_cat
         ld de,$4000
 		OS_FILE_READ ;HL - address, A - id file, DE - length (out: hl - следующий адрес дл¤ чтени¤)
-		jp c,loadMod_fileopenerror	
+		jp c,load_file_error	
 		
         ld a,h
 		cp $c0
-        jr c,loadLoop_4000    ;>= $c0, значит остаток файла	
+        jr c,loadMod_loadLoop_4000    ;>= $c0, значит остаток файла	
 		;остаток
 		ld bc,#c000
 		and a
 		sbc hl,bc
+		jr z,loadMod_exit ;если ничего больше не считалось
 		ld bc,hl
 		ld hl,buffer_cat
-.loadLoop2
+load_mod_loadLoop2
     ld a, b : or c : and a : jr z, loadMod_exit
     ld a, (hl) : call GeneralSound.sendByte
     dec bc
     inc hl
-    jr .loadLoop2
-	jp loadMod_exit
+    jr load_mod_loadLoop2
 	
 	
-loadLoop_4000
+loadMod_loadLoop_4000
 	ld hl,buffer_cat
 	ld bc,$4000 ;большой кусок для загрузки
 	
-.loadLoop
-    ld a, b : or c : and a : jp z, .nextFrame
+load_mod_loadLoop
+    ld a, b : or c : and a : jp z,loadMod_loop
     ld a, (hl) : call GeneralSound.sendByte
     dec bc
     inc hl
-    jr .loadLoop
-.nextFrame
+    jr load_mod_loadLoop
+;.nextFrame
     ;call Wifi.continue
     jp loadMod_loop
 loadMod_exit
@@ -315,7 +371,7 @@ loadMod_exit
 	ld a,(file_id_cur_r)
 	OS_FILE_CLOSE ;A - id file
     ;jp History.back
-	jp play ;MediaProcessor.processResource
+	;jp play ;MediaProcessor.processResource
 ;.progress db "MOD downloading directly to GS!", 0
 	
     macro GS_WaitCommand2
@@ -329,7 +385,7 @@ loadMod_exit
     ld a, nn : out (CMD), a
     endm
 	
-play:
+loadMod_play
 
 	ld hl,txt_play
 	OS_PRINTZ
@@ -345,42 +401,64 @@ play:
 	xor a
 	ld (last_song_position),a
 
-.loop
+load_mod_loop
     OS_WAIT : 
     OS_GET_CHAR
 	cp " " ;пробел
-	jp z, .stopKey
+	jp z, load_mod_stop
 	cp "s" ;стоп
-	jp z, .stopKey
+	jp z, load_mod_stop
 	cp "S" ;чтоп
-	jp z, .stopKey
+	jp z, load_mod_stop
 	;call printRTC
     ;проверка что MOD начал играть сначала
     GS_SendCommand2 CMD_GET_SONG_POSITION
     GS_WaitCommand2
-	ld a,(last_song_position) ;предыдущая позиция
-	ld c,a
 	in a,(DATA) ;текущая позиция
+	ld (cur_song_position),a
+	;печатать позицию song
+	ld de,#0a00
+	OS_SET_XY
+	ld hl,(cur_song_position)
+	ld h,0
+	call toDecimal
+	OS_PRINTZ
+	
+    GS_SendCommand2 CMD_GET_PATTERN_POSITION
+    GS_WaitCommand2
+	in a,(DATA) ;текущая позиция паттерна
+	ld (cur_pattern_position),a
+	ld de,#0b00
+	OS_SET_XY
+	ld hl,(cur_pattern_position)
+	ld h,0
+	call toDecimal
+	OS_PRINTZ	
+	
+	
+	ld a,(last_song_position) ;предыдущая позиция
+	ld c,a	
+	ld a,(cur_song_position) ;текущая
 	ld (last_song_position),a
 	cp c
-	jr nc, .loop ;если не меньше, продолжаем играть
+	jr nc,load_mod_loop ;если не меньше, продолжаем играть
     ;ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
-.stop
-	push af
-    call GeneralSound.stopModule
-	pop af
+load_mod_stop
     ;call Console.waitForKeyUp
     ret
-.stopKey
-    ;xor a : ld (Render.play_next), a ;флаг что не надо играть следующий файл
-    jr .stop
+; .stopKey
+    ; ;xor a : ld (Render.play_next), a ;флаг что не надо играть следующий файл
+    ; jr .stop
 
 
 ;message db "Press key to stop...", 0
 
 
 CMD_GET_SONG_POSITION     = #60	
+CMD_GET_PATTERN_POSITION  = #61
 last_song_position db 0
+cur_song_position db 0
+cur_pattern_position db 0
 
 ;; Control ports
 CMD  = 187
@@ -389,15 +467,142 @@ DATA = 179
 buffer_pointer dw 0;
 
 
-loadMod_fileopenerror
-		ld hl,txt_fopenerror
+
+
+
+
+;загрузка PTx
+load_pt2
+	ld a,%00000011 ;pt2
+	ld (ptplayer_setup),a
+	jr load_pt
+load_pt3
+	ld a,%00100001 ;pt3
+	ld (ptplayer_setup),a
+	
+load_pt
+
+	ld hl,file_name_cur
+	call load_file
+	ret c
+	
+	;начать игру
+	ld hl, free ;buffer_cat
+	OS_GET_VTPL_SETUP
+	ld a,(ptplayer_setup)
+	ld (hl),a ;настройки
+	
+	ld hl,free
+	OS_VTPL_INIT
+	OS_VTPL_PLAY
+
+
+load_pt_loop
+    OS_WAIT : 
+    OS_GET_CHAR
+	cp " " ;пробел
+	jp z, load_pt_stop
+	cp "s" ;стоп
+	jp z, load_pt_stop
+	cp "S" ;чтоп
+	jp z, load_pt_stop
+	;call printRTC
+	
+	;печать инфо
+	ld de,#0a00
+	OS_SET_XY
+	
+	OS_GET_VTPL_SETUP
+	ld bc,#93b ;нужная переменная плеера
+	add hl,bc
+    ld l,(hl) :
+	ld h,0
+	call toDecimal
+	OS_PRINTZ
+	
+	;проверка на конец песни	
+	OS_GET_VTPL_SETUP
+	ld a, (hl)
+	rla
+	jr nc,load_pt_loop ;если не меньше, продолжаем играть
+    ;ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
+load_pt_stop
+    ;call Console.waitForKeyUp
+	or a
+    ret
+	
+ptplayer_setup db 0;
+
+
+
+
+
+;прочитать файл не больше #4000 байт
+;вх: hl - имя файла 
+;вых: CY = 1 = ошибка 
+load_file 
+	;ld hl,file_name_cur
+	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
+	jp c,load_file_error	
+	
+load_file_ok
+	ld (file_id_cur_r),a
+	;проверка длины файла не больше #4000
+	ld	a,d ;самые старшие байты длины
+	or e
+	jr z,load_file_size_ok ;если не слищком большой
+load_file_too_big
+	;файл больше буфера
+	ld hl,msg_file_too_big
+	OS_PRINTZ
+	scf
+	ret
+
+
+load_file_size_ok	
+	ld	a,h ;младший старший байт длины
+	cp #40
+	jr c,load_file_size_ok_small
+	jr nz,load_file_too_big
+	inc l
+	dec l
+	jr nz,load_file_too_big
+	
+	
+load_file_size_ok_small
+	;проверка на 0
+	ld a,h
+	or l
+	jp z,load_file_error
+	ld d,h ;размер
+	ld e,l
+	ld hl,free ;buffer_cat ;куда
+	ld a,(file_id_cur_r)
+	OS_FILE_READ ;загрузить
+	jr c,load_file_error
+	
+	ld a,(file_id_cur_r)
+	OS_FILE_CLOSE ;A - id file
+	xor a
+	ret
+
+
+	
+load_file_error
+	ld a,color_error ;цвет ошибки
+	ld b,#c
+	OS_SET_COLOR
+		ld hl,msg_file_error
 		OS_PRINTZ
+	ld a,color_backgr ;цвет основной
+	ld b,#c
+	OS_SET_COLOR	
 		
 		ld a,(file_id_cur_r)
 		cp 255
-		jr z,loadMod_fileopenerror1
+		jr z,load_file_error1
 		OS_FILE_CLOSE ;A - id file
-loadMod_fileopenerror1
+load_file_error1
 		scf ;ошибка
 		ret
 
@@ -543,7 +748,7 @@ decimalS	ds 6 ;десятичные цифры
 	
 	
 	
-
+gplay_type db 0 ;тип музыки
 ;file_id_cur db 0; временно
 
 txt_gplay_menu db 13,13,"Break, S - stop ",13,"Sp - Next",0
@@ -552,10 +757,10 @@ txt_stop db 13,"Stop",0
 txt_load db 13,"Load...",0
 txt_no_GS db 13,"GS not found!",0
 txt_memoryerror:    db 13,"Memory allocation error!",0
-txt_fopenerror:     db 13,"Cannot open file: ",0
+;txt_fopenerror:     db 13,"Cannot open file: ",0
 	
 msg_title
-	db "GPlay ver 2025.08.07",10,13,0
+	db "GPlay ver 2025.08.15",10,13,0
 	
 vgm_plr
 

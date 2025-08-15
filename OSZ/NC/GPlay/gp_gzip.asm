@@ -117,7 +117,7 @@ decompressfiletomemorystream
 ;de = input file name
 ;out: zf=1 is successful, zf=0 otherwise
 	;call openstream_file
-	OS_FILE_OPEN ;HL - File name (out: A - id file, de bc - size, IX - fcb)
+	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
 		
     ;or a
     ;jp nz,fileopenerror
@@ -130,10 +130,8 @@ decompressfiletomemorystream
 ;	ld a,(filehandle)
 	;ld b,a
 	;OS_GETFILESIZE ;b=handle, out: dehl=file size
-	;размер мы уже знаем в de bc, надо положить в de hl
-	ld h,b
-	ld l,c
-	
+	;размер мы уже знаем в de hl
+
 	ld bc,4
 	sub hl,bc
 	jr nc,$+3

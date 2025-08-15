@@ -59,27 +59,27 @@ view_file_too_big
 	jp view_file_readed
 	
 view_file_size_ok	
-	ld	a,b ;младший старший байт длины
+	ld	a,h ;младший старший байт длины
 	cp #40
 	jr c,view_file_size_ok_small
 	jr nz,view_file_too_big
-	inc c
-	dec c
+	inc l
+	dec l
 	jr nz,view_file_too_big
 	
 	
 view_file_size_ok_small
 	;проверка на 0
-	ld a,b
-	or c
+	ld a,h
+	or l
 	jp z,view_file_file_error
+	ld d,h ;размер
+	ld e,l
 	;узнать где конец файла
-	ld hl,buffer_cat
+	ld bc,buffer_cat
 	add hl,bc
 	ld (view_file_end),hl ;конец файла тут
 	;размер не большой, прочитаем
-	ld d,b ;размер
-	ld e,c
 	ld hl,buffer_cat
 	ld a,(file_id_cur_r)
 	OS_FILE_READ ;загрузить

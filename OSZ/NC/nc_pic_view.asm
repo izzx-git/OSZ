@@ -2,6 +2,32 @@
 display:
     ; call Console.waitForKeyUp
 	
+	ld hl,file_name_cur		;строка с именем	
+	OS_FILE_OPEN
+	jr nc,display_file_open_ok
+display_file_error
+	ld hl,msg_file_error
+	OS_PRINTZ	
+	; ld b,2*50
+	; call delay1
+	scf ;ошибка
+	ret
+	
+display_file_open_ok
+	ld (file_id_cur_r),a
+	
+	ld a,(page_ext01) ;доп страница
+	OS_SET_PAGE_SLOT3
+	
+	ld a,(file_id_cur_r)
+	ld de,6912
+	ld hl,#c000
+	;ld a,(file_id_cur_r)
+	OS_FILE_READ ;загрузить
+	jr c,display_file_error	
+	ld a,(file_id_cur_r)
+	OS_FILE_CLOSE
+	
 display_wait1
 	ld a,7
 	OS_SET_SCREEN ;включить экран
@@ -27,6 +53,11 @@ display_wait1_ok
 	OS_SET_SCREEN
     ;call TextMode.cls
 	
+	
+	ld a,(page_main) ;основная страница
+	OS_SET_PAGE_SLOT3
+	
+	xor a ;ok
 	ret
     ;jp History.back
 
