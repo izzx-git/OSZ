@@ -2581,7 +2581,7 @@
    5+ 8A52
    6+ 8A52
    7+ 8A52              start_gplay
-   8+ 8A52 32 09 8E     	ld (gplay_type),a ;тип формата
+   8+ 8A52 32 4D 8E     	ld (gplay_type),a ;тип формата
    9+ 8A55
   10+ 8A55 CD E0 80     	call clear_left_panel ;почистить часть экрана
   11+ 8A58
@@ -2599,7 +2599,7 @@
   21+ 8A66              	OS_SET_XY
   21+ 8A66 0E 01       >    ld c,#01
   21+ 8A68 E7          >    rst #20
-  22+ 8A69 21 69 8E     	ld hl,msg_title ;имя приложения
+  22+ 8A69 21 BC 8E     	ld hl,msg_title ;имя приложения
   23+ 8A6C              	OS_PRINTZ ;печать
   23+ 8A6C 0E 09       >    ld c,#09
   23+ 8A6E E7          >    rst #20
@@ -2615,7 +2615,7 @@
   30+ 8A78 0E 09       >    ld c,#09
   30+ 8A7A E7          >    rst #20
   31+ 8A7B
-  32+ 8A7B 21 37 8E     	ld hl,txt_load
+  32+ 8A7B 21 7B 8E     	ld hl,txt_load
   33+ 8A7E              	OS_PRINTZ
   33+ 8A7E 0E 09       >    ld c,#09
   33+ 8A80 E7          >    rst #20
@@ -2623,14 +2623,14 @@
   35+ 8A81 3E FF        	ld a,255
   36+ 8A83 32 5B 9E     	ld (file_id_cur_r),a
   37+ 8A86
-  38+ 8A86 3A 09 8E     	ld a,(gplay_type)
+  38+ 8A86 3A 4D 8E     	ld a,(gplay_type)
   39+ 8A89              	;переход в на нужный раздел
   40+ 8A89
   41+ 8A89              start_gplay_pt2
   42+ 8A89 FE 32        	cp "2"
   43+ 8A8B 20 06        	jr nz,start_gplay_pt3
   44+ 8A8D              	;если PT2
-  45+ 8A8D CD 9D 8C     	call load_pt2
+  45+ 8A8D CD D5 8C     	call load_pt2
   46+ 8A90 C3 10 8B     	jp exit_gplay
   47+ 8A93              	;jp start_gplay_ok
   48+ 8A93
@@ -2638,7 +2638,7 @@
   50+ 8A93 FE 33        	cp "3"
   51+ 8A95 20 06        	jr nz,start_gplay_mod
   52+ 8A97              	;если PT3
-  53+ 8A97 CD A4 8C     	call load_pt3
+  53+ 8A97 CD DC 8C     	call load_pt3
   54+ 8A9A C3 10 8B     	jp exit_gplay
   55+ 8A9D              	;jp start_gplay_ok
   56+ 8A9D
@@ -2646,7 +2646,7 @@
   58+ 8A9D FE 6D        	cp "m"
   59+ 8A9F 20 06        	jr nz,start_gplay_vgz
   60+ 8AA1              	;если MOD
-  61+ 8AA1 CD AA 8B     	call load_mod
+  61+ 8AA1 CD D4 8B     	call load_mod
   62+ 8AA4 C3 10 8B     	jp exit_gplay
   63+ 8AA7              	;jp start_gplay_ok
   64+ 8AA7
@@ -2655,7 +2655,7 @@
   67+ 8AA7 FE 7A        	cp "z"
   68+ 8AA9 20 08        	jr nz,start_gplay_vgm
   69+ 8AAB              	;если VGZ
-  70+ 8AAB CD 3F 8B     	call load_vgz
+  70+ 8AAB CD 65 8B     	call load_vgz
   71+ 8AAE DA 10 8B     	jp c,exit_gplay
   72+ 8AB1 18 0A        	jr start_gplay_ok
   73+ 8AB3
@@ -2663,18 +2663,18 @@
   75+ 8AB3 FE 76        	cp "v"
   76+ 8AB5 20 59        	jr nz,exit_gplay
   77+ 8AB7              	;если vgm
-  78+ 8AB7 CD 1F 9B     	call load_mus ;инициализация VGM
+  78+ 8AB7 CD 5E 8B     	call load_vgm
   79+ 8ABA DA 10 8B     	jp c,exit_gplay
   80+ 8ABD
   81+ 8ABD
   82+ 8ABD              start_gplay_ok
   83+ 8ABD              	;играет
-  84+ 8ABD 21 27 8E     	ld hl,txt_play
+  84+ 8ABD 21 6B 8E     	ld hl,txt_play
   85+ 8AC0              	OS_PRINTZ
   85+ 8AC0 0E 09       >    ld c,#09
   85+ 8AC2 E7          >    rst #20
   86+ 8AC3
-  87+ 8AC3 21 0A 8E     	ld hl,txt_gplay_menu
+  87+ 8AC3 21 4E 8E     	ld hl,txt_gplay_menu
   88+ 8AC6              	OS_PRINTZ
   88+ 8AC6 0E 09       >    ld c,#09
   88+ 8AC8 E7          >    rst #20
@@ -2683,14 +2683,14 @@
   91+ 8AC9              	OS_WAIT
   91+ 8AC9 DF          >	rst #18
   92+ 8ACA
-  93+ 8ACA CD 50 8D     	call gplay_progress_print
+  93+ 8ACA CD 94 8D     	call gplay_progress_print
   94+ 8ACD
   95+ 8ACD 11 00 0A     	ld de,#0a00
   96+ 8AD0              	OS_SET_XY
   96+ 8AD0 0E 01       >    ld c,#01
   96+ 8AD2 E7          >    rst #20
   97+ 8AD3 2A 72 90     	ld hl,(memorystreamcurrentaddr)
-  98+ 8AD6 CD AA 8D     	call toDecimal
+  98+ 8AD6 CD EE 8D     	call toDecimal
   99+ 8AD9              	OS_PRINTZ
   99+ 8AD9 0E 09       >    ld c,#09
   99+ 8ADB E7          >    rst #20
@@ -2704,7 +2704,7 @@
  105+ 8AE5 01 00 8F     	ld bc,memorystreampages
  106+ 8AE8 A7           	and a
  107+ 8AE9 ED 42        	sbc hl,bc
- 108+ 8AEB CD AA 8D     	call toDecimal
+ 108+ 8AEB CD EE 8D     	call toDecimal
  109+ 8AEE              	OS_PRINTZ
  109+ 8AEE 0E 09       >    ld c,#09
  109+ 8AF0 E7          >    rst #20
@@ -2732,7 +2732,7 @@
  129+ 8B10              exit_gplay ;выход
  130+ 8B10 F5           	push af ;сохранить нажатую клавишу
  131+ 8B11
- 132+ 8B11 21 31 8E     	ld hl,txt_stop
+ 132+ 8B11 21 75 8E     	ld hl,txt_stop
  133+ 8B14              	OS_PRINTZ
  133+ 8B14 0E 09       >    ld c,#09
  133+ 8B16 E7          >    rst #20
@@ -2750,17 +2750,17 @@
  143+ 8B22
  144+ 8B22              ;заглушить звук
  145+ 8B22              gplay_stop
- 146+ 8B22 3A 09 8E     	ld a,(gplay_type)
+ 146+ 8B22 3A 4D 8E     	ld a,(gplay_type)
  147+ 8B25 FE 32        	cp "2"
- 148+ 8B27 CA A2 8B     	jp z,gplay_stop_ptx
+ 148+ 8B27 CA CC 8B     	jp z,gplay_stop_ptx
  149+ 8B2A FE 33        	cp "3"
- 150+ 8B2C CA A2 8B     	jp z,gplay_stop_ptx
+ 150+ 8B2C CA CC 8B     	jp z,gplay_stop_ptx
  151+ 8B2F FE 76        	cp "v"
- 152+ 8B31 CA 85 8B     	jp z,gplay_stop_vgm_vgz
+ 152+ 8B31 CA AF 8B     	jp z,gplay_stop_vgm_vgz
  153+ 8B34 FE 7A        	cp "z"
- 154+ 8B36 CA 85 8B     	jp z,gplay_stop_vgm_vgz
+ 154+ 8B36 CA AF 8B     	jp z,gplay_stop_vgm_vgz
  155+ 8B39 FE 6D        	cp "m"
- 156+ 8B3B CA A6 8B     	jp z,gplay_stop_mod
+ 156+ 8B3B CA D0 8B     	jp z,gplay_stop_mod
  157+ 8B3E C9           	ret
  158+ 8B3F
  159+ 8B3F
@@ -2773,810 +2773,874 @@
  166+ 8B3F              	; ret
  167+ 8B3F
  168+ 8B3F
- 169+ 8B3F
- 170+ 8B3F
- 171+ 8B3F
- 172+ 8B3F
- 173+ 8B3F
- 174+ 8B3F
- 175+ 8B3F
- 176+ 8B3F              load_vgz
- 177+ 8B3F              ;тут запуск VGZ
- 178+ 8B3F              	;тут надо сначала распаковать файл
- 179+ 8B3F AF           	xor a
- 180+ 8B40              	OS_SET_MONO_MODE ;запросить моно режим
- 180+ 8B40 0E 08       >    ld c,#08
- 180+ 8B42 E7          >    rst #20
- 181+ 8B43 30 08        	jr nc,load_vgz1
- 182+ 8B45
- 183+ 8B45              load_vgz_err
- 184+ 8B45              	;выход с ошибкой
- 185+ 8B45
- 186+ 8B45              	;напечатать ошибку, если не дали режима моно
- 187+ 8B45 21 4C 9F     	ld hl,msg_mono_err
- 188+ 8B48              	OS_PRINTZ
- 188+ 8B48 0E 09       >    ld c,#09
- 188+ 8B4A E7          >    rst #20
- 189+ 8B4B
- 190+ 8B4B 37           	scf ;ошибка
- 191+ 8B4C C9           	ret
- 192+ 8B4D
- 193+ 8B4D              load_vgz1
- 194+ 8B4D              	;перенести модуль распаковки на рабочий адрес
- 195+ 8B4D
- 196+ 8B4D 3A 5D 9E     	ld a,(page_ext02_gzip) ;доп страница для данных плеера
- 197+ 8B50              	OS_SET_PAGE_SLOT3
- 197+ 8B50 0E 1C       >    ld c,#1c
- 197+ 8B52 E7          >    rst #20
- 198+ 8B53
- 199+ 8B53 21 00 C0     	ld hl,start_gp_gzip_ext
- 200+ 8B56 11 00 40     	ld de,start_gp_gzip
- 201+ 8B59 01 00 1B     	ld bc,end_gp_gzip_load-start_gp_gzip_load
- 202+ 8B5C ED B0        	ldir
- 203+ 8B5E
- 204+ 8B5E 3A 5C 9E     	ld a,(page_ext01) ;доп страница для данных плеера
- 205+ 8B61              	OS_SET_PAGE_SLOT3
- 205+ 8B61 0E 1C       >    ld c,#1c
- 205+ 8B63 E7          >    rst #20
- 206+ 8B64
- 207+ 8B64              	;распаковать
- 208+ 8B64 21 4A 9C     	ld hl,file_name_cur ;имя файла
- 209+ 8B67 CD 00 40     	call start_gp_gzip ;decompressfiletomemorystream
- 210+ 8B6A
- 211+ 8B6A              	;перенести таблицу страниц
- 212+ 8B6A 11 00 8F     	ld de,memorystreampages
- 213+ 8B6D 01 00 01     	ld bc,256
- 214+ 8B70 ED B0        	ldir
- 215+ 8B72
- 216+ 8B72 01 FF 8F     	ld bc,memorystreampages+$ff
- 217+ 8B75 02               ld (bc),a  ;количество страниц
- 218+ 8B76
- 219+ 8B76 F5           	push af
- 220+ 8B77 3E FF        	ld a,255
- 221+ 8B79              	OS_SET_MONO_MODE ;выключить моно режим
- 221+ 8B79 0E 08       >    ld c,#08
- 221+ 8B7B E7          >    rst #20
- 222+ 8B7C F1           	pop af
- 223+ 8B7D
- 224+ 8B7D 30 01        	jr nc,load_vgz_ok
- 225+ 8B7F              	;если не распаковалос
- 226+ 8B7F              	;scf ;ошибка
- 227+ 8B7F C9           	ret
- 228+ 8B80
- 229+ 8B80              load_vgz_ok
- 230+ 8B80              	;нормально распаковалось
- 231+ 8B80
- 232+ 8B80 CD 64 9B     	call read_file_ok ;играть
- 233+ 8B83              	;call start_gplay ;играть
- 234+ 8B83
- 235+ 8B83 AF           	xor a
- 236+ 8B84 C9           	ret
- 237+ 8B85
- 238+ 8B85
- 239+ 8B85              ;стоп игра
- 240+ 8B85              gplay_stop_vgm_vgz
- 241+ 8B85 21 00 00     	ld hl,0 ;отключить обработчик прерываний
- 242+ 8B88              	OS_SET_INTER
- 242+ 8B88 0E 14       >    ld c,#14
- 242+ 8B8A E7          >    rst #20
- 243+ 8B8B CD 88 8E     	call PLR_MUTE ;выключить звук
- 244+ 8B8E
- 245+ 8B8E
- 246+ 8B8E              	;освободить страницы памяти
- 247+ 8B8E 21 FF 8F     	ld hl,memorystreampages+$FF
- 248+ 8B91 6E               ld l,(hl)
- 249+ 8B92 2C           	inc l ;проверка на 0
- 250+ 8B93 2D           	dec l
- 251+ 8B94 28 0B        	jr z,free_s98_loop_skip
- 252+ 8B96
- 253+ 8B96              free_s98_loop
- 254+ 8B96 2D               dec l
- 255+ 8B97 7E               ld a,(hl)
- 256+ 8B98
- 257+ 8B98 F5               push af
- 258+ 8B99 E5               push hl
- 259+ 8B9A                  ;OS_DELPAGE
- 260+ 8B9A              	OS_DEL_PAGE
- 260+ 8B9A 0E 20       >    ld c,#20
- 260+ 8B9C E7          >    rst #20
- 261+ 8B9D E1               pop hl
- 262+ 8B9E F1               pop af
- 263+ 8B9F
- 264+ 8B9F 20 F5            jr nz,free_s98_loop
- 265+ 8BA1
- 266+ 8BA1              free_s98_loop_skip
- 267+ 8BA1 C9           	ret
- 268+ 8BA2
- 269+ 8BA2              ;стоп игра
- 270+ 8BA2              gplay_stop_ptx
- 271+ 8BA2                  OS_VTPL_MUTE
- 271+ 8BA2 0E 17       >    ld c,#17
- 271+ 8BA4 E7          >    rst #20
- 272+ 8BA5 C9           	ret
- 273+ 8BA6
- 274+ 8BA6
- 275+ 8BA6
- 276+ 8BA6              ;стоп игра
- 277+ 8BA6              gplay_stop_mod
- 278+ 8BA6 CD CD 9B         call GeneralSound.stopModule
- 279+ 8BA9 C9           	ret
- 280+ 8BAA
- 281+ 8BAA
- 282+ 8BAA              load_mod
- 283+ 8BAA              ;загрузка и игра mod
- 284+ 8BAA
- 285+ 8BAA              	;определение наличия GS
- 286+ 8BAA              	; xor a ;флаг что не нашли
- 287+ 8BAA              	; ld (gs_yep),a
- 288+ 8BAA              	; ld (gs_on),a
- 289+ 8BAA 3E 23        	LD A,#23
- 290+ 8BAC D3 BB        	OUT (CMD), A
- 291+ 8BAE 06 32        	ld b,50
- 292+ 8BB0              WAITCOM2: ;это WC
- 293+ 8BB0              	OS_WAIT
- 293+ 8BB0 DF          >	rst #18
- 294+ 8BB1 DB BB        	IN A,(CMD)
- 295+ 8BB3 0F           	RRCA
- 296+ 8BB4 30 0A        	JR NC,WAITCOM3
- 297+ 8BB6 10 F8        	djnz WAITCOM2
- 298+ 8BB8              gs_no
- 299+ 8BB8 21 40 8E     	ld hl,txt_no_GS
- 300+ 8BBB              	OS_PRINTZ
- 300+ 8BBB 0E 09       >    ld c,#09
- 300+ 8BBD E7          >    rst #20
- 301+ 8BBE 37           	scf ;ошибка
- 302+ 8BBF C9           	ret
- 303+ 8BC0              	;jr gs_no
- 304+ 8BC0              WAITCOM3
- 305+ 8BC0 DB B3        	in a,(DATA) ;количество страниц памяти?
- 306+ 8BC2 FE FF        	cp 255
- 307+ 8BC4 20 02        	jr nz,gs_yes
- 308+ 8BC6              	; ld hl,txt_err_GS
- 309+ 8BC6              	; call loader_print
- 310+ 8BC6 18 F0        	jr gs_no
- 311+ 8BC8              gs_yes
- 312+ 8BC8
- 313+ 8BC8 21 4A 9C     	ld hl,file_name_cur
- 314+ 8BCB              	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
- 314+ 8BCB 0E 21       >    ld c,#21
- 314+ 8BCD E7          >    rst #20
- 315+ 8BCE
- 316+ 8BCE DA 30 8D     	jp c,load_file_error
- 317+ 8BD1 32 5B 9E     	ld (file_id_cur_r),a
- 318+ 8BD4
- 319+ 8BD4 AF               xor a
- 319+ 8BD5 CD 7F 9B       call GeneralSound.init
- 320+ 8BD8                  ; ld hl, .progress : call DialogBox.msgNoWait
- 321+ 8BD8                  ; call makeRequest : jp c, Fetcher.fetchFromNet.error
- 322+ 8BD8 CD 96 9B         call GeneralSound.loadModule
- 323+ 8BDB
- 324+ 8BDB
- 325+ 8BDB              loadMod_loop
- 326+ 8BDB                  ;ld hl, buffer_cat, ;(buffer_pointer), hl
- 327+ 8BDB                  ; call Wifi.getPacket
- 328+ 8BDB                  ; ld a, (Wifi.closed) : and a : jr nz, .exit
- 329+ 8BDB                  ; ld hl, buffer_cat, bc, (Wifi.bytes_avail)
- 330+ 8BDB
- 331+ 8BDB 3A 5B 9E     		ld a,(file_id_cur_r)
- 332+ 8BDE 21 00 C0     		ld hl,buffer_cat
- 333+ 8BE1 11 00 40             ld de,$4000
- 334+ 8BE4              		OS_FILE_READ ;HL - address, A - id file, DE - length (out: hl - следующий адрес дл¤ чтени¤)
- 334+ 8BE4 0E 23       >    ld c,#23
- 334+ 8BE6 E7          >    rst #20
- 335+ 8BE7 DA 30 8D     		jp c,load_file_error
- 336+ 8BEA
- 337+ 8BEA 7C                   ld a,h
- 338+ 8BEB FE C0        		cp $c0
- 339+ 8BED 38 1A                jr c,loadMod_loadLoop_4000    ;>= $c0, значит остаток файла
- 340+ 8BEF              		;остаток
- 341+ 8BEF 01 00 C0     		ld bc,#c000
- 342+ 8BF2 A7           		and a
- 343+ 8BF3 ED 42        		sbc hl,bc
- 344+ 8BF5 28 29        		jr z,loadMod_exit ;если ничего больше не считалось
- 345+ 8BF7 44 4D        		ld bc,hl
- 346+ 8BF9 21 00 C0     		ld hl,buffer_cat
- 347+ 8BFC              load_mod_loadLoop2
- 348+ 8BFC 78               ld a, b
- 348+ 8BFD B1             or c
- 348+ 8BFE A7             and a
- 348+ 8BFF 28 1F          jr z, loadMod_exit
- 349+ 8C01 7E               ld a, (hl)
- 349+ 8C02 CD A9 9B       call GeneralSound.sendByte
- 350+ 8C05 0B               dec bc
- 351+ 8C06 23               inc hl
- 352+ 8C07 18 F3            jr load_mod_loadLoop2
- 353+ 8C09
- 354+ 8C09
- 355+ 8C09              loadMod_loadLoop_4000
- 356+ 8C09 21 00 C0     	ld hl,buffer_cat
- 357+ 8C0C 01 00 40     	ld bc,$4000 ;большой кусок для загрузки
- 358+ 8C0F
- 359+ 8C0F              load_mod_loadLoop
- 360+ 8C0F 78               ld a, b
- 360+ 8C10 B1             or c
- 360+ 8C11 A7             and a
- 360+ 8C12 CA DB 8B       jp z,loadMod_loop
- 361+ 8C15 7E               ld a, (hl)
- 361+ 8C16 CD A9 9B       call GeneralSound.sendByte
- 362+ 8C19 0B               dec bc
- 363+ 8C1A 23               inc hl
- 364+ 8C1B 18 F2            jr load_mod_loadLoop
- 365+ 8C1D              ;.nextFrame
- 366+ 8C1D                  ;call Wifi.continue
- 367+ 8C1D C3 DB 8B         jp loadMod_loop
- 368+ 8C20              loadMod_exit
- 369+ 8C20 CD B1 9B         call GeneralSound.finishLoadingModule
- 370+ 8C23
- 371+ 8C23 3A 5B 9E     	ld a,(file_id_cur_r)
- 372+ 8C26              	OS_FILE_CLOSE ;A - id file
- 372+ 8C26 0E 25       >    ld c,#25
- 372+ 8C28 E7          >    rst #20
- 373+ 8C29                  ;jp History.back
- 374+ 8C29              	;jp play ;MediaProcessor.processResource
- 375+ 8C29              ;.progress db "MOD downloading directly to GS!", 0
- 376+ 8C29
- 377+ 8C29                  macro GS_WaitCommand2
- 378+ 8C29 ~            .wait
- 379+ 8C29 ~                in a, (CMD)
- 380+ 8C29 ~                rrca
- 381+ 8C29 ~                jr c, .wait
- 382+ 8C29                  endm
- 383+ 8C29
- 384+ 8C29                  macro GS_SendCommand2 nn
- 385+ 8C29 ~                ld a, nn
- 385+ 8C29 ~              out (CMD), a
- 386+ 8C29                  endm
- 387+ 8C29
- 388+ 8C29              loadMod_play
- 389+ 8C29
- 390+ 8C29 21 27 8E     	ld hl,txt_play
- 391+ 8C2C              	OS_PRINTZ
- 391+ 8C2C 0E 09       >    ld c,#09
- 391+ 8C2E E7          >    rst #20
- 392+ 8C2F
- 393+ 8C2F 21 0A 8E         ld hl,txt_gplay_menu
- 394+ 8C32              	OS_PRINTZ
- 394+ 8C32 0E 09       >    ld c,#09
- 394+ 8C34 E7          >    rst #20
- 395+ 8C35
- 396+ 8C35                  ; call Console.waitForKeyUp
- 397+ 8C35
- 398+ 8C35                  ; ld hl, Gopher.requestbuffer : call DialogBox.msgNoWait
- 399+ 8C35
- 400+ 8C35                  ; ;ld a, 1, (Render.play_next), a
- 401+ 8C35 AF           	xor a
- 402+ 8C36 32 98 8C     	ld (last_song_position),a
- 403+ 8C39
- 404+ 8C39              load_mod_loop
- 405+ 8C39                  OS_WAIT
- 405+ 8C39 DF          >	rst #18
- 405+ 8C3A
- 406+ 8C3A                  OS_GET_CHAR
- 406+ 8C3A 0E 10       >    ld c,#10
- 406+ 8C3C E7          >    rst #20
- 407+ 8C3D FE 20        	cp " " ;пробел
- 408+ 8C3F CA 97 8C     	jp z, load_mod_stop
- 409+ 8C42 FE 73        	cp "s" ;стоп
- 410+ 8C44 CA 97 8C     	jp z, load_mod_stop
- 411+ 8C47 FE 53        	cp "S" ;чтоп
- 412+ 8C49 CA 97 8C     	jp z, load_mod_stop
- 413+ 8C4C              	;call printRTC
- 414+ 8C4C                  ;проверка что MOD начал играть сначала
- 415+ 8C4C                  GS_SendCommand2 CMD_GET_SONG_POSITION
- 415+ 8C4C 3E 60       >    ld a, CMD_GET_SONG_POSITION
- 415+ 8C4E D3 BB       >  out (CMD), a
- 416+ 8C50                  GS_WaitCommand2
- 416+ 8C50             >.wait
- 416+ 8C50 DB BB       >    in a, (CMD)
- 416+ 8C52 0F          >    rrca
- 416+ 8C53 38 FB       >    jr c, .wait
- 417+ 8C55 DB B3        	in a,(DATA) ;текущая позиция
- 418+ 8C57 32 99 8C     	ld (cur_song_position),a
- 419+ 8C5A              	;печатать позицию song
- 420+ 8C5A 11 00 0A     	ld de,#0a00
- 421+ 8C5D              	OS_SET_XY
- 421+ 8C5D 0E 01       >    ld c,#01
- 421+ 8C5F E7          >    rst #20
- 422+ 8C60 2A 99 8C     	ld hl,(cur_song_position)
- 423+ 8C63 26 00        	ld h,0
- 424+ 8C65 CD AA 8D     	call toDecimal
- 425+ 8C68              	OS_PRINTZ
- 425+ 8C68 0E 09       >    ld c,#09
- 425+ 8C6A E7          >    rst #20
- 426+ 8C6B
- 427+ 8C6B                  GS_SendCommand2 CMD_GET_PATTERN_POSITION
- 427+ 8C6B 3E 61       >    ld a, CMD_GET_PATTERN_POSITION
- 427+ 8C6D D3 BB       >  out (CMD), a
- 428+ 8C6F                  GS_WaitCommand2
- 428+ 8C6F             >.wait
- 428+ 8C6F DB BB       >    in a, (CMD)
- 428+ 8C71 0F          >    rrca
- 428+ 8C72 38 FB       >    jr c, .wait
- 429+ 8C74 DB B3        	in a,(DATA) ;текущая позиция паттерна
- 430+ 8C76 32 9A 8C     	ld (cur_pattern_position),a
- 431+ 8C79 11 00 0B     	ld de,#0b00
- 432+ 8C7C              	OS_SET_XY
- 432+ 8C7C 0E 01       >    ld c,#01
- 432+ 8C7E E7          >    rst #20
- 433+ 8C7F 2A 9A 8C     	ld hl,(cur_pattern_position)
- 434+ 8C82 26 00        	ld h,0
- 435+ 8C84 CD AA 8D     	call toDecimal
- 436+ 8C87              	OS_PRINTZ
- 436+ 8C87 0E 09       >    ld c,#09
- 436+ 8C89 E7          >    rst #20
- 437+ 8C8A
- 438+ 8C8A
- 439+ 8C8A 3A 98 8C     	ld a,(last_song_position) ;предыдущая позиция
- 440+ 8C8D 4F           	ld c,a
- 441+ 8C8E 3A 99 8C     	ld a,(cur_song_position) ;текущая
- 442+ 8C91 32 98 8C     	ld (last_song_position),a
- 443+ 8C94 B9           	cp c
- 444+ 8C95 30 A2        	jr nc,load_mod_loop ;если не меньше, продолжаем играть
- 445+ 8C97                  ;ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
- 446+ 8C97              load_mod_stop
- 447+ 8C97                  ;call Console.waitForKeyUp
- 448+ 8C97 C9               ret
- 449+ 8C98              ; .stopKey
- 450+ 8C98                  ; ;xor a : ld (Render.play_next), a ;флаг что не надо играть следующий файл
- 451+ 8C98                  ; jr .stop
- 452+ 8C98
- 453+ 8C98
- 454+ 8C98              ;message db "Press key to stop...", 0
- 455+ 8C98
- 456+ 8C98
- 457+ 8C98              CMD_GET_SONG_POSITION     = #60
- 458+ 8C98              CMD_GET_PATTERN_POSITION  = #61
- 459+ 8C98 00           last_song_position db 0
- 460+ 8C99 00           cur_song_position db 0
- 461+ 8C9A 00           cur_pattern_position db 0
- 462+ 8C9B
- 463+ 8C9B              ;; Control ports
- 464+ 8C9B              CMD  = 187
- 465+ 8C9B              DATA = 179
- 466+ 8C9B
- 467+ 8C9B 00 00        buffer_pointer dw 0;
- 468+ 8C9D
- 469+ 8C9D
- 470+ 8C9D
- 471+ 8C9D
- 472+ 8C9D
- 473+ 8C9D
- 474+ 8C9D              ;загрузка PTx
- 475+ 8C9D              load_pt2
- 476+ 8C9D 3E 03        	ld a,%00000011 ;pt2
- 477+ 8C9F 32 F5 8C     	ld (ptplayer_setup),a
- 478+ 8CA2 18 05        	jr load_pt
- 479+ 8CA4              load_pt3
- 480+ 8CA4 3E 21        	ld a,%00100001 ;pt3
- 481+ 8CA6 32 F5 8C     	ld (ptplayer_setup),a
- 482+ 8CA9
- 483+ 8CA9              load_pt
- 484+ 8CA9
- 485+ 8CA9 21 4A 9C     	ld hl,file_name_cur
- 486+ 8CAC CD F6 8C     	call load_file
- 487+ 8CAF D8           	ret c
- 488+ 8CB0
- 489+ 8CB0              	;начать игру
- 490+ 8CB0 21 80 A8     	ld hl, free ;buffer_cat
- 491+ 8CB3              	OS_GET_VTPL_SETUP
- 491+ 8CB3 0E 18       >    ld c,#18
- 491+ 8CB5 E7          >    rst #20
- 492+ 8CB6 3A F5 8C     	ld a,(ptplayer_setup)
- 493+ 8CB9 77           	ld (hl),a ;настройки
- 494+ 8CBA
- 495+ 8CBA 21 80 A8     	ld hl,free
- 496+ 8CBD              	OS_VTPL_INIT
- 496+ 8CBD 0E 15       >    ld c,#15
- 496+ 8CBF E7          >    rst #20
- 497+ 8CC0              	OS_VTPL_PLAY
- 497+ 8CC0 0E 16       >    ld c,#16
- 497+ 8CC2 E7          >    rst #20
- 498+ 8CC3
- 499+ 8CC3
- 500+ 8CC3              load_pt_loop
- 501+ 8CC3                  OS_WAIT
- 501+ 8CC3 DF          >	rst #18
- 501+ 8CC4
- 502+ 8CC4                  OS_GET_CHAR
- 502+ 8CC4 0E 10       >    ld c,#10
- 502+ 8CC6 E7          >    rst #20
- 503+ 8CC7 FE 20        	cp " " ;пробел
- 504+ 8CC9 CA F3 8C     	jp z, load_pt_stop
- 505+ 8CCC FE 73        	cp "s" ;стоп
- 506+ 8CCE CA F3 8C     	jp z, load_pt_stop
- 507+ 8CD1 FE 53        	cp "S" ;чтоп
- 508+ 8CD3 CA F3 8C     	jp z, load_pt_stop
- 509+ 8CD6              	;call printRTC
- 510+ 8CD6
- 511+ 8CD6              	;печать инфо
- 512+ 8CD6 11 00 0A     	ld de,#0a00
- 513+ 8CD9              	OS_SET_XY
- 513+ 8CD9 0E 01       >    ld c,#01
- 513+ 8CDB E7          >    rst #20
- 514+ 8CDC
- 515+ 8CDC              	OS_GET_VTPL_SETUP
- 515+ 8CDC 0E 18       >    ld c,#18
- 515+ 8CDE E7          >    rst #20
- 516+ 8CDF 01 3B 09     	ld bc,#93b ;нужная переменная плеера
- 517+ 8CE2 09           	add hl,bc
- 518+ 8CE3 6E               ld l,(hl)
- 518+ 8CE4
- 519+ 8CE4 26 00        	ld h,0
- 520+ 8CE6 CD AA 8D     	call toDecimal
- 521+ 8CE9              	OS_PRINTZ
- 521+ 8CE9 0E 09       >    ld c,#09
- 521+ 8CEB E7          >    rst #20
- 522+ 8CEC
- 523+ 8CEC              	;проверка на конец песни
- 524+ 8CEC              	OS_GET_VTPL_SETUP
- 524+ 8CEC 0E 18       >    ld c,#18
- 524+ 8CEE E7          >    rst #20
- 525+ 8CEF 7E           	ld a, (hl)
- 526+ 8CF0 17           	rla
- 527+ 8CF1 30 D0        	jr nc,load_pt_loop ;если не меньше, продолжаем играть
- 528+ 8CF3                  ;ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
- 529+ 8CF3              load_pt_stop
- 530+ 8CF3                  ;call Console.waitForKeyUp
- 531+ 8CF3 B7           	or a
- 532+ 8CF4 C9               ret
- 533+ 8CF5
- 534+ 8CF5 00           ptplayer_setup db 0;
- 535+ 8CF6
- 536+ 8CF6
- 537+ 8CF6
- 538+ 8CF6
- 539+ 8CF6
- 540+ 8CF6              ;прочитать файл не больше #4000 байт
- 541+ 8CF6              ;вх: hl - имя файла
- 542+ 8CF6              ;вых: CY = 1 = ошибка
- 543+ 8CF6              load_file
- 544+ 8CF6              	;ld hl,file_name_cur
- 545+ 8CF6              	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
- 545+ 8CF6 0E 21       >    ld c,#21
- 545+ 8CF8 E7          >    rst #20
- 546+ 8CF9 DA 30 8D     	jp c,load_file_error
- 547+ 8CFC
- 548+ 8CFC              load_file_ok
- 549+ 8CFC 32 5B 9E     	ld (file_id_cur_r),a
- 550+ 8CFF              	;проверка длины файла не больше #4000
- 551+ 8CFF 7A           	ld	a,d ;самые старшие байты длины
- 552+ 8D00 B3           	or e
- 553+ 8D01 28 08        	jr z,load_file_size_ok ;если не слищком большой
- 554+ 8D03              load_file_too_big
- 555+ 8D03              	;файл больше буфера
- 556+ 8D03 21 2C 9F     	ld hl,msg_file_too_big
- 557+ 8D06              	OS_PRINTZ
- 557+ 8D06 0E 09       >    ld c,#09
- 557+ 8D08 E7          >    rst #20
- 558+ 8D09 37           	scf
- 559+ 8D0A C9           	ret
- 560+ 8D0B
- 561+ 8D0B
- 562+ 8D0B              load_file_size_ok
- 563+ 8D0B 7C           	ld	a,h ;младший старший байт длины
- 564+ 8D0C FE 40        	cp #40
- 565+ 8D0E 38 06        	jr c,load_file_size_ok_small
- 566+ 8D10 20 F1        	jr nz,load_file_too_big
- 567+ 8D12 2C           	inc l
- 568+ 8D13 2D           	dec l
- 569+ 8D14 20 ED        	jr nz,load_file_too_big
- 570+ 8D16
- 571+ 8D16
- 572+ 8D16              load_file_size_ok_small
- 573+ 8D16              	;проверка на 0
- 574+ 8D16 7C           	ld a,h
- 575+ 8D17 B5           	or l
- 576+ 8D18 CA 30 8D     	jp z,load_file_error
- 577+ 8D1B 54           	ld d,h ;размер
- 578+ 8D1C 5D           	ld e,l
- 579+ 8D1D 21 80 A8     	ld hl,free ;buffer_cat ;куда
- 580+ 8D20 3A 5B 9E     	ld a,(file_id_cur_r)
- 581+ 8D23              	OS_FILE_READ ;загрузить
- 581+ 8D23 0E 23       >    ld c,#23
- 581+ 8D25 E7          >    rst #20
- 582+ 8D26 38 08        	jr c,load_file_error
- 583+ 8D28
- 584+ 8D28 3A 5B 9E     	ld a,(file_id_cur_r)
- 585+ 8D2B              	OS_FILE_CLOSE ;A - id file
- 585+ 8D2B 0E 25       >    ld c,#25
- 585+ 8D2D E7          >    rst #20
- 586+ 8D2E AF           	xor a
- 587+ 8D2F C9           	ret
- 588+ 8D30
- 589+ 8D30
- 590+ 8D30
- 591+ 8D30              load_file_error
- 592+ 8D30 3E 0A        	ld a,color_error ;цвет ошибки
- 593+ 8D32 06 0C        	ld b,#c
- 594+ 8D34              	OS_SET_COLOR
- 594+ 8D34 0E 06       >    ld c,#06
- 594+ 8D36 E7          >    rst #20
- 595+ 8D37 21 20 9F     		ld hl,msg_file_error
- 596+ 8D3A              		OS_PRINTZ
- 596+ 8D3A 0E 09       >    ld c,#09
- 596+ 8D3C E7          >    rst #20
- 597+ 8D3D 3E 0F        	ld a,color_backgr ;цвет основной
- 598+ 8D3F 06 0C        	ld b,#c
- 599+ 8D41              	OS_SET_COLOR
- 599+ 8D41 0E 06       >    ld c,#06
- 599+ 8D43 E7          >    rst #20
- 600+ 8D44
- 601+ 8D44 3A 5B 9E     		ld a,(file_id_cur_r)
- 602+ 8D47 FE FF        		cp 255
- 603+ 8D49 28 03        		jr z,load_file_error1
- 604+ 8D4B              		OS_FILE_CLOSE ;A - id file
- 604+ 8D4B 0E 25       >    ld c,#25
- 604+ 8D4D E7          >    rst #20
- 605+ 8D4E              load_file_error1
- 606+ 8D4E 37           		scf ;ошибка
- 607+ 8D4F C9           		ret
- 608+ 8D50
- 609+ 8D50
- 610+ 8D50
- 611+ 8D50
- 612+ 8D50              	;печать шкалы прогресса
- 613+ 8D50              gplay_progress_print
- 614+ 8D50 CD 79 8D     	call gplay_progress_calc
- 615+ 8D53 11 00 02     	ld de,#0200 ;прогресс тут
- 616+ 8D56              	OS_SET_XY
- 616+ 8D56 0E 01       >    ld c,#01
- 616+ 8D58 E7          >    rst #20
- 617+ 8D59              	;печать закрашенных кубиков
- 618+ 8D59 3A A9 8D     	ld a,(gplay_progress_val)
- 619+ 8D5C B7           	or a
- 620+ 8D5D 28 08        	jr z,gplay_progress_print1
- 621+ 8D5F 47           	ld b,a
- 622+ 8D60              gplay_progress_print1_cl
- 623+ 8D60 C5           	push bc
- 624+ 8D61 3E B1        	ld a,177 ;псевдографика
- 625+ 8D63              	OS_PRINT_CHARF
- 625+ 8D63 D7          >	rst #10
- 626+ 8D64 C1           	pop bc
- 627+ 8D65 10 F9        	djnz gplay_progress_print1_cl
- 628+ 8D67              gplay_progress_print1
- 629+ 8D67              	;печать пустых кубиков
- 630+ 8D67 3A A9 8D     	ld a,(gplay_progress_val)
- 631+ 8D6A 4F           	ld c,a
- 632+ 8D6B 3E 10        	ld a,gplay_progress_lenght
- 633+ 8D6D 91           	sub c
- 634+ 8D6E 28 08        	jr z,gplay_progress_print2
- 635+ 8D70 47           	ld b,a
- 636+ 8D71              gplay_progress_print1_c2
- 637+ 8D71 C5           	push bc
- 638+ 8D72 3E B0        	ld a,176 ;псевдографика
- 639+ 8D74              	OS_PRINT_CHARF
- 639+ 8D74 D7          >	rst #10
- 640+ 8D75 C1           	pop bc
- 641+ 8D76 10 F9        	djnz gplay_progress_print1_c2
- 642+ 8D78
- 643+ 8D78              gplay_progress_print2
- 644+ 8D78 C9           	ret
- 645+ 8D79
- 646+ 8D79
- 647+ 8D79              gplay_progress_calc
- 648+ 8D79 3A FF 8F     	ld a,(memorystreampages+255) ;всего страниц памяти занято
- 649+ 8D7C 67           	ld h,a
- 650+ 8D7D 2E 00        	ld l,0 ;всего страниц *256
- 651+ 8D7F
- 652+ 8D7F              	;разделить
- 653+ 8D7F CB 3C        	srl h ; младший бит придёт на флаг C , на старший бит придёт 0
- 654+ 8D81 CB 1D        	rr l ; младший бит придёт на флаг C, на старший флаг C
- 655+ 8D83 CB 3C        	srl h ; /4
- 656+ 8D85 CB 1D        	rr l ;
- 657+ 8D87 CB 3C        	srl h ; /8
- 658+ 8D89 CB 1D        	rr l ;
- 659+ 8D8B CB 3C        	srl h ; /16
- 660+ 8D8D CB 1D        	rr l ;
- 661+ 8D8F              	; srl h ; /32
- 662+ 8D8F              	; rr l ;
- 663+ 8D8F              	;узнали сколько страниц одно деление
- 664+ 8D8F EB           	ex de,hl
- 665+ 8D90
- 666+ 8D90
- 667+ 8D90 2A 0E 90     	ld hl,(memorystreampageaddr)
- 668+ 8D93 01 00 8F     	ld bc,memorystreampages
- 669+ 8D96 A7           	and a
- 670+ 8D97 ED 42        	sbc hl,bc ;какая по счёту страница сейчас
- 671+ 8D99
- 672+ 8D99 65           	ld h,l ;*256
- 673+ 8D9A 2E 00        	ld l,0
- 674+ 8D9C
- 675+ 8D9C              	;разделить на величину одного деления
- 676+ 8D9C 3E FF        	ld a,-1
- 677+ 8D9E              divide16
- 678+ 8D9E 3C           	inc a
- 679+ 8D9F A7           	and a
- 680+ 8DA0 ED 52        	sbc hl,de
- 681+ 8DA2 30 FA        	jr nc,divide16
- 682+ 8DA4 19           	add hl,de
- 683+ 8DA5 32 A9 8D     	ld (gplay_progress_val),a
- 684+ 8DA8 C9           	ret
- 685+ 8DA9
- 686+ 8DA9              gplay_progress_lenght equ 16 ;длина шкалы
- 687+ 8DA9 00           gplay_progress_val db 0;
- 688+ 8DAA
- 689+ 8DAA
- 690+ 8DAA
- 691+ 8DAA
- 692+ 8DAA              toDecimal		;конвертирует 2 байта в 5 десятичных цифр
- 693+ 8DAA              				;на входе в HL число
- 694+ 8DAA 11 10 27     			ld de,10000 ;десятки тысяч
- 695+ 8DAD 3E FF        			ld a,255
- 696+ 8DAF              toDecimal10k
- 697+ 8DAF A7           			and a
- 698+ 8DB0 ED 52        			sbc hl,de
- 699+ 8DB2 3C           			inc a
- 700+ 8DB3 30 FA        			jr nc,toDecimal10k
- 701+ 8DB5 19           			add hl,de
- 702+ 8DB6 C6 30        			add a,48
- 703+ 8DB8 32 03 8E     			ld (decimalS),a
- 704+ 8DBB 11 E8 03     			ld de,1000 ;тысячи
- 705+ 8DBE 3E FF        			ld a,255
- 706+ 8DC0              toDecimal1k
- 707+ 8DC0 A7           			and a
- 708+ 8DC1 ED 52        			sbc hl,de
- 709+ 8DC3 3C           			inc a
- 710+ 8DC4 30 FA        			jr nc,toDecimal1k
- 711+ 8DC6 19           			add hl,de
- 712+ 8DC7 C6 30        			add a,48
- 713+ 8DC9 32 04 8E     			ld (decimalS+1),a
- 714+ 8DCC 11 64 00     			ld de,100 ;сотни
- 715+ 8DCF 3E FF        			ld a,255
- 716+ 8DD1              toDecimal01k
- 717+ 8DD1 A7           			and a
- 718+ 8DD2 ED 52        			sbc hl,de
- 719+ 8DD4 3C           			inc a
- 720+ 8DD5 30 FA        			jr nc,toDecimal01k
- 721+ 8DD7 19           			add hl,de
- 722+ 8DD8 C6 30        			add a,48
- 723+ 8DDA 32 05 8E     			ld (decimalS+2),a
- 724+ 8DDD 11 0A 00     			ld de,10 ;десятки
- 725+ 8DE0 3E FF        			ld a,255
- 726+ 8DE2              toDecimal001k
- 727+ 8DE2 A7           			and a
- 728+ 8DE3 ED 52        			sbc hl,de
- 729+ 8DE5 3C           			inc a
- 730+ 8DE6 30 FA        			jr nc,toDecimal001k
- 731+ 8DE8 19           			add hl,de
- 732+ 8DE9 C6 30        			add a,48
- 733+ 8DEB 32 06 8E     			ld (decimalS+3),a
- 734+ 8DEE 11 01 00     			ld de,1 ;единицы
- 735+ 8DF1 3E FF        			ld a,255
- 736+ 8DF3              toDecimal0001k
- 737+ 8DF3 A7           			and a
- 738+ 8DF4 ED 52        			sbc hl,de
- 739+ 8DF6 3C           			inc a
- 740+ 8DF7 30 FA        			jr nc,toDecimal0001k
- 741+ 8DF9 19           			add hl,de
- 742+ 8DFA C6 30        			add a,48
- 743+ 8DFC 32 07 8E     			ld (decimalS+4),a
- 744+ 8DFF 21 03 8E     			ld hl,decimalS
- 745+ 8E02 C9           			ret
- 746+ 8E03
- 747+ 8E03 00 00 00...  decimalS	ds 6 ;десятичные цифры
- 748+ 8E09
- 749+ 8E09
- 750+ 8E09
- 751+ 8E09 00           gplay_type db 0 ;тип музыки
- 752+ 8E0A              ;file_id_cur db 0; временно
- 753+ 8E0A
- 754+ 8E0A 0D 0D 42 72  txt_gplay_menu db 13,13,"Break, S - stop ",13,"Sp - Next",0
- 754+ 8E0E 65 61 6B 2C
- 754+ 8E12 20 53 20 2D
- 754+ 8E16 20 73 74 6F
- 754+ 8E1A 70 20 0D 53
- 754+ 8E1E 70 20 2D 20
- 754+ 8E22 4E 65 78 74
- 754+ 8E26 00
- 755+ 8E27 0D 50 6C 61  txt_play db 13,"Play... ",0
- 755+ 8E2B 79 2E 2E 2E
- 755+ 8E2F 20 00
- 756+ 8E31 0D 53 74 6F  txt_stop db 13,"Stop",0
- 756+ 8E35 70 00
- 757+ 8E37 0D 4C 6F 61  txt_load db 13,"Load...",0
- 757+ 8E3B 64 2E 2E 2E
- 757+ 8E3F 00
- 758+ 8E40 0D 47 53 20  txt_no_GS db 13,"GS not found!",0
- 758+ 8E44 6E 6F 74 20
- 758+ 8E48 66 6F 75 6E
- 758+ 8E4C 64 21 00
- 759+ 8E4F 0D 4D 65 6D  txt_memoryerror:    db 13,"Memory allocation error!",0
- 759+ 8E53 6F 72 79 20
- 759+ 8E57 61 6C 6C 6F
- 759+ 8E5B 63 61 74 69
- 759+ 8E5F 6F 6E 20 65
- 759+ 8E63 72 72 6F 72
- 759+ 8E67 21 00
- 760+ 8E69              ;txt_fopenerror:     db 13,"Cannot open file: ",0
- 761+ 8E69
- 762+ 8E69              msg_title
- 763+ 8E69 47 50 6C 61  	db "GPlay ver 2025.08.15",10,13,0
- 763+ 8E6D 79 20 76 65
- 763+ 8E71 72 20 32 30
- 763+ 8E75 32 35 2E 30
- 763+ 8E79 38 2E 31 35
- 763+ 8E7D 0A 0D 00
- 764+ 8E80
- 765+ 8E80              vgm_plr
- 766+ 8E80
- 767+ 8E80              ;module equ 0xc000
- 768+ 8E80              ;player_load = 0x8000 ;0x4000
- 769+ 8E80
- 770+ 8E80              ;ovl_start = 0x8000 ;0x4000
- 771+ 8E80
- 772+ 8E80              PLR_INIT  = vgm_plr ;0x4000
- 773+ 8E80              PLR_PLAY  = vgm_plr+5 ;0x4005
- 774+ 8E80              PLR_MUTE  = vgm_plr+8 ;0x4008
- 775+ 8E80
- 776+ 8E80              	include vgm.asm
+ 169+ 8B3F              check_BM
+ 170+ 8B3F              	;определение наличия BomgeMoon
+ 171+ 8B3F AF           	xor a
+ 172+ 8B40 DB 24        	in a,(MOON_BASE)
+ 173+ 8B42 FE FF        	cp 255
+ 174+ 8B44 28 02        	jr z,check_BM1
+ 175+ 8B46 B7           	or a
+ 176+ 8B47 C9           	ret
+ 177+ 8B48
+ 178+ 8B48              check_BM1
+ 179+ 8B48 3E 0A        	ld a,color_error ;цвет ошибки
+ 180+ 8B4A 06 0C        	ld b,#c
+ 181+ 8B4C              	OS_SET_COLOR
+ 181+ 8B4C 0E 06       >    ld c,#06
+ 181+ 8B4E E7          >    rst #20
+ 182+ 8B4F
+ 183+ 8B4F 21 93 8E     	ld hl,txt_no_BM
+ 184+ 8B52              	OS_PRINTZ
+ 184+ 8B52 0E 09       >    ld c,#09
+ 184+ 8B54 E7          >    rst #20
+ 185+ 8B55
+ 186+ 8B55 3E 0F        	ld a,color_backgr ;цвет основной
+ 187+ 8B57 06 0C        	ld b,#c
+ 188+ 8B59              	OS_SET_COLOR
+ 188+ 8B59 0E 06       >    ld c,#06
+ 188+ 8B5B E7          >    rst #20
+ 189+ 8B5C 37           	scf ;ошибка
+ 190+ 8B5D C9           	ret
+ 191+ 8B5E
+ 192+ 8B5E
+ 193+ 8B5E
+ 194+ 8B5E
+ 195+ 8B5E
+ 196+ 8B5E              load_vgm
+ 197+ 8B5E CD 3F 8B     	call check_BM
+ 198+ 8B61 D8           	ret c
+ 199+ 8B62 C3 1F 9B     	jp load_mus ;инициализация и загрузка VGM
+ 200+ 8B65
+ 201+ 8B65
+ 202+ 8B65
+ 203+ 8B65
+ 204+ 8B65
+ 205+ 8B65
+ 206+ 8B65              load_vgz
+ 207+ 8B65              ;тут запуск VGZ
+ 208+ 8B65 CD 3F 8B     	call check_BM
+ 209+ 8B68 D8           	ret c
+ 210+ 8B69              	;тут надо сначала распаковать файл
+ 211+ 8B69 AF           	xor a
+ 212+ 8B6A              	OS_SET_MONO_MODE ;запросить моно режим
+ 212+ 8B6A 0E 08       >    ld c,#08
+ 212+ 8B6C E7          >    rst #20
+ 213+ 8B6D 30 08        	jr nc,load_vgz1
+ 214+ 8B6F
+ 215+ 8B6F              load_vgz_err
+ 216+ 8B6F              	;выход с ошибкой
+ 217+ 8B6F
+ 218+ 8B6F              	;напечатать ошибку, если не дали режима моно
+ 219+ 8B6F 21 4C 9F     	ld hl,msg_mono_err
+ 220+ 8B72              	OS_PRINTZ
+ 220+ 8B72 0E 09       >    ld c,#09
+ 220+ 8B74 E7          >    rst #20
+ 221+ 8B75
+ 222+ 8B75 37           	scf ;ошибка
+ 223+ 8B76 C9           	ret
+ 224+ 8B77
+ 225+ 8B77              load_vgz1
+ 226+ 8B77              	;перенести модуль распаковки на рабочий адрес
+ 227+ 8B77
+ 228+ 8B77 3A 5D 9E     	ld a,(page_ext02_gzip) ;доп страница для данных плеера
+ 229+ 8B7A              	OS_SET_PAGE_SLOT3
+ 229+ 8B7A 0E 1C       >    ld c,#1c
+ 229+ 8B7C E7          >    rst #20
+ 230+ 8B7D
+ 231+ 8B7D 21 00 C0     	ld hl,start_gp_gzip_ext
+ 232+ 8B80 11 00 40     	ld de,start_gp_gzip
+ 233+ 8B83 01 00 1B     	ld bc,end_gp_gzip_load-start_gp_gzip_load
+ 234+ 8B86 ED B0        	ldir
+ 235+ 8B88
+ 236+ 8B88 3A 5C 9E     	ld a,(page_ext01) ;доп страница для данных плеера
+ 237+ 8B8B              	OS_SET_PAGE_SLOT3
+ 237+ 8B8B 0E 1C       >    ld c,#1c
+ 237+ 8B8D E7          >    rst #20
+ 238+ 8B8E
+ 239+ 8B8E              	;распаковать
+ 240+ 8B8E 21 4A 9C     	ld hl,file_name_cur ;имя файла
+ 241+ 8B91 CD 00 40     	call start_gp_gzip ;decompressfiletomemorystream
+ 242+ 8B94
+ 243+ 8B94              	;перенести таблицу страниц
+ 244+ 8B94 11 00 8F     	ld de,memorystreampages
+ 245+ 8B97 01 00 01     	ld bc,256
+ 246+ 8B9A ED B0        	ldir
+ 247+ 8B9C
+ 248+ 8B9C 01 FF 8F     	ld bc,memorystreampages+$ff
+ 249+ 8B9F 02               ld (bc),a  ;количество страниц
+ 250+ 8BA0
+ 251+ 8BA0 F5           	push af
+ 252+ 8BA1 3E FF        	ld a,255
+ 253+ 8BA3              	OS_SET_MONO_MODE ;выключить моно режим
+ 253+ 8BA3 0E 08       >    ld c,#08
+ 253+ 8BA5 E7          >    rst #20
+ 254+ 8BA6 F1           	pop af
+ 255+ 8BA7
+ 256+ 8BA7 30 01        	jr nc,load_vgz_ok
+ 257+ 8BA9              	;если не распаковалос
+ 258+ 8BA9              	;scf ;ошибка
+ 259+ 8BA9 C9           	ret
+ 260+ 8BAA
+ 261+ 8BAA              load_vgz_ok
+ 262+ 8BAA              	;нормально распаковалось
+ 263+ 8BAA
+ 264+ 8BAA CD 64 9B     	call read_file_ok ;играть
+ 265+ 8BAD              	;call start_gplay ;играть
+ 266+ 8BAD
+ 267+ 8BAD AF           	xor a
+ 268+ 8BAE C9           	ret
+ 269+ 8BAF
+ 270+ 8BAF
+ 271+ 8BAF              ;стоп игра
+ 272+ 8BAF              gplay_stop_vgm_vgz
+ 273+ 8BAF 21 00 00     	ld hl,0 ;отключить обработчик прерываний
+ 274+ 8BB2              	OS_SET_INTER
+ 274+ 8BB2 0E 14       >    ld c,#14
+ 274+ 8BB4 E7          >    rst #20
+ 275+ 8BB5 CD DB 8E     	call PLR_MUTE ;выключить звук
+ 276+ 8BB8
+ 277+ 8BB8
+ 278+ 8BB8              	;освободить страницы памяти
+ 279+ 8BB8 21 FF 8F     	ld hl,memorystreampages+$FF
+ 280+ 8BBB 6E               ld l,(hl)
+ 281+ 8BBC 2C           	inc l ;проверка на 0
+ 282+ 8BBD 2D           	dec l
+ 283+ 8BBE 28 0B        	jr z,free_s98_loop_skip
+ 284+ 8BC0
+ 285+ 8BC0              free_s98_loop
+ 286+ 8BC0 2D               dec l
+ 287+ 8BC1 7E               ld a,(hl)
+ 288+ 8BC2
+ 289+ 8BC2 F5               push af
+ 290+ 8BC3 E5               push hl
+ 291+ 8BC4                  ;OS_DELPAGE
+ 292+ 8BC4              	OS_DEL_PAGE
+ 292+ 8BC4 0E 20       >    ld c,#20
+ 292+ 8BC6 E7          >    rst #20
+ 293+ 8BC7 E1               pop hl
+ 294+ 8BC8 F1               pop af
+ 295+ 8BC9
+ 296+ 8BC9 20 F5            jr nz,free_s98_loop
+ 297+ 8BCB
+ 298+ 8BCB              free_s98_loop_skip
+ 299+ 8BCB C9           	ret
+ 300+ 8BCC
+ 301+ 8BCC              ;стоп игра
+ 302+ 8BCC              gplay_stop_ptx
+ 303+ 8BCC                  OS_VTPL_MUTE
+ 303+ 8BCC 0E 17       >    ld c,#17
+ 303+ 8BCE E7          >    rst #20
+ 304+ 8BCF C9           	ret
+ 305+ 8BD0
+ 306+ 8BD0
+ 307+ 8BD0
+ 308+ 8BD0              ;стоп игра
+ 309+ 8BD0              gplay_stop_mod
+ 310+ 8BD0 CD CD 9B         call GeneralSound.stopModule
+ 311+ 8BD3 C9           	ret
+ 312+ 8BD4
+ 313+ 8BD4
+ 314+ 8BD4              load_mod
+ 315+ 8BD4              ;загрузка и игра mod
+ 316+ 8BD4
+ 317+ 8BD4              	;определение наличия GS
+ 318+ 8BD4              	; xor a ;флаг что не нашли
+ 319+ 8BD4              	; ld (gs_yep),a
+ 320+ 8BD4              	; ld (gs_on),a
+ 321+ 8BD4 3E 23        	LD A,#23
+ 322+ 8BD6 D3 BB        	OUT (CMD), A
+ 323+ 8BD8 06 32        	ld b,50
+ 324+ 8BDA              WAITCOM2: ;это WC
+ 325+ 8BDA              	OS_WAIT
+ 325+ 8BDA DF          >	rst #18
+ 326+ 8BDB DB BB        	IN A,(CMD)
+ 327+ 8BDD 0F           	RRCA
+ 328+ 8BDE 30 18        	JR NC,WAITCOM3
+ 329+ 8BE0 10 F8        	djnz WAITCOM2
+ 330+ 8BE2              gs_no
+ 331+ 8BE2 3E 0A        	ld a,color_error ;цвет ошибки
+ 332+ 8BE4 06 0C        	ld b,#c
+ 333+ 8BE6              	OS_SET_COLOR
+ 333+ 8BE6 0E 06       >    ld c,#06
+ 333+ 8BE8 E7          >    rst #20
+ 334+ 8BE9
+ 335+ 8BE9 21 84 8E     	ld hl,txt_no_GS
+ 336+ 8BEC              	OS_PRINTZ
+ 336+ 8BEC 0E 09       >    ld c,#09
+ 336+ 8BEE E7          >    rst #20
+ 337+ 8BEF
+ 338+ 8BEF 3E 0F        	ld a,color_backgr ;цвет основной
+ 339+ 8BF1 06 0C        	ld b,#c
+ 340+ 8BF3              	OS_SET_COLOR
+ 340+ 8BF3 0E 06       >    ld c,#06
+ 340+ 8BF5 E7          >    rst #20
+ 341+ 8BF6
+ 342+ 8BF6 37           	scf ;ошибка
+ 343+ 8BF7 C9           	ret
+ 344+ 8BF8              	;jr gs_no
+ 345+ 8BF8              WAITCOM3
+ 346+ 8BF8 DB B3        	in a,(DATA) ;количество страниц памяти?
+ 347+ 8BFA FE FF        	cp 255
+ 348+ 8BFC 20 02        	jr nz,gs_yes
+ 349+ 8BFE              	; ld hl,txt_err_GS
+ 350+ 8BFE              	; call loader_print
+ 351+ 8BFE 18 E2        	jr gs_no
+ 352+ 8C00              gs_yes
+ 353+ 8C00
+ 354+ 8C00 21 4A 9C     	ld hl,file_name_cur
+ 355+ 8C03              	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
+ 355+ 8C03 0E 21       >    ld c,#21
+ 355+ 8C05 E7          >    rst #20
+ 356+ 8C06
+ 357+ 8C06 DA 74 8D     	jp c,load_file_error
+ 358+ 8C09 32 5B 9E     	ld (file_id_cur_r),a
+ 359+ 8C0C
+ 360+ 8C0C AF               xor a
+ 360+ 8C0D CD 7F 9B       call GeneralSound.init
+ 361+ 8C10                  ; ld hl, .progress : call DialogBox.msgNoWait
+ 362+ 8C10                  ; call makeRequest : jp c, Fetcher.fetchFromNet.error
+ 363+ 8C10 CD 96 9B         call GeneralSound.loadModule
+ 364+ 8C13
+ 365+ 8C13
+ 366+ 8C13              loadMod_loop
+ 367+ 8C13                  ;ld hl, buffer_cat, ;(buffer_pointer), hl
+ 368+ 8C13                  ; call Wifi.getPacket
+ 369+ 8C13                  ; ld a, (Wifi.closed) : and a : jr nz, .exit
+ 370+ 8C13                  ; ld hl, buffer_cat, bc, (Wifi.bytes_avail)
+ 371+ 8C13
+ 372+ 8C13 3A 5B 9E     		ld a,(file_id_cur_r)
+ 373+ 8C16 21 00 C0     		ld hl,buffer_cat
+ 374+ 8C19 11 00 40             ld de,$4000
+ 375+ 8C1C              		OS_FILE_READ ;HL - address, A - id file, DE - length (out: hl - следующий адрес дл¤ чтени¤)
+ 375+ 8C1C 0E 23       >    ld c,#23
+ 375+ 8C1E E7          >    rst #20
+ 376+ 8C1F DA 74 8D     		jp c,load_file_error
+ 377+ 8C22
+ 378+ 8C22 7C                   ld a,h
+ 379+ 8C23 FE C0        		cp $c0
+ 380+ 8C25 38 1A                jr c,loadMod_loadLoop_4000    ;>= $c0, значит остаток файла
+ 381+ 8C27              		;остаток
+ 382+ 8C27 01 00 C0     		ld bc,#c000
+ 383+ 8C2A A7           		and a
+ 384+ 8C2B ED 42        		sbc hl,bc
+ 385+ 8C2D 28 29        		jr z,loadMod_exit ;если ничего больше не считалось
+ 386+ 8C2F 44 4D        		ld bc,hl
+ 387+ 8C31 21 00 C0     		ld hl,buffer_cat
+ 388+ 8C34              load_mod_loadLoop2
+ 389+ 8C34 78               ld a, b
+ 389+ 8C35 B1             or c
+ 389+ 8C36 A7             and a
+ 389+ 8C37 28 1F          jr z, loadMod_exit
+ 390+ 8C39 7E               ld a, (hl)
+ 390+ 8C3A CD A9 9B       call GeneralSound.sendByte
+ 391+ 8C3D 0B               dec bc
+ 392+ 8C3E 23               inc hl
+ 393+ 8C3F 18 F3            jr load_mod_loadLoop2
+ 394+ 8C41
+ 395+ 8C41
+ 396+ 8C41              loadMod_loadLoop_4000
+ 397+ 8C41 21 00 C0     	ld hl,buffer_cat
+ 398+ 8C44 01 00 40     	ld bc,$4000 ;большой кусок для загрузки
+ 399+ 8C47
+ 400+ 8C47              load_mod_loadLoop
+ 401+ 8C47 78               ld a, b
+ 401+ 8C48 B1             or c
+ 401+ 8C49 A7             and a
+ 401+ 8C4A CA 13 8C       jp z,loadMod_loop
+ 402+ 8C4D 7E               ld a, (hl)
+ 402+ 8C4E CD A9 9B       call GeneralSound.sendByte
+ 403+ 8C51 0B               dec bc
+ 404+ 8C52 23               inc hl
+ 405+ 8C53 18 F2            jr load_mod_loadLoop
+ 406+ 8C55              ;.nextFrame
+ 407+ 8C55                  ;call Wifi.continue
+ 408+ 8C55 C3 13 8C         jp loadMod_loop
+ 409+ 8C58              loadMod_exit
+ 410+ 8C58 CD B1 9B         call GeneralSound.finishLoadingModule
+ 411+ 8C5B
+ 412+ 8C5B 3A 5B 9E     	ld a,(file_id_cur_r)
+ 413+ 8C5E              	OS_FILE_CLOSE ;A - id file
+ 413+ 8C5E 0E 25       >    ld c,#25
+ 413+ 8C60 E7          >    rst #20
+ 414+ 8C61                  ;jp History.back
+ 415+ 8C61              	;jp play ;MediaProcessor.processResource
+ 416+ 8C61              ;.progress db "MOD downloading directly to GS!", 0
+ 417+ 8C61
+ 418+ 8C61                  macro GS_WaitCommand2
+ 419+ 8C61 ~            .wait
+ 420+ 8C61 ~                in a, (CMD)
+ 421+ 8C61 ~                rrca
+ 422+ 8C61 ~                jr c, .wait
+ 423+ 8C61                  endm
+ 424+ 8C61
+ 425+ 8C61                  macro GS_SendCommand2 nn
+ 426+ 8C61 ~                ld a, nn
+ 426+ 8C61 ~              out (CMD), a
+ 427+ 8C61                  endm
+ 428+ 8C61
+ 429+ 8C61              loadMod_play
+ 430+ 8C61
+ 431+ 8C61 21 6B 8E     	ld hl,txt_play
+ 432+ 8C64              	OS_PRINTZ
+ 432+ 8C64 0E 09       >    ld c,#09
+ 432+ 8C66 E7          >    rst #20
+ 433+ 8C67
+ 434+ 8C67 21 4E 8E         ld hl,txt_gplay_menu
+ 435+ 8C6A              	OS_PRINTZ
+ 435+ 8C6A 0E 09       >    ld c,#09
+ 435+ 8C6C E7          >    rst #20
+ 436+ 8C6D
+ 437+ 8C6D                  ; call Console.waitForKeyUp
+ 438+ 8C6D
+ 439+ 8C6D                  ; ld hl, Gopher.requestbuffer : call DialogBox.msgNoWait
+ 440+ 8C6D
+ 441+ 8C6D                  ; ;ld a, 1, (Render.play_next), a
+ 442+ 8C6D AF           	xor a
+ 443+ 8C6E 32 D0 8C     	ld (last_song_position),a
+ 444+ 8C71
+ 445+ 8C71              load_mod_loop
+ 446+ 8C71                  OS_WAIT
+ 446+ 8C71 DF          >	rst #18
+ 446+ 8C72
+ 447+ 8C72                  OS_GET_CHAR
+ 447+ 8C72 0E 10       >    ld c,#10
+ 447+ 8C74 E7          >    rst #20
+ 448+ 8C75 FE 20        	cp " " ;пробел
+ 449+ 8C77 CA CF 8C     	jp z, load_mod_stop
+ 450+ 8C7A FE 73        	cp "s" ;стоп
+ 451+ 8C7C CA CF 8C     	jp z, load_mod_stop
+ 452+ 8C7F FE 53        	cp "S" ;чтоп
+ 453+ 8C81 CA CF 8C     	jp z, load_mod_stop
+ 454+ 8C84              	;call printRTC
+ 455+ 8C84                  ;проверка что MOD начал играть сначала
+ 456+ 8C84                  GS_SendCommand2 CMD_GET_SONG_POSITION
+ 456+ 8C84 3E 60       >    ld a, CMD_GET_SONG_POSITION
+ 456+ 8C86 D3 BB       >  out (CMD), a
+ 457+ 8C88                  GS_WaitCommand2
+ 457+ 8C88             >.wait
+ 457+ 8C88 DB BB       >    in a, (CMD)
+ 457+ 8C8A 0F          >    rrca
+ 457+ 8C8B 38 FB       >    jr c, .wait
+ 458+ 8C8D DB B3        	in a,(DATA) ;текущая позиция
+ 459+ 8C8F 32 D1 8C     	ld (cur_song_position),a
+ 460+ 8C92              	;печатать позицию song
+ 461+ 8C92 11 00 0A     	ld de,#0a00
+ 462+ 8C95              	OS_SET_XY
+ 462+ 8C95 0E 01       >    ld c,#01
+ 462+ 8C97 E7          >    rst #20
+ 463+ 8C98 2A D1 8C     	ld hl,(cur_song_position)
+ 464+ 8C9B 26 00        	ld h,0
+ 465+ 8C9D CD EE 8D     	call toDecimal
+ 466+ 8CA0              	OS_PRINTZ
+ 466+ 8CA0 0E 09       >    ld c,#09
+ 466+ 8CA2 E7          >    rst #20
+ 467+ 8CA3
+ 468+ 8CA3                  GS_SendCommand2 CMD_GET_PATTERN_POSITION
+ 468+ 8CA3 3E 61       >    ld a, CMD_GET_PATTERN_POSITION
+ 468+ 8CA5 D3 BB       >  out (CMD), a
+ 469+ 8CA7                  GS_WaitCommand2
+ 469+ 8CA7             >.wait
+ 469+ 8CA7 DB BB       >    in a, (CMD)
+ 469+ 8CA9 0F          >    rrca
+ 469+ 8CAA 38 FB       >    jr c, .wait
+ 470+ 8CAC DB B3        	in a,(DATA) ;текущая позиция паттерна
+ 471+ 8CAE 32 D2 8C     	ld (cur_pattern_position),a
+ 472+ 8CB1 11 00 0B     	ld de,#0b00
+ 473+ 8CB4              	OS_SET_XY
+ 473+ 8CB4 0E 01       >    ld c,#01
+ 473+ 8CB6 E7          >    rst #20
+ 474+ 8CB7 2A D2 8C     	ld hl,(cur_pattern_position)
+ 475+ 8CBA 26 00        	ld h,0
+ 476+ 8CBC CD EE 8D     	call toDecimal
+ 477+ 8CBF              	OS_PRINTZ
+ 477+ 8CBF 0E 09       >    ld c,#09
+ 477+ 8CC1 E7          >    rst #20
+ 478+ 8CC2
+ 479+ 8CC2
+ 480+ 8CC2 3A D0 8C     	ld a,(last_song_position) ;предыдущая позиция
+ 481+ 8CC5 4F           	ld c,a
+ 482+ 8CC6 3A D1 8C     	ld a,(cur_song_position) ;текущая
+ 483+ 8CC9 32 D0 8C     	ld (last_song_position),a
+ 484+ 8CCC B9           	cp c
+ 485+ 8CCD 30 A2        	jr nc,load_mod_loop ;если не меньше, продолжаем играть
+ 486+ 8CCF                  ;ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
+ 487+ 8CCF              load_mod_stop
+ 488+ 8CCF                  ;call Console.waitForKeyUp
+ 489+ 8CCF C9               ret
+ 490+ 8CD0              ; .stopKey
+ 491+ 8CD0                  ; ;xor a : ld (Render.play_next), a ;флаг что не надо играть следующий файл
+ 492+ 8CD0                  ; jr .stop
+ 493+ 8CD0
+ 494+ 8CD0
+ 495+ 8CD0              ;message db "Press key to stop...", 0
+ 496+ 8CD0
+ 497+ 8CD0
+ 498+ 8CD0              CMD_GET_SONG_POSITION     = #60
+ 499+ 8CD0              CMD_GET_PATTERN_POSITION  = #61
+ 500+ 8CD0 00           last_song_position db 0
+ 501+ 8CD1 00           cur_song_position db 0
+ 502+ 8CD2 00           cur_pattern_position db 0
+ 503+ 8CD3
+ 504+ 8CD3              ;; Control ports
+ 505+ 8CD3              CMD  = 187
+ 506+ 8CD3              DATA = 179
+ 507+ 8CD3
+ 508+ 8CD3 00 00        buffer_pointer dw 0;
+ 509+ 8CD5
+ 510+ 8CD5
+ 511+ 8CD5
+ 512+ 8CD5
+ 513+ 8CD5
+ 514+ 8CD5
+ 515+ 8CD5              ;загрузка PTx
+ 516+ 8CD5              load_pt2
+ 517+ 8CD5 3E 03        	ld a,%00000011 ;pt2
+ 518+ 8CD7 32 39 8D     	ld (ptplayer_setup),a
+ 519+ 8CDA 18 05        	jr load_pt
+ 520+ 8CDC              load_pt3
+ 521+ 8CDC 3E 21        	ld a,%00100001 ;pt3
+ 522+ 8CDE 32 39 8D     	ld (ptplayer_setup),a
+ 523+ 8CE1
+ 524+ 8CE1              load_pt
+ 525+ 8CE1
+ 526+ 8CE1 21 4A 9C     	ld hl,file_name_cur
+ 527+ 8CE4 CD 3A 8D     	call load_file
+ 528+ 8CE7 D8           	ret c
+ 529+ 8CE8
+ 530+ 8CE8              	;начать игру
+ 531+ 8CE8 21 00 C0     	ld hl,buffer_cat
+ 532+ 8CEB              	OS_GET_VTPL_SETUP
+ 532+ 8CEB 0E 18       >    ld c,#18
+ 532+ 8CED E7          >    rst #20
+ 533+ 8CEE 3A 39 8D     	ld a,(ptplayer_setup)
+ 534+ 8CF1 77           	ld (hl),a ;настройки
+ 535+ 8CF2
+ 536+ 8CF2 21 00 C0     	ld hl,buffer_cat
+ 537+ 8CF5              	OS_VTPL_INIT
+ 537+ 8CF5 0E 15       >    ld c,#15
+ 537+ 8CF7 E7          >    rst #20
+ 538+ 8CF8              	OS_VTPL_PLAY
+ 538+ 8CF8 0E 16       >    ld c,#16
+ 538+ 8CFA E7          >    rst #20
+ 539+ 8CFB
+ 540+ 8CFB 21 6B 8E     	ld hl,txt_play
+ 541+ 8CFE              	OS_PRINTZ
+ 541+ 8CFE 0E 09       >    ld c,#09
+ 541+ 8D00 E7          >    rst #20
+ 542+ 8D01
+ 543+ 8D01 21 4E 8E     	ld hl,txt_gplay_menu
+ 544+ 8D04              	OS_PRINTZ
+ 544+ 8D04 0E 09       >    ld c,#09
+ 544+ 8D06 E7          >    rst #20
+ 545+ 8D07
+ 546+ 8D07              load_pt_loop
+ 547+ 8D07                  OS_WAIT
+ 547+ 8D07 DF          >	rst #18
+ 547+ 8D08
+ 548+ 8D08                  OS_GET_CHAR
+ 548+ 8D08 0E 10       >    ld c,#10
+ 548+ 8D0A E7          >    rst #20
+ 549+ 8D0B FE 20        	cp " " ;пробел
+ 550+ 8D0D CA 37 8D     	jp z, load_pt_stop
+ 551+ 8D10 FE 73        	cp "s" ;стоп
+ 552+ 8D12 CA 37 8D     	jp z, load_pt_stop
+ 553+ 8D15 FE 53        	cp "S" ;чтоп
+ 554+ 8D17 CA 37 8D     	jp z, load_pt_stop
+ 555+ 8D1A              	;call printRTC
+ 556+ 8D1A
+ 557+ 8D1A              	;печать инфо
+ 558+ 8D1A 11 00 0A     	ld de,#0a00
+ 559+ 8D1D              	OS_SET_XY
+ 559+ 8D1D 0E 01       >    ld c,#01
+ 559+ 8D1F E7          >    rst #20
+ 560+ 8D20
+ 561+ 8D20              	OS_GET_VTPL_SETUP
+ 561+ 8D20 0E 18       >    ld c,#18
+ 561+ 8D22 E7          >    rst #20
+ 562+ 8D23 01 3B 09     	ld bc,#93b ;нужная переменная плеера
+ 563+ 8D26 09           	add hl,bc
+ 564+ 8D27 6E               ld l,(hl)
+ 564+ 8D28
+ 565+ 8D28 26 00        	ld h,0
+ 566+ 8D2A CD EE 8D     	call toDecimal
+ 567+ 8D2D              	OS_PRINTZ
+ 567+ 8D2D 0E 09       >    ld c,#09
+ 567+ 8D2F E7          >    rst #20
+ 568+ 8D30
+ 569+ 8D30              	;проверка на конец песни
+ 570+ 8D30              	OS_GET_VTPL_SETUP
+ 570+ 8D30 0E 18       >    ld c,#18
+ 570+ 8D32 E7          >    rst #20
+ 571+ 8D33 7E           	ld a, (hl)
+ 572+ 8D34 17           	rla
+ 573+ 8D35 30 D0        	jr nc,load_pt_loop ;если не меньше, продолжаем играть
+ 574+ 8D37                  ;ld a, 1, (Render.play_next), a ;флаг что надо будет играть следующий файл
+ 575+ 8D37              load_pt_stop
+ 576+ 8D37                  ;call Console.waitForKeyUp
+ 577+ 8D37 B7           	or a
+ 578+ 8D38 C9               ret
+ 579+ 8D39
+ 580+ 8D39 00           ptplayer_setup db 0;
+ 581+ 8D3A
+ 582+ 8D3A
+ 583+ 8D3A
+ 584+ 8D3A
+ 585+ 8D3A
+ 586+ 8D3A              ;прочитать файл не больше #4000 байт
+ 587+ 8D3A              ;вх: hl - имя файла
+ 588+ 8D3A              ;вых: CY = 1 = ошибка
+ 589+ 8D3A              load_file
+ 590+ 8D3A              	;ld hl,file_name_cur
+ 591+ 8D3A              	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
+ 591+ 8D3A 0E 21       >    ld c,#21
+ 591+ 8D3C E7          >    rst #20
+ 592+ 8D3D DA 74 8D     	jp c,load_file_error
+ 593+ 8D40
+ 594+ 8D40              load_file_ok
+ 595+ 8D40 32 5B 9E     	ld (file_id_cur_r),a
+ 596+ 8D43              	;проверка длины файла не больше #4000
+ 597+ 8D43 7A           	ld	a,d ;самые старшие байты длины
+ 598+ 8D44 B3           	or e
+ 599+ 8D45 28 08        	jr z,load_file_size_ok ;если не слищком большой
+ 600+ 8D47              load_file_too_big
+ 601+ 8D47              	;файл больше буфера
+ 602+ 8D47 21 2C 9F     	ld hl,msg_file_too_big
+ 603+ 8D4A              	OS_PRINTZ
+ 603+ 8D4A 0E 09       >    ld c,#09
+ 603+ 8D4C E7          >    rst #20
+ 604+ 8D4D 37           	scf
+ 605+ 8D4E C9           	ret
+ 606+ 8D4F
+ 607+ 8D4F
+ 608+ 8D4F              load_file_size_ok
+ 609+ 8D4F 7C           	ld	a,h ;младший старший байт длины
+ 610+ 8D50 FE 40        	cp #40
+ 611+ 8D52 38 06        	jr c,load_file_size_ok_small
+ 612+ 8D54 20 F1        	jr nz,load_file_too_big
+ 613+ 8D56 2C           	inc l
+ 614+ 8D57 2D           	dec l
+ 615+ 8D58 20 ED        	jr nz,load_file_too_big
+ 616+ 8D5A
+ 617+ 8D5A
+ 618+ 8D5A              load_file_size_ok_small
+ 619+ 8D5A              	;проверка на 0
+ 620+ 8D5A 7C           	ld a,h
+ 621+ 8D5B B5           	or l
+ 622+ 8D5C CA 74 8D     	jp z,load_file_error
+ 623+ 8D5F 54           	ld d,h ;размер
+ 624+ 8D60 5D           	ld e,l
+ 625+ 8D61 21 00 C0     	ld hl,buffer_cat ;куда
+ 626+ 8D64 3A 5B 9E     	ld a,(file_id_cur_r)
+ 627+ 8D67              	OS_FILE_READ ;загрузить
+ 627+ 8D67 0E 23       >    ld c,#23
+ 627+ 8D69 E7          >    rst #20
+ 628+ 8D6A 38 08        	jr c,load_file_error
+ 629+ 8D6C
+ 630+ 8D6C 3A 5B 9E     	ld a,(file_id_cur_r)
+ 631+ 8D6F              	OS_FILE_CLOSE ;A - id file
+ 631+ 8D6F 0E 25       >    ld c,#25
+ 631+ 8D71 E7          >    rst #20
+ 632+ 8D72 AF           	xor a
+ 633+ 8D73 C9           	ret
+ 634+ 8D74
+ 635+ 8D74
+ 636+ 8D74
+ 637+ 8D74              load_file_error
+ 638+ 8D74 3E 0A        	ld a,color_error ;цвет ошибки
+ 639+ 8D76 06 0C        	ld b,#c
+ 640+ 8D78              	OS_SET_COLOR
+ 640+ 8D78 0E 06       >    ld c,#06
+ 640+ 8D7A E7          >    rst #20
+ 641+ 8D7B 21 20 9F     		ld hl,msg_file_error
+ 642+ 8D7E              		OS_PRINTZ
+ 642+ 8D7E 0E 09       >    ld c,#09
+ 642+ 8D80 E7          >    rst #20
+ 643+ 8D81 3E 0F        	ld a,color_backgr ;цвет основной
+ 644+ 8D83 06 0C        	ld b,#c
+ 645+ 8D85              	OS_SET_COLOR
+ 645+ 8D85 0E 06       >    ld c,#06
+ 645+ 8D87 E7          >    rst #20
+ 646+ 8D88
+ 647+ 8D88 3A 5B 9E     		ld a,(file_id_cur_r)
+ 648+ 8D8B FE FF        		cp 255
+ 649+ 8D8D 28 03        		jr z,load_file_error1
+ 650+ 8D8F              		OS_FILE_CLOSE ;A - id file
+ 650+ 8D8F 0E 25       >    ld c,#25
+ 650+ 8D91 E7          >    rst #20
+ 651+ 8D92              load_file_error1
+ 652+ 8D92 37           		scf ;ошибка
+ 653+ 8D93 C9           		ret
+ 654+ 8D94
+ 655+ 8D94
+ 656+ 8D94
+ 657+ 8D94
+ 658+ 8D94              	;печать шкалы прогресса
+ 659+ 8D94              gplay_progress_print
+ 660+ 8D94 CD BD 8D     	call gplay_progress_calc
+ 661+ 8D97 11 00 02     	ld de,#0200 ;прогресс тут
+ 662+ 8D9A              	OS_SET_XY
+ 662+ 8D9A 0E 01       >    ld c,#01
+ 662+ 8D9C E7          >    rst #20
+ 663+ 8D9D              	;печать закрашенных кубиков
+ 664+ 8D9D 3A ED 8D     	ld a,(gplay_progress_val)
+ 665+ 8DA0 B7           	or a
+ 666+ 8DA1 28 08        	jr z,gplay_progress_print1
+ 667+ 8DA3 47           	ld b,a
+ 668+ 8DA4              gplay_progress_print1_cl
+ 669+ 8DA4 C5           	push bc
+ 670+ 8DA5 3E B1        	ld a,177 ;псевдографика
+ 671+ 8DA7              	OS_PRINT_CHARF
+ 671+ 8DA7 D7          >	rst #10
+ 672+ 8DA8 C1           	pop bc
+ 673+ 8DA9 10 F9        	djnz gplay_progress_print1_cl
+ 674+ 8DAB              gplay_progress_print1
+ 675+ 8DAB              	;печать пустых кубиков
+ 676+ 8DAB 3A ED 8D     	ld a,(gplay_progress_val)
+ 677+ 8DAE 4F           	ld c,a
+ 678+ 8DAF 3E 10        	ld a,gplay_progress_lenght
+ 679+ 8DB1 91           	sub c
+ 680+ 8DB2 28 08        	jr z,gplay_progress_print2
+ 681+ 8DB4 47           	ld b,a
+ 682+ 8DB5              gplay_progress_print1_c2
+ 683+ 8DB5 C5           	push bc
+ 684+ 8DB6 3E B0        	ld a,176 ;псевдографика
+ 685+ 8DB8              	OS_PRINT_CHARF
+ 685+ 8DB8 D7          >	rst #10
+ 686+ 8DB9 C1           	pop bc
+ 687+ 8DBA 10 F9        	djnz gplay_progress_print1_c2
+ 688+ 8DBC
+ 689+ 8DBC              gplay_progress_print2
+ 690+ 8DBC C9           	ret
+ 691+ 8DBD
+ 692+ 8DBD
+ 693+ 8DBD              gplay_progress_calc
+ 694+ 8DBD 3A FF 8F     	ld a,(memorystreampages+255) ;всего страниц памяти занято
+ 695+ 8DC0 67           	ld h,a
+ 696+ 8DC1 2E 00        	ld l,0 ;всего страниц *256
+ 697+ 8DC3
+ 698+ 8DC3              	;разделить
+ 699+ 8DC3 CB 3C        	srl h ; младший бит придёт на флаг C , на старший бит придёт 0
+ 700+ 8DC5 CB 1D        	rr l ; младший бит придёт на флаг C, на старший флаг C
+ 701+ 8DC7 CB 3C        	srl h ; /4
+ 702+ 8DC9 CB 1D        	rr l ;
+ 703+ 8DCB CB 3C        	srl h ; /8
+ 704+ 8DCD CB 1D        	rr l ;
+ 705+ 8DCF CB 3C        	srl h ; /16
+ 706+ 8DD1 CB 1D        	rr l ;
+ 707+ 8DD3              	; srl h ; /32
+ 708+ 8DD3              	; rr l ;
+ 709+ 8DD3              	;узнали сколько страниц одно деление
+ 710+ 8DD3 EB           	ex de,hl
+ 711+ 8DD4
+ 712+ 8DD4
+ 713+ 8DD4 2A 0E 90     	ld hl,(memorystreampageaddr)
+ 714+ 8DD7 01 00 8F     	ld bc,memorystreampages
+ 715+ 8DDA A7           	and a
+ 716+ 8DDB ED 42        	sbc hl,bc ;какая по счёту страница сейчас
+ 717+ 8DDD
+ 718+ 8DDD 65           	ld h,l ;*256
+ 719+ 8DDE 2E 00        	ld l,0
+ 720+ 8DE0
+ 721+ 8DE0              	;разделить на величину одного деления
+ 722+ 8DE0 3E FF        	ld a,-1
+ 723+ 8DE2              divide16
+ 724+ 8DE2 3C           	inc a
+ 725+ 8DE3 A7           	and a
+ 726+ 8DE4 ED 52        	sbc hl,de
+ 727+ 8DE6 30 FA        	jr nc,divide16
+ 728+ 8DE8 19           	add hl,de
+ 729+ 8DE9 32 ED 8D     	ld (gplay_progress_val),a
+ 730+ 8DEC C9           	ret
+ 731+ 8DED
+ 732+ 8DED              gplay_progress_lenght equ 16 ;длина шкалы
+ 733+ 8DED 00           gplay_progress_val db 0;
+ 734+ 8DEE
+ 735+ 8DEE
+ 736+ 8DEE
+ 737+ 8DEE
+ 738+ 8DEE              toDecimal		;конвертирует 2 байта в 5 десятичных цифр
+ 739+ 8DEE              				;на входе в HL число
+ 740+ 8DEE 11 10 27     			ld de,10000 ;десятки тысяч
+ 741+ 8DF1 3E FF        			ld a,255
+ 742+ 8DF3              toDecimal10k
+ 743+ 8DF3 A7           			and a
+ 744+ 8DF4 ED 52        			sbc hl,de
+ 745+ 8DF6 3C           			inc a
+ 746+ 8DF7 30 FA        			jr nc,toDecimal10k
+ 747+ 8DF9 19           			add hl,de
+ 748+ 8DFA C6 30        			add a,48
+ 749+ 8DFC 32 47 8E     			ld (decimalS),a
+ 750+ 8DFF 11 E8 03     			ld de,1000 ;тысячи
+ 751+ 8E02 3E FF        			ld a,255
+ 752+ 8E04              toDecimal1k
+ 753+ 8E04 A7           			and a
+ 754+ 8E05 ED 52        			sbc hl,de
+ 755+ 8E07 3C           			inc a
+ 756+ 8E08 30 FA        			jr nc,toDecimal1k
+ 757+ 8E0A 19           			add hl,de
+ 758+ 8E0B C6 30        			add a,48
+ 759+ 8E0D 32 48 8E     			ld (decimalS+1),a
+ 760+ 8E10 11 64 00     			ld de,100 ;сотни
+ 761+ 8E13 3E FF        			ld a,255
+ 762+ 8E15              toDecimal01k
+ 763+ 8E15 A7           			and a
+ 764+ 8E16 ED 52        			sbc hl,de
+ 765+ 8E18 3C           			inc a
+ 766+ 8E19 30 FA        			jr nc,toDecimal01k
+ 767+ 8E1B 19           			add hl,de
+ 768+ 8E1C C6 30        			add a,48
+ 769+ 8E1E 32 49 8E     			ld (decimalS+2),a
+ 770+ 8E21 11 0A 00     			ld de,10 ;десятки
+ 771+ 8E24 3E FF        			ld a,255
+ 772+ 8E26              toDecimal001k
+ 773+ 8E26 A7           			and a
+ 774+ 8E27 ED 52        			sbc hl,de
+ 775+ 8E29 3C           			inc a
+ 776+ 8E2A 30 FA        			jr nc,toDecimal001k
+ 777+ 8E2C 19           			add hl,de
+ 778+ 8E2D C6 30        			add a,48
+ 779+ 8E2F 32 4A 8E     			ld (decimalS+3),a
+ 780+ 8E32 11 01 00     			ld de,1 ;единицы
+ 781+ 8E35 3E FF        			ld a,255
+ 782+ 8E37              toDecimal0001k
+ 783+ 8E37 A7           			and a
+ 784+ 8E38 ED 52        			sbc hl,de
+ 785+ 8E3A 3C           			inc a
+ 786+ 8E3B 30 FA        			jr nc,toDecimal0001k
+ 787+ 8E3D 19           			add hl,de
+ 788+ 8E3E C6 30        			add a,48
+ 789+ 8E40 32 4B 8E     			ld (decimalS+4),a
+ 790+ 8E43 21 47 8E     			ld hl,decimalS
+ 791+ 8E46 C9           			ret
+ 792+ 8E47
+ 793+ 8E47 00 00 00...  decimalS	ds 6 ;десятичные цифры
+ 794+ 8E4D
+ 795+ 8E4D
+ 796+ 8E4D
+ 797+ 8E4D 00           gplay_type db 0 ;тип музыки
+ 798+ 8E4E              ;file_id_cur db 0; временно
+ 799+ 8E4E
+ 800+ 8E4E 0D 0D 42 72  txt_gplay_menu db 13,13,"Break, S - stop ",13,"Sp - Next",0
+ 800+ 8E52 65 61 6B 2C
+ 800+ 8E56 20 53 20 2D
+ 800+ 8E5A 20 73 74 6F
+ 800+ 8E5E 70 20 0D 53
+ 800+ 8E62 70 20 2D 20
+ 800+ 8E66 4E 65 78 74
+ 800+ 8E6A 00
+ 801+ 8E6B 0D 50 6C 61  txt_play db 13,"Play... ",0
+ 801+ 8E6F 79 2E 2E 2E
+ 801+ 8E73 20 00
+ 802+ 8E75 0D 53 74 6F  txt_stop db 13,"Stop",0
+ 802+ 8E79 70 00
+ 803+ 8E7B 0D 4C 6F 61  txt_load db 13,"Load...",0
+ 803+ 8E7F 64 2E 2E 2E
+ 803+ 8E83 00
+ 804+ 8E84 0D 47 53 20  txt_no_GS db 13,"GS not found!",0
+ 804+ 8E88 6E 6F 74 20
+ 804+ 8E8C 66 6F 75 6E
+ 804+ 8E90 64 21 00
+ 805+ 8E93 0D 42 4D 20  txt_no_BM db 13,"BM not found!",0
+ 805+ 8E97 6E 6F 74 20
+ 805+ 8E9B 66 6F 75 6E
+ 805+ 8E9F 64 21 00
+ 806+ 8EA2 0D 4D 65 6D  txt_memoryerror:    db 13,"Memory allocation error!",0
+ 806+ 8EA6 6F 72 79 20
+ 806+ 8EAA 61 6C 6C 6F
+ 806+ 8EAE 63 61 74 69
+ 806+ 8EB2 6F 6E 20 65
+ 806+ 8EB6 72 72 6F 72
+ 806+ 8EBA 21 00
+ 807+ 8EBC              ;txt_fopenerror:     db 13,"Cannot open file: ",0
+ 808+ 8EBC
+ 809+ 8EBC              msg_title
+ 810+ 8EBC 47 50 6C 61  	db "GPlay ver 2025.08.18",10,13,0
+ 810+ 8EC0 79 20 76 65
+ 810+ 8EC4 72 20 32 30
+ 810+ 8EC8 32 35 2E 30
+ 810+ 8ECC 38 2E 31 38
+ 810+ 8ED0 0A 0D 00
+ 811+ 8ED3
+ 812+ 8ED3              vgm_plr
+ 813+ 8ED3
+ 814+ 8ED3              ;module equ 0xc000
+ 815+ 8ED3              ;player_load = 0x8000 ;0x4000
+ 816+ 8ED3
+ 817+ 8ED3              ;ovl_start = 0x8000 ;0x4000
+ 818+ 8ED3
+ 819+ 8ED3              PLR_INIT  = vgm_plr ;0x4000
+ 820+ 8ED3              PLR_PLAY  = vgm_plr+5 ;0x4005
+ 821+ 8ED3              PLR_MUTE  = vgm_plr+8 ;0x4008
+ 822+ 8ED3
+ 823+ 8ED3              	include vgm.asm
 # file opened: GPlay/vgm.asm
-   1++8E80                      ;DEVICE ZXSPECTRUM48
-   2++8E80                      ;include "../../../_sdk/sys_h.asm"
-   3++8E80                      ;       ORG PROGSTART ;0x4000
-   4++8E80
-   5++8E80
-   6++8E80
-   7++8E80              ;memorystreamcurrentpage = 0x5100
-   8++8E80              ;current_ram_page = 0x5100
-   9++8E80
-  10++8E80
-  11++8E80              AREA_C000_FFFF   equ 1
-  12++8E80
-  13++8E80
-  14++8E80
-  15++8E80              module = $C000
-  16++8E80
-  17++8E80
-  18++8E80
-  19++8E80              begin
-  20++8E80              START
-  21++8E80 21 00 C0             	LD HL,module;MDLADDR ;DE - address of 2nd module for TS
-  22++8E83 18 06                	JR INIT
-  23++8E85 C3 7A 96             	JP PLAY
-  24++8E88 C3 6C 96             	JP MUTE
-  25++8E8B              INIT:
-  26++8E8B C3 CF 95             jp init_
-  27++8E8E
-  28++8E8E              DEVICE_AY_BIT         = 0
-  29++8E8E              DEVICE_TURBOSOUND_BIT = 1
-  30++8E8E              DEVICE_TFM_BIT        = 2
-  31++8E8E              DEVICE_MOONSOUND_BIT  = 3
-  32++8E8E              DEVICE_GS_BIT         = 4
-  33++8E8E              DEVICE_NEOGS_BIT      = 5
-  34++8E8E              DEVICE_MIDI_UART_BIT  = 6
-  35++8E8E
-  36++8E8E              DEVICE_AY_MASK         = 1<<DEVICE_AY_BIT
-  37++8E8E              DEVICE_TURBOSOUND_MASK = 1<<DEVICE_TURBOSOUND_BIT
-  38++8E8E              DEVICE_TFM_MASK        = 1<<DEVICE_TFM_BIT
-  39++8E8E              DEVICE_MOONSOUND_MASK  = 1<<DEVICE_MOONSOUND_BIT
-  40++8E8E              DEVICE_GS_MASK         = 1<<DEVICE_GS_BIT
-  41++8E8E              DEVICE_NEOGS_MASK      = 1<<DEVICE_NEOGS_BIT
-  42++8E8E              DEVICE_MIDI_UART_MASK  = 1<<DEVICE_MIDI_UART_BIT
-  43++8E8E
-  44++8E8E
-  45++8E8E
-  46++8E8E
-  47++8E8E
-  48++8E8E              HEADER_DATA_OFFSET = module+0x34 ;0xC034
-  49++8E8E              HEADER_LOOP_SAMPLES_COUNT = module+0x20 ;0xC020
-  50++8E8E              HEADER_GD3_OFFSET = module+0x14 ;0xC014
-  51++8E8E              HEADER_SAMPLES_COUNT = module+0x18 ;0xC018
-  52++8E8E              HEADER_LOOP_OFFSET = module+0x1c ;0xC01c
-  53++8E8E
-  54++8E8E
-  55++8E8E              HEADER_SIZE_MAX = 256
-  56++8E8E              TITLELENGTH = 64
-  57++8E8E              MEMORYSTREAMMAXPAGES = 210
-  58++8E8E              MEMORYSTREAMERRORMASK = 255 ; TODO: do we need to enforce loading the entire file?
-  59++8E8E              ENABLE_FM = 1
-  60++8E8E
-  61++8E8E
-  62++8E8E
-  63++8E8E
-  64++8E8E
-  65++8E8E
-  66++8E8E
-  67++8E8E 00 00 00...          align 256   ;0x8100 ;0x4100
+   1++8ED3                      ;DEVICE ZXSPECTRUM48
+   2++8ED3                      ;include "../../../_sdk/sys_h.asm"
+   3++8ED3                      ;       ORG PROGSTART ;0x4000
+   4++8ED3
+   5++8ED3
+   6++8ED3
+   7++8ED3              ;memorystreamcurrentpage = 0x5100
+   8++8ED3              ;current_ram_page = 0x5100
+   9++8ED3
+  10++8ED3
+  11++8ED3              AREA_C000_FFFF   equ 1
+  12++8ED3
+  13++8ED3
+  14++8ED3
+  15++8ED3              module = $C000
+  16++8ED3
+  17++8ED3
+  18++8ED3
+  19++8ED3              begin
+  20++8ED3              START
+  21++8ED3 21 00 C0             	LD HL,module;MDLADDR ;DE - address of 2nd module for TS
+  22++8ED6 18 06                	JR INIT
+  23++8ED8 C3 7A 96             	JP PLAY
+  24++8EDB C3 6C 96             	JP MUTE
+  25++8EDE              INIT:
+  26++8EDE C3 CF 95             jp init_
+  27++8EE1
+  28++8EE1              DEVICE_AY_BIT         = 0
+  29++8EE1              DEVICE_TURBOSOUND_BIT = 1
+  30++8EE1              DEVICE_TFM_BIT        = 2
+  31++8EE1              DEVICE_MOONSOUND_BIT  = 3
+  32++8EE1              DEVICE_GS_BIT         = 4
+  33++8EE1              DEVICE_NEOGS_BIT      = 5
+  34++8EE1              DEVICE_MIDI_UART_BIT  = 6
+  35++8EE1
+  36++8EE1              DEVICE_AY_MASK         = 1<<DEVICE_AY_BIT
+  37++8EE1              DEVICE_TURBOSOUND_MASK = 1<<DEVICE_TURBOSOUND_BIT
+  38++8EE1              DEVICE_TFM_MASK        = 1<<DEVICE_TFM_BIT
+  39++8EE1              DEVICE_MOONSOUND_MASK  = 1<<DEVICE_MOONSOUND_BIT
+  40++8EE1              DEVICE_GS_MASK         = 1<<DEVICE_GS_BIT
+  41++8EE1              DEVICE_NEOGS_MASK      = 1<<DEVICE_NEOGS_BIT
+  42++8EE1              DEVICE_MIDI_UART_MASK  = 1<<DEVICE_MIDI_UART_BIT
+  43++8EE1
+  44++8EE1
+  45++8EE1
+  46++8EE1
+  47++8EE1
+  48++8EE1              HEADER_DATA_OFFSET = module+0x34 ;0xC034
+  49++8EE1              HEADER_LOOP_SAMPLES_COUNT = module+0x20 ;0xC020
+  50++8EE1              HEADER_GD3_OFFSET = module+0x14 ;0xC014
+  51++8EE1              HEADER_SAMPLES_COUNT = module+0x18 ;0xC018
+  52++8EE1              HEADER_LOOP_OFFSET = module+0x1c ;0xC01c
+  53++8EE1
+  54++8EE1
+  55++8EE1              HEADER_SIZE_MAX = 256
+  56++8EE1              TITLELENGTH = 64
+  57++8EE1              MEMORYSTREAMMAXPAGES = 210
+  58++8EE1              MEMORYSTREAMERRORMASK = 255 ; TODO: do we need to enforce loading the entire file?
+  59++8EE1              ENABLE_FM = 1
+  60++8EE1
+  61++8EE1
+  62++8EE1
+  63++8EE1
+  64++8EE1
+  65++8EE1
+  66++8EE1
+  67++8EE1 00 00 00...          align 256   ;0x8100 ;0x4100
   68++8F00                      display "s98_file00_pages_list ",$
   69++8F00
   70++8F00 00 00 00...  memorystreampages: ds 256,0
@@ -5509,7 +5573,7 @@
  332++9771
  333++9771              endofsounddata
  334++9771                    ;  jp seektoloop ;здесь зацикливание, повтор
- 335++9771 CD 88 8E     	  call PLR_MUTE ;выключить звук
+ 335++9771 CD DB 8E     	  call PLR_MUTE ;выключить звук
  336++9774              cmdunsupported
  337++9774              ;stop playing
  338++9774 F1           	pop af
@@ -6398,7 +6462,7 @@
 1010++9AF3              ;        LABELSLIST "vgm_plr.l"
 1011++9AF3              ;	savebin "gplay.apg",begin,end-begin
 # file closed: GPlay/vgm.asm
- 777+ 9AF3              	include sub_func.asm
+ 824+ 9AF3              	include sub_func.asm
 # file opened: GPlay/sub_func.asm
    1++9AF3
    2++9AF3              fileopenerror
@@ -6438,7 +6502,7 @@
   32++9B0A 0E FF        		ld c,$FF
   33++9B0C 02                   ld (bc),a ;��������� ������� ������ �������
   34++9B0D
-  35++9B0D 21 4F 8E     		ld hl,txt_memoryerror
+  35++9B0D 21 A2 8E     		ld hl,txt_memoryerror
   36++9B10              		OS_PRINTZ
   36++9B10 0E 09       >    ld c,#09
   36++9B12 E7          >    rst #20
@@ -6632,8 +6696,8 @@
  208++9B6B
  209++9B6B 21 00 C0                     ld hl,module
  210++9B6E                              ;ld (0x4001),hl * ����� ������ ��� �������������
- 211++9B6E 22 81 8E     				ld (START+1),hl
- 212++9B71 CD 80 8E                     call PLR_INIT        ;init music
+ 211++9B6E 22 D4 8E     				ld (START+1),hl
+ 212++9B71 CD D3 8E                     call PLR_INIT        ;init music
  213++9B74
  214++9B74                        ;      EI
  215++9B74              ;----------------
@@ -6647,7 +6711,7 @@
  223++9B74
  224++9B74              ;��������� �����.
  225++9B74                              ;ld a,(plr_page)
- 226++9B74 21 85 8E                     ld hl,PLR_PLAY
+ 226++9B74 21 D8 8E                     ld hl,PLR_PLAY
  227++9B77                              ;OS_SETMUSIC         ;**** ��� ���������� ���������� �� �����
  228++9B77              				OS_SET_INTER
  228++9B77 0E 14       >    ld c,#14
@@ -6661,7 +6725,7 @@
  235++9B7C C3 09 9B             jp memoryerror
  236++9B7F
 # file closed: GPlay/sub_func.asm
- 778+ 9B7F              	include common/general-sound.asm
+ 825+ 9B7F              	include common/general-sound.asm
 # file opened: GPlay/common/general-sound.asm
    1++9B7F                  ;ifdef GS
    2++9B7F                  macro GS_WaitCommand
@@ -6807,17 +6871,17 @@
   91++9BE9
   92++9BE9                  ;endif
 # file closed: GPlay/common/general-sound.asm
- 779+ 9BE9              	;include common/muldiv.asm
- 780+ 9BE9
- 781+ 9BE9              end_gplay
- 782+ 9BE9
- 783+ 9BE9
- 784+ 9BE9
- 785+ 9BE9              ;ниже не включается в файл
- 786+ 9BE9              ;waveheaderbuffer equ 0xc000-2048=0xb800 ;
- 787+ 9BE9
- 788+ 9BE9
- 789+ 9BE9              	;savebin "gplay.apg",start_gplay,$-start_gplay
+ 826+ 9BE9              	;include common/muldiv.asm
+ 827+ 9BE9
+ 828+ 9BE9              end_gplay
+ 829+ 9BE9
+ 830+ 9BE9
+ 831+ 9BE9
+ 832+ 9BE9              ;ниже не включается в файл
+ 833+ 9BE9              ;waveheaderbuffer equ 0xc000-2048=0xb800 ;
+ 834+ 9BE9
+ 835+ 9BE9
+ 836+ 9BE9              	;savebin "gplay.apg",start_gplay,$-start_gplay
 # file closed: GPlay/gplay.asm
 1452  9BE9              	include nc_pic_view.asm ;просмотр картинок
 # file opened: nc_pic_view.asm

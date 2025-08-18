@@ -75,7 +75,7 @@ start_gplay_vgm
 	cp "v"
 	jr nz,exit_gplay
 	;если vgm
-	call load_mus ;инициализация VGM
+	call load_vgm
 	jp c,exit_gplay
 	
 	
@@ -166,8 +166,38 @@ gplay_stop
 	; ret
 
 
+check_BM
+	;определение наличия BomgeMoon
+	xor a
+	in a,(MOON_BASE)
+	cp 255
+	jr z,check_BM1
+	or a
+	ret
+
+check_BM1	
+	ld a,color_error ;цвет ошибки
+	ld b,#c
+	OS_SET_COLOR
+
+	ld hl,txt_no_BM
+	OS_PRINTZ
+	
+	ld a,color_backgr ;цвет основной
+	ld b,#c
+	OS_SET_COLOR
+	scf ;ошибка
+	ret
 
 
+
+
+
+load_vgm
+	call check_BM
+	ret c
+	jp load_mus ;инициализация и загрузка VGM
+	
 
 
 
@@ -175,6 +205,8 @@ gplay_stop
 
 load_vgz 
 ;тут запуск VGZ
+	call check_BM
+	ret c
 	;тут надо сначала распаковать файл
 	xor a
 	OS_SET_MONO_MODE ;запросить моно режим
@@ -296,8 +328,17 @@ WAITCOM2: ;это WC
 	JR NC,WAITCOM3
 	djnz WAITCOM2
 gs_no
+	ld a,color_error ;цвет ошибки
+	ld b,#c
+	OS_SET_COLOR
+
 	ld hl,txt_no_GS
 	OS_PRINTZ
+	
+	ld a,color_backgr ;цвет основной
+	ld b,#c
+	OS_SET_COLOR
+	
 	scf ;ошибка
 	ret
 	;jr gs_no
@@ -487,15 +528,20 @@ load_pt
 	ret c
 	
 	;начать игру
-	ld hl, free ;buffer_cat
+	ld hl,buffer_cat
 	OS_GET_VTPL_SETUP
 	ld a,(ptplayer_setup)
 	ld (hl),a ;настройки
 	
-	ld hl,free
+	ld hl,buffer_cat
 	OS_VTPL_INIT
 	OS_VTPL_PLAY
 
+	ld hl,txt_play
+	OS_PRINTZ
+	
+	ld hl,txt_gplay_menu
+	OS_PRINTZ
 
 load_pt_loop
     OS_WAIT : 
@@ -576,7 +622,7 @@ load_file_size_ok_small
 	jp z,load_file_error
 	ld d,h ;размер
 	ld e,l
-	ld hl,free ;buffer_cat ;куда
+	ld hl,buffer_cat ;куда
 	ld a,(file_id_cur_r)
 	OS_FILE_READ ;загрузить
 	jr c,load_file_error
@@ -756,11 +802,12 @@ txt_play db 13,"Play... ",0
 txt_stop db 13,"Stop",0
 txt_load db 13,"Load...",0
 txt_no_GS db 13,"GS not found!",0
+txt_no_BM db 13,"BM not found!",0
 txt_memoryerror:    db 13,"Memory allocation error!",0
 ;txt_fopenerror:     db 13,"Cannot open file: ",0
 	
 msg_title
-	db "GPlay ver 2025.08.15",10,13,0
+	db "GPlay ver 2025.08.18",10,13,0
 	
 vgm_plr
 
