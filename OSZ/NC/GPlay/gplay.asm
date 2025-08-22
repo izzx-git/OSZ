@@ -230,7 +230,7 @@ load_vgz1
 	
 	ld hl,start_gp_gzip_ext
 	ld de,start_gp_gzip
-	ld bc,end_gp_gzip_load-start_gp_gzip_load
+	ld bc,(gp_gzip_file_size)
 	ldir
 	
 	ld a,(page_ext01) ;доп страница для данных плеера
@@ -451,6 +451,8 @@ load_mod_loop
 	jp z, load_mod_stop
 	cp "S" ;чтоп
 	jp z, load_mod_stop
+	cp 24 ;break
+	jp z, load_mod_stop
 	;call printRTC
     ;проверка что MOD начал играть сначала
     GS_SendCommand2 CMD_GET_SONG_POSITION
@@ -552,6 +554,8 @@ load_pt_loop
 	jp z, load_pt_stop
 	cp "S" ;чтоп
 	jp z, load_pt_stop
+	cp 24 ;break
+	jp z, load_pt_stop
 	;call printRTC
 	
 	;печать инфо
@@ -583,74 +587,7 @@ ptplayer_setup db 0;
 
 
 
-;прочитать файл не больше #4000 байт
-;вх: hl - имя файла 
-;вых: CY = 1 = ошибка 
-load_file 
-	;ld hl,file_name_cur
-	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
-	jp c,load_file_error	
-	
-load_file_ok
-	ld (file_id_cur_r),a
-	;проверка длины файла не больше #4000
-	ld	a,d ;самые старшие байты длины
-	or e
-	jr z,load_file_size_ok ;если не слищком большой
-load_file_too_big
-	;файл больше буфера
-	ld hl,msg_file_too_big
-	OS_PRINTZ
-	scf
-	ret
 
-
-load_file_size_ok	
-	ld	a,h ;младший старший байт длины
-	cp #40
-	jr c,load_file_size_ok_small
-	jr nz,load_file_too_big
-	inc l
-	dec l
-	jr nz,load_file_too_big
-	
-	
-load_file_size_ok_small
-	;проверка на 0
-	ld a,h
-	or l
-	jp z,load_file_error
-	ld d,h ;размер
-	ld e,l
-	ld hl,buffer_cat ;куда
-	ld a,(file_id_cur_r)
-	OS_FILE_READ ;загрузить
-	jr c,load_file_error
-	
-	ld a,(file_id_cur_r)
-	OS_FILE_CLOSE ;A - id file
-	xor a
-	ret
-
-
-	
-load_file_error
-	ld a,color_error ;цвет ошибки
-	ld b,#c
-	OS_SET_COLOR
-		ld hl,msg_file_error
-		OS_PRINTZ
-	ld a,color_backgr ;цвет основной
-	ld b,#c
-	OS_SET_COLOR	
-		
-		ld a,(file_id_cur_r)
-		cp 255
-		jr z,load_file_error1
-		OS_FILE_CLOSE ;A - id file
-load_file_error1
-		scf ;ошибка
-		ret
 
 
 

@@ -20,7 +20,7 @@ start_nc
 get_page_error
 	ld hl,msg_mem_err ;нет памяти
 	OS_PRINTZ ;печать
-	
+get_page_error1
 	call delay
 	jp exit
 	
@@ -32,16 +32,19 @@ get_page_ok
 	jr c,get_page_error
 	ld (page_ext02_gzip),a ;запомнить
 
+	ld hl,msg_load_gzip
+	OS_PRINTZ
 	
 	ld a,(page_ext02_gzip) ;доп страница для данных плеера
 	OS_SET_PAGE_SLOT3
 	
-	ld hl,start_gp_gzip_load
-	ld de,start_gp_gzip_ext
-	ld bc,end_gp_gzip_load-start_gp_gzip_load
-	ldir ;сохранить в доп странице
+	ld hl,gp_gzip_file_name
+	call load_file
+	jr c,get_page_error1
+	ld (gp_gzip_file_size),hl ;запомнить размер
 	
-	ld a,(page_main) ;доп страница для данных плеера
+	
+	ld a,(page_main) ;основная страница с каталогом
 	OS_SET_PAGE_SLOT3
 	
 	
@@ -58,6 +61,7 @@ start_nc_warm ;тёплый старт
 
 	ld hl,0 ;обнулить переменные
 	ld (file_r_num_cur),hl
+	ld (file_r_num_old),hl
 	ld (file_r_all),hl
 	ld (file_r_cur_focus),hl
 	
@@ -104,6 +108,8 @@ nc_wait
 	jp z,sort_toggle
 	cp "3" ;просмотр файла
 	jp z,view_file	
+	cp "4" ;редактор файла
+	jp z,edit_file
 	cp 25 ;CS+Enter
 	jp z,nc_play_all 
 	cp 24 ;break
@@ -120,7 +126,7 @@ nc_wait
 
 
 delay ;задержка
-	ld b,50*3 ;
+	ld b,50*2 ;
 delay1
 	OS_WAIT
 	djnz delay1
@@ -444,6 +450,7 @@ key_down
 	jp z,key_down_ex ;защита
 	
 	ld bc,(file_r_num_cur)
+	ld (file_r_num_old),bc ;запомнить что было
 	inc bc	
 	ld hl,(file_r_all)
 	;если не больше чем всего
@@ -468,14 +475,22 @@ key_down_change_focus_yes
 	ld hl,(file_r_cur_focus)
 	inc hl
 	ld (file_r_cur_focus),hl	
+
+	ld a,1
+	ld (print_panel_r_flag),a ;напечатать всё снова
+	
+	ld a,(key_pressed)
+	ret
 	
 key_down_change_focus_no	
-	ld a,1
-	ld (print_panel_r_flag),a
-	;call print_panel_r ;обновить каталог
-key_down_skip
 
+	;call print_panel_r ;обновить каталог
+
+	call print_panel_r_cursor ;обновить только курсор
+	
 key_down_ex
+	
+key_down_skip
 	ld a,(key_pressed)
 	ret
 	
@@ -488,6 +503,7 @@ key_up ;вверх
 	jp z,key_up_ex ;защита
 	
 	ld hl,(file_r_num_cur)
+	ld (file_r_num_old),hl
 	ld a,l
 	or h
 	jr z,key_up_skip
@@ -512,14 +528,21 @@ key_up_change_foces_yes
 	dec hl
 	ld (file_r_cur_focus),hl	
 	
+	ld a,1
+	ld (print_panel_r_flag),a	;напечатать снова всё
+	
+	ld a,(key_pressed)
+	ret
+	
 key_up_change_foces_no	
 	
-	ld a,1
-	ld (print_panel_r_flag),a
 	;call print_panel_r ;обновить каталог
+	call print_panel_r_cursor ;обновить только курсор
+	
 key_up_skip
 
 key_up_ex
+	
 	ld a,(key_pressed)
 	ret
 	
@@ -707,6 +730,9 @@ check_pt32
 	ret nz
 	xor a ;равен
 	ret	
+
+
+
 	
 print_panel_r ;печать правой панели
 	;ld ix,buffer_cat	
@@ -728,7 +754,7 @@ print_panel_r_cl ;цикл
 	call calc_deskr
 		
 	call print_file_info ;напечатать строку
-print_panel_r_skip
+;print_panel_r_skip
 	pop de
 	inc d ;y++
 	inc iy ;текущий файл
@@ -751,6 +777,79 @@ print_panel_r_ex2
 	ret
 
 
+
+
+
+
+
+
+print_panel_r_cursor ;печать только строки с курсором в правой панели, для скорости навигации
+	ld bc,(file_r_num_old) ;старая позиция
+	ld (file_r_num_tmp),bc ;позиция курсора для печати
+	call print_panel_r_cursor_one ;"стереть" предыдущее
+	ld bc,(file_r_num_cur) ;позиция текущая
+	ld (file_r_num_tmp),bc ;позиция курсора для печати
+	call print_panel_r_cursor_one ;напечатать новое
+	ret
+
+
+print_panel_r_cursor_one
+	;ld ix,buffer_cat	
+	ld iy,(file_r_all) ;всего файлов
+	ld a,iyl
+	or iyh
+	ret z ;защита если 0
+	ld de,panel_r_xy ;координаты yx
+	ld b,panel_hight ;высота панели
+	ld iy,(file_r_cur_focus) ;номер файла первый видимый
+print_panel_r_cursor_cl ;цикл
+	push bc
+	push de
+	;проверить дошли ли до курсора
+	ld bc,(file_r_num_tmp) ;позиция курсора справа
+	push iy
+	pop hl
+	and a
+	sbc hl,bc ;сравнить
+	jr nz,print_panel_r_cursor_skip
+	;напечатать курсор
+	;push bc
+	;push de ;xy
+	OS_SET_XY
+	
+	;получить адрес элемента
+	push iy
+	pop hl
+	call calc_deskr
+		
+	call print_file_info ;напечатать строку
+print_panel_r_cursor_skip
+	pop de
+	inc d ;y++
+	inc iy ;текущий файл
+	;проверка на конец каталога
+	ld hl,(file_r_all)
+	push iy
+	pop bc
+	and a
+	sbc hl,bc
+	pop bc
+	jr c,print_panel_r_cursor_ex2
+	jr z,print_panel_r_cursor_ex2
+	djnz print_panel_r_cursor_cl
+	ret
+print_panel_r_cursor_ex
+	pop de
+	pop bc
+print_panel_r_cursor_ex2	
+	;тут, возможно, надо допечатать пустые строки
+	ret
+	
+	
+	
+	
+	
+	
 	
 	
 	
@@ -1426,6 +1525,10 @@ print_menu_main ;печать основного меню
 	OS_SET_XY
 	ld a,"3" ;пункт 3
 	OS_PRINT_CHARF
+	ld de,#1800+3*8
+	OS_SET_XY
+	ld a,"4" ;пункт 4
+	OS_PRINT_CHARF
 
 
 	ld a,color_backgr_hi ;цвет
@@ -1444,16 +1547,111 @@ print_menu_main ;печать основного меню
 	OS_SET_XY
 	ld hl,msg_menu_main3
 	OS_PRINTZ
+	ld de,#1800+3*8+1
+	OS_SET_XY
+	ld hl,msg_menu_main4
+	OS_PRINTZ
 	ret
 	
 	
+	
+;прочитать файл не больше #4000 байт
+;вх: hl - имя файла 
+;вых: CY = 1 = ошибка, hl - размер прочитанного
+load_file 
+	;ld hl,file_name_cur
+	OS_FILE_OPEN ;HL - File name (out: A - id file, de hl - size, IX - fcb)
+	jp c,load_file_error	
+	ld (load_file_size),hl ;размер
+;load_file_ok
+	ld (file_id_cur_r),a
+	;проверка длины файла не больше #4000
+	ld	a,d ;самые старшие байты длины
+	or e
+	jr z,load_file_size_ok ;если не слищком большой
+load_file_too_big
+	;файл больше буфера
+	ld a,color_error ;цвет ошибки
+	ld b,#c
+	OS_SET_COLOR
+
+	ld hl,msg_file_too_big
+	OS_PRINTZ
+	
+	ld a,color_backgr ;цвет основной
+	ld b,#c
+	OS_SET_COLOR
+	
+	;call delay
+	scf
+	ret
+
+
+load_file_size_ok	
+	ld	a,h ;младший старший байт длины
+	cp #40
+	jr c,load_file_size_ok_small
+	jr nz,load_file_too_big
+	inc l
+	dec l
+	jr nz,load_file_too_big
+	
+	
+load_file_size_ok_small
+	;проверка на 0
+	ld a,h
+	or l
+	jp z,load_file_error
+	ld d,h ;размер
+	ld e,l
+	ld hl,buffer_cat ;куда
+	ld a,(file_id_cur_r)
+	OS_FILE_READ ;загрузить
+	jr c,load_file_error
+	
+	ld a,(file_id_cur_r)
+	OS_FILE_CLOSE ;A - id file
+	
+	ld hl,(load_file_size)
+	xor a
+	ret
+
+
+	
+load_file_error
+	ld a,color_error ;цвет ошибки
+	ld b,#c
+	OS_SET_COLOR
+		ld hl,msg_file_error
+		OS_PRINTZ
+	ld a,color_backgr ;цвет основной
+	ld b,#c
+	OS_SET_COLOR	
+		
+		ld a,(file_id_cur_r)
+		cp 255
+		jr z,load_file_error1
+		OS_FILE_CLOSE ;A - id file
+load_file_error1
+
+	;call delay
+		scf ;ошибка
+		ret
+load_file_size dw 0 ;временно
+
+
+
+
 	include nc_view.asm ;просмотрщик
+	include nc_edit.asm ;редактор
 	include GPlay/gplay.asm ;плеер
 	include nc_pic_view.asm ;просмотр картинок
 
 color_error equ 1*8+2 ;цвет ошибка
 color_default equ 0*8+7 ;цвет обычный системный
 color_view_text equ 4 ;цвет текста в просмотрщике
+color_edit_text equ 4 ;цвет текста в редакторе
+color_edit_cursor equ 4*8+0 ;цвет курсора в редакторе текста
 
 color_backgr equ 1*8+7 ;цвет фона
 color_apg equ 1*8+4 ;цвет приложений
@@ -1476,12 +1674,18 @@ file_info_clear db "            ",0 ;для очистки
 buffer_cat_page_r db 0 ;страница буфера каталога правый
 
 file_r_num_cur dw 0 ;текущий файл справа
+file_r_num_old dw 0 ;текущий файл справа
+file_r_num_tmp dw 0 ;временно
 key_pressed db 0 ;последняя клавиша	
 file_id_cur_r db 0 ;id файла справа
 
 
 page_ext01 db 0 ;номер дополнительной страницы
 page_ext02_gzip db 0 ;номер дополнительной страницы
+
+gp_gzip_file_name db "gp_gzip.bin",0 ;часть плеера для режима моно, переносится в резервную страницу
+gp_gzip_file_size dw 0 ;размер части плеера
+
 page_main dw 0 ;основные номера страниц слота 2,3
 print_panel_r_flag db 0 ;флаг что надо обновить правую панель
 file_info_string_SFN_end db '                          ',0 ;пробелы для забоя конца строки
@@ -1516,7 +1720,9 @@ msg_menu_main1
 msg_menu_main2
 	db " AZ On",0
 msg_menu_main3	
-	db " View",0
+	db " View ",0
+msg_menu_main4	
+	db " Edit ",0
 msg_file_error
 	db "File error",13,0
 msg_file_too_big
@@ -1525,23 +1731,15 @@ msg_mem_err
 	db "Get memory error",13,0
 msg_mono_err
 	db "Get mono mode error",13,0
-msg_title_nc
-	db "None Commander ver 2025.08.15",13,0
+msg_load_gzip
+	db "Load gzip",13,0
 	
-
+msg_title_nc
+	db "None Commander ver 2025.08.22",13,0
+	
 
 start_gp_gzip equ #4000 ;рабочий адрес модуля для распаковки
 start_gp_gzip_ext equ #c000 ;временный адрес модуля для распаковки
-
-cat_index equ $ ; 1024 ;буфер для индекса (вектора) сортировки
-cat_index_2 equ cat_index+1024 ; 1024 ;буфер для индекса (вектора) сортировки 2
-file_info_string equ cat_index_2+1024 ;  file_info_lenght+1 ;буфер инфо
-	
-free equ file_info_string+file_info_lenght+1 ;тут условно свободно
-
-start_gp_gzip_load
-	incbin "gp_gzip.bin" ; часть плеера для режима моно, переносится в резервную страницу
-end_gp_gzip_load
 
 
 
@@ -1549,6 +1747,13 @@ end_nc
 	savebin "nc.apg",start_nc,$-start_nc
 
 ;ниже не включается в файл
+
+cat_index ds 1024 ;буфер для индекса (вектора) сортировки
+cat_index_2 ds 1024 ;буфер для индекса (вектора) сортировки 2
+file_info_string ds file_info_lenght+1 ;буфер инфо
+	
+free equ $ ;тут условно свободно
+
 
 
 end_nc_all

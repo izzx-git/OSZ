@@ -10,12 +10,18 @@ view_file
 	ld a,(ix+#0b) 
 	cp #10 ;признак каталога
 	jp z,view_file_ex
+	cp #30 ;признак каталога
+	jp z,view_file_ex
 	
 	call format_name ;обработать имя файла
 	
 	
 	
-	OS_CLS ;почистить экран
+	ld a,(page_ext01) ;доп страница для данных
+	OS_SET_PAGE_SLOT3
+	
+	ld de,#0000
+	OS_SET_XY
 	
 	;обнулить переменные
 	xor a
@@ -26,9 +32,9 @@ view_file
 	inc hl
 	ld (view_move_right_val),hl
 	
-	push bc
+	;push bc
 	call clear_buf
-	pop bc
+	;pop bc
 	
 	ld a,255
 	ld (file_id_cur_r),a
@@ -90,6 +96,7 @@ view_file_size_ok_small
 	
 view_file_readed
 	;файл прочитан
+	OS_CLS ;почистить экран
 	
 	ld hl,buffer_cat
 	ld (view_file_pos_cur),hl ;позиция просмотра на начало	
@@ -132,6 +139,8 @@ view_file_wait_ex
 	jr z,view_file_wait_ex1
 	OS_FILE_CLOSE ;A - id file
 view_file_wait_ex1
+	ld a,(page_main) ;основная страница с каталогом
+	OS_SET_PAGE_SLOT3
 	;почистить экран
 	OS_CLS
 	jp start_nc_warm ;перезагрузить папку
@@ -142,6 +151,8 @@ view_file_ex
 	jr z,view_file_ex1
 	OS_FILE_CLOSE ;A - id file
 view_file_ex1
+	ld a,(page_main) ;основная страница с каталогом
+	OS_SET_PAGE_SLOT3
 	jp nc_wait
 	
 	
@@ -164,7 +175,7 @@ view_line_up ;вверх на строчку
 	ld hl,(view_file_pos_cur) ;запомнить фокус
 	ld (view_file_pos_cur_focus),hl
 	call print_file_text ;напечатать всю страницу
-	jr view_file_wait
+	jp view_file_wait
 
 
 view_right ;вправо	
@@ -172,7 +183,7 @@ view_right ;вправо
 	inc hl
 	ld a,h
 	or l
-	jr z,view_file_wait
+	jp z,view_file_wait
 	ld (view_move_right_val),hl
 	call print_file_text ;напечатать всю страницу
 	jp view_file_wait

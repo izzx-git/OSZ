@@ -4,6 +4,7 @@ w909591u.beget.tech
 /Release/OSZ/artview.apg
 /Release/OSZ/moonr.apg
 /Release/OSZ/nc.apg
+/Release/OSZ/gp_gzip.bin
 /Release/OSZ/net.apg
 /Release/OSZ/os.$c
 /Release/OSZ/radio.apg
