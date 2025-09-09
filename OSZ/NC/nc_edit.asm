@@ -137,6 +137,9 @@ edit_file_wait_ex1
 	OS_SET_PAGE_SLOT3
 	;почистить экран
 	OS_CLS
+	
+	ld a,1 ;флаг чтобы вернуть позицию курсора
+	ld (key_enter_dir_flag),a
 	jp start_nc_warm ;перезагрузить папку
 
 

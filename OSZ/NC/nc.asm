@@ -47,6 +47,15 @@ get_page_ok
 	ld a,(page_main) ;основная страница с каталогом
 	OS_SET_PAGE_SLOT3
 	
+	;почистить начало истории
+	xor a ;в историю курсора , начинаем не с корневой папки
+	; ld (file_r_num_hyst_cur),a
+	ld h,a
+	ld l,a
+	ld (file_r_num_hyst_tabl),hl
+	ld (file_r_num_hyst_tabl+2),hl ;для корневой папки почистим
+	
+	call file_r_num_hyst_add ;запись в историю с номером 1
 	
 start_nc_warm ;тёплый старт
 
@@ -60,10 +69,17 @@ start_nc_warm ;тёплый старт
 	OS_DIR_READ
 
 	ld hl,0 ;обнулить переменные
+	ld (file_r_all),hl
+	
+	ld a,(key_enter_dir_flag) ;надо ли обнулять позицию курсора?
+	or a
+	jr nz,start_nc_warm1
+	
 	ld (file_r_num_cur),hl
 	ld (file_r_num_old),hl
-	ld (file_r_all),hl
 	ld (file_r_cur_focus),hl
+start_nc_warm1
+
 	
 	call sort_dir
 	
@@ -393,7 +409,22 @@ nc_play_all_down ;вниз по списку
 
 key_enter_dir
 	;тут открытие папки
-
+	
+	;определить идём вглубь (вперёд) или наверх (назад) 
+	xor a
+	ld (key_enter_dir_flag),a 
+	
+	ld a,(ix+#00)
+	cp "."
+	jr nz,key_enter_dir1
+	ld a,(ix+#01)
+	cp "."
+	jr nz,key_enter_dir1
+	;идём назад
+	ld a,1
+	ld (key_enter_dir_flag),a
+	
+key_enter_dir1
 	;call format_name_dir
 	ex de,hl ;de - дескриптор для открытия
 	ld hl,dir_name_cur
@@ -401,6 +432,16 @@ key_enter_dir
 	jp c,key_enter_ex ;если ошибка, ничего не делаем
 	
 	pop hl ;отменить возврат
+	ld a,0
+key_enter_dir_flag equ $-1
+	or a
+	jr nz,key_enter_dir_back
+	call file_r_num_hyst_add ;запомнить позицию курсора в истории
+	jp start_nc_warm ;перезагрузить папку
+
+key_enter_dir_back
+	;если в предыдущую папку
+	call file_r_num_hyst_get ;вспомнить позицию курсора
 	jp start_nc_warm ;перезагрузить папку
 
 
@@ -1642,6 +1683,94 @@ load_file_size dw 0 ;временно
 
 
 
+
+
+
+;добавить в историю положение курсора
+file_r_num_hyst_add
+	ld a,(file_r_num_hyst_cur)
+	inc a
+	ld (file_r_num_hyst_cur),a
+	cp file_r_num_hyst_tabl_max
+	jr nc,file_r_num_hyst_add_err
+	;узнать адрес в таблице
+	ld l,a
+	ld h,0
+	add hl,hl ;по 4 байта на запись
+	add hl,hl
+	ld bc,file_r_num_hyst_tabl
+	add hl,bc
+	;записать
+	ld bc,(file_r_num_cur)
+	ld (hl),c
+	inc hl
+	ld (hl),b
+	inc hl
+	ld bc,(file_r_cur_focus)
+	ld (hl),c
+	inc hl
+	ld (hl),b
+	; ld (file_r_num_old),hl
+	ret
+	
+file_r_num_hyst_add_err
+	;место для истории кончилось
+	ret
+
+
+	
+;взять из истории положение курсора 
+file_r_num_hyst_get
+	ld a,(file_r_num_hyst_cur)
+	or a
+	jr z,file_r_num_hyst_get_err
+	dec a
+	ld (file_r_num_hyst_cur),a ;будет следующий 
+	inc a
+	cp file_r_num_hyst_tabl_max
+	jr nc,file_r_num_hyst_get_err
+	;узнать адрес в таблице
+	ld l,a
+	ld h,0
+	add hl,hl ;по 4 байта на запись
+	add hl,hl
+	ld bc,file_r_num_hyst_tabl
+	add hl,bc
+	;считать
+	;ld bc,(file_r_num_cur)
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	;ld bc,(file_r_cur_focus)
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	;сравнить. а вдруг в этой папке уже нет столько файлов
+	; ld hl,(file_r_all)	
+	; and a
+	; sbc hl,bc
+	; jr c,file_r_num_hyst_get_err
+	;восстановить
+	ld (file_r_num_cur),bc
+	ld (file_r_num_old),bc
+	ld (file_r_cur_focus),de
+	ret
+
+
+
+file_r_num_hyst_get_err
+	;если в истории не нашли
+	ld hl,0
+	ld (file_r_num_cur),hl
+	ld (file_r_num_old),hl
+	ld (file_r_cur_focus),hl
+	ret
+
+
+
+
+
 	include nc_view.asm ;просмотрщик
 	include nc_edit.asm ;редактор
 	include GPlay/gplay.asm ;плеер
@@ -1666,6 +1795,8 @@ panel_hight equ 22;высота панели
 panel_r_xy equ #0129	
 buffer_cat equ #c000 ;адрес буфера каталога
 
+file_r_num_hyst_tabl_max equ 10 ;максимальная глубина истории положения курсора
+
 file_r_all dw 0;всего файлов справа
 file_r_cur_focus dw 0;первый видимый
 file_name_cur ds 256 ;имя файла текущее
@@ -1678,6 +1809,7 @@ file_r_num_old dw 0 ;текущий файл справа
 file_r_num_tmp dw 0 ;временно
 key_pressed db 0 ;последняя клавиша	
 file_id_cur_r db 0 ;id файла справа
+file_r_num_hyst_cur db 0 ;позиция в истории о номере текущего файла
 
 
 page_ext01 db 0 ;номер дополнительной страницы
@@ -1735,7 +1867,7 @@ msg_load_gzip
 	db "Load gzip",13,0
 	
 msg_title_nc
-	db "None Commander ver 2025.08.22",13,0
+	db "None Commander ver 2025.09.09",13,0
 	
 
 start_gp_gzip equ #4000 ;рабочий адрес модуля для распаковки
@@ -1751,7 +1883,9 @@ end_nc
 cat_index ds 1024 ;буфер для индекса (вектора) сортировки
 cat_index_2 ds 1024 ;буфер для индекса (вектора) сортировки 2
 file_info_string ds file_info_lenght+1 ;буфер инфо
-	
+file_r_num_hyst_tabl ds file_r_num_hyst_tabl_max*4 ;таблица истории положения курсора справа
+	ds 4
+
 free equ $ ;тут условно свободно
 
 

@@ -2715,7 +2715,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.08.13",13,10,0
+	db "OS ver 2025.09.09",13,10,0
 	
 
 
