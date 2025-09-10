@@ -58,7 +58,16 @@ get_page_ok
 	call file_r_num_hyst_add ;запись в историю с номером 1
 	
 start_nc_warm ;тёплый старт
+	ld hl,0 ;обнулить переменные
+	ld (file_r_num_cur),hl
+	ld (file_r_num_old),hl
+	ld (file_r_cur_focus),hl
+	
+start_nc_warm1
 
+	ld hl,0 ;обнулить переменные
+	ld (file_r_all),hl	
+	
 	;очистка буфера
 	call clear_buf
 	
@@ -68,20 +77,15 @@ start_nc_warm ;тёплый старт
 	ld b,32 ; секторов = 16384 = 512 файлов макс
 	OS_DIR_READ
 
-	ld hl,0 ;обнулить переменные
-	ld (file_r_all),hl
-	
-	ld a,(key_enter_dir_flag) ;надо ли обнулять позицию курсора?
-	or a
-	jr nz,start_nc_warm1
-	
-	ld (file_r_num_cur),hl
-	ld (file_r_num_old),hl
-	ld (file_r_cur_focus),hl
-start_nc_warm1
-
-	
 	call sort_dir
+	
+	ld a,(key_enter_dir_flag) ;
+	or a
+	jr z,start_nc_warm2
+	call file_r_num_hyst_get ;вспомнить позицию курсора
+	xor a
+	ld (key_enter_dir_flag),a
+start_nc_warm2	
 	
 	ld a,color_backgr
 	ld b,#c	
@@ -435,14 +439,10 @@ key_enter_dir1
 	ld a,0
 key_enter_dir_flag equ $-1
 	or a
-	jr nz,key_enter_dir_back
+	jp nz,start_nc_warm
 	call file_r_num_hyst_add ;запомнить позицию курсора в истории
 	jp start_nc_warm ;перезагрузить папку
 
-key_enter_dir_back
-	;если в предыдущую папку
-	call file_r_num_hyst_get ;вспомнить позицию курсора
-	jp start_nc_warm ;перезагрузить папку
 
 
 ; format_name_dir
@@ -1747,10 +1747,10 @@ file_r_num_hyst_get
 	inc hl
 	ld d,(hl)
 	;сравнить. а вдруг в этой папке уже нет столько файлов
-	; ld hl,(file_r_all)	
-	; and a
-	; sbc hl,bc
-	; jr c,file_r_num_hyst_get_err
+	ld hl,(file_r_all)	
+	and a
+	sbc hl,bc
+	jr c,file_r_num_hyst_get_err
 	;восстановить
 	ld (file_r_num_cur),bc
 	ld (file_r_num_old),bc
@@ -1867,7 +1867,7 @@ msg_load_gzip
 	db "Load gzip",13,0
 	
 msg_title_nc
-	db "None Commander ver 2025.09.09",13,0
+	db "None Commander ver 2025.09.10",13,0
 	
 
 start_gp_gzip equ #4000 ;рабочий адрес модуля для распаковки
