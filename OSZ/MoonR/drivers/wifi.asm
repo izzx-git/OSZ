@@ -2,7 +2,7 @@
 bytes_avail dw 0
 buffer_pointer dw 0
 closed db 1
-;link_id db 0;
+bytes_avail_all ds 4; всего принято
 wait_count equ 5*50 ; ожидание в кадрах
 buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
 ; ; Initialize Wifi chip to work
@@ -246,6 +246,32 @@ getPacket_wait1
 	ld (bytes_avail), bc	
 	add hl,bc
 	ld (buffer_pointer),hl ;продолжить загружать с этого места
+
+	;печать общего количества загруженного
+	push hl
+	push bc
+	ld de,#1800
+	OS_SET_XY	
+	pop bc
+	ld hl,(bytes_avail_all) ;младшие байты
+	add hl,bc
+	ld (bytes_avail_all),hl
+	jr nc,getPacket_print
+	ld hl,(bytes_avail_all+2) ;старшие байты
+	inc hl
+	ld (bytes_avail_all+2),hl
+getPacket_print
+;разделить на 1024
+	ld hl,(bytes_avail_all+1) ;средние байты (уже /256)
+	srl h ; младший бит придёт на флаг C , на старший бит придёт 0
+	rr l ; младший бит придёт на флаг C, на старший флаг C
+	srl h ; /1024
+	rr l ; 
+
+	call toDecimal
+	OS_PRINTZ
+	pop hl
+	
 	
 	ld a,(ix+2) ;!!! closed
 	xor 1

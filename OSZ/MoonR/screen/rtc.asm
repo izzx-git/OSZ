@@ -37,6 +37,7 @@ read_time_ok
 	; or a ;нет ошибки
 	ret
 
+	endif
 	
 toDecimal		;конвертирует 2 байта в 5 десятичных цифр
 				;на входе в HL число
@@ -90,9 +91,8 @@ toDecimal0001k
 			add hl,de
 			add a,48
 			ld (decimalS+4),a		
-			
+			ld hl,decimalS
 			ret
 	
 decimalS	ds 6 ;десятичные цифры
 	
-	endif

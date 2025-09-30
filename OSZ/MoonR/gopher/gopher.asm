@@ -46,6 +46,9 @@ makeRequest:
 
 
 loadBuffer:
+	ld hl,0
+	ld (Wifi.bytes_avail_all),hl ;обнулить всего байт принято
+	ld (Wifi.bytes_avail_all+2),hl
     ld hl, outputBuffer
     ld (Wifi.buffer_pointer), hl
 .loop

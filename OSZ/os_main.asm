@@ -258,10 +258,12 @@ sys_loop_skip_key
 
 release_key ;ждать отпускания клавиши
 	;OS_WAIT ;для системного процесса не рекомендуется
-	halt
 	;ld hl,(FlgScanKeys_addr)
 	;ждать пока отпустят все клавиши
-WAITKEY	XOR A:IN A,(#FE):CPL:AND #1F:JR nz,WAITKEY
+WAITKEY	
+	halt
+	XOR A:IN A,(#FE):CPL:AND #1F:
+	JR nz,WAITKEY
 	;bit 6,(hl)
 	;jr z,release_key
 	ret
@@ -2715,7 +2717,7 @@ msg_mem_max
 
 
 msg_ver_os
-	db "OS ver 2025.09.22",13,10,0
+	db "OS ver 2025.09.30",13,10,0
 	
 
 

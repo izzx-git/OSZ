@@ -87,8 +87,17 @@ FMODE_CREATE = #0E
 loadBuffer:
     ld b, Dos.FMODE_READ: call Dos.fopen
     push af
-        ld hl, outputBuffer, bc, #ffff - outputBuffer : call Dos.fread
-        ld hl, outputBuffer : add hl, bc : xor a : ld (hl), a : inc hl : ld (hl), a
+	ld b,h ;bc - длина
+	ld c,l ;
+    ld de, outputBuffer
+	add hl,de
+	jr nc,loadBuffer1 ;если не превышает размер буфера
+	ld bc, #ffff - outputBuffer ;или только размер буфера
+loadBuffer1		
+	ld hl, outputBuffer
+	call Dos.fread
+	;перед загрузкой буфер был очищен, поэтому можно в конце не ставить нули
+    ;ld hl, outputBuffer : add hl, bc : xor a : ld (hl), a : inc hl : ld (hl), a
     pop af
     call Dos.fclose
     ret
