@@ -41,6 +41,7 @@ makeRequest:
 
     ld hl, requestbuffer
     call Wifi.tcpSendZ
+	ret c
     xor a : ld (Wifi.closed), a
     ret
 

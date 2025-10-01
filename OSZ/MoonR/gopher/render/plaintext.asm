@@ -51,6 +51,9 @@ plainTextLoop:
     cp 'S' : call z, toggleSaveMode
 	cp 's' : call z, toggleSaveMode
 	
+	cp 24
+	jp z,exit_dos
+	
     jr plainTextLoop
 
 

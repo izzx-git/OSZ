@@ -49,7 +49,11 @@ openTCP:
 	;ld a,(link_id)
 	OS_ESP_CLOSE ;если уже пытались раньше, то закрыть
 	
-	ld b,wait_count ; пробуем открыть
+	xor a ;TCP
+	OS_ESP_OPEN	
+	jr nc,openTCP_wait1_ok ;если сразу получилось открыть очередь
+	
+	ld b,wait_count ; пробуем открыть очередь с ожиданием
 openTCP_wait1
 	OS_WAIT
 	push bc
@@ -61,7 +65,7 @@ openTCP_wait1
 	ret ;не удалось, наверное очередь
 openTCP_wait1_ok	
 	
-	;или подождём открытия
+	;подождём подтверждения открытия
 	ld b,wait_count ;
 openTCP_wait
 	OS_WAIT
@@ -179,13 +183,14 @@ tcpSendZ:
 	OS_ESP_SEND 
 	;ret c ;сразу не удалось (может, очередь)
 	;ждём когда запрос пройдёт
-	;ld b,wait_count ;
-tcpSendZ_wait1 ;бесконечно ждём
+	ld b,wait_count ;
+tcpSendZ_wait1 ;ждём подтверждения
 	OS_WAIT
 	ld a,(ix+4) ;флаг
 	cp 1
-	jr nz,tcpSendZ_wait1
-	or a
+	ret z
+	djnz tcpSendZ_wait1
+	scf ;не дождались
 	ret
 
 	
@@ -230,7 +235,7 @@ getPacket_skip_over
 	OS_ESP_GET
 	; ret c ;сразу не удалось (может, очередь)
 	; ld b,wait_count ;
-getPacket_wait1
+getPacket_wait1 ;бесконечно ждём подтверждения
 	OS_WAIT
 	ld a,(ix+6) ;флаг результат приёма
 	; rlca

@@ -26,6 +26,11 @@ asmOrg:
     include "screen/screen.asm"
     include "screen/rtc.asm"
     include "drivers/index.asm"
+	
+exit_dos ;выход в DOS
+	xor a
+	OS_PROC_CLOSE
+	
 start:
 	; IFDEF TRD
 	; align 256 ;временно
