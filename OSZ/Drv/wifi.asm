@@ -3,7 +3,7 @@ bytes_avail dw 0 ;байт для приёма
 buffer_pointer dw 0 ;указатель на адрес буфера
 closed db 1 ;флаг "соединение закрыто"
 ;link_id db 0 ;текущий id соединения
-buffer_end equ #40 ;ограничение буфера адрес #4000
+buffer_end equ #80 ;ограничение буфера адрес #4000
 
 ; Initialize Wifi chip to work
 init:
