@@ -4,7 +4,7 @@ buffer_pointer dw 0
 closed db 1
 bytes_avail_all ds 4; всего принято
 wait_count equ 5*50 ; ожидание в кадрах
-buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
+buffer_top equ #ff-(ESP_PACKET_MAX/256);ограничение буфера сверху
 ; ; Initialize Wifi chip to work
 ;init:
 	;ld hl,uartGetID : call TextMode.printZ

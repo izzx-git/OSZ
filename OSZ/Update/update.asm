@@ -756,7 +756,7 @@ max_list_size equ 2048
 
 file_list_name db "update.txt",0	;имя файла, в первой строке адрес сервера
 wait_count equ 3*50 ;задержка в кадрах
-buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
+buffer_top equ #ff-(ESP_PACKET_MAX/256);ограничение буфера сверху
 data_start dw 0 ;начало данных
 data_end dw 0 ;конец данных
 data_length dw 0 ;конец данных
@@ -797,7 +797,7 @@ msg_update_confim
 	db "Update OS from net? Y/N",13,0
 	
 msg_title_update
-	db "OS Update ver 2025.08.13",13,13,0
+	db "OS Update ver 2025.10.08",13,13,0
 
 request_buffer_title db "Request:",13
 

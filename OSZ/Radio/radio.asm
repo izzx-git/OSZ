@@ -1210,7 +1210,7 @@ save_file_name  ;тут имя файла
 
 id_lenght equ 6 ;длина кода файла
 wait_count equ 3*50 ;задержка в кадрах
-buffer_top equ #fa;ограничение буфера сверху #ffff - 1500
+buffer_top equ #ff-(ESP_PACKET_MAX/256);ограничение буфера сверху
 
 ; ;ответы ESP
 ; sendOk[] = "SEND OK";
@@ -1315,7 +1315,7 @@ requestbuffer2_end ;окончание строки запроса
 ;requestbuffer_end
 	
 msg_title_radio
-	db "Radio ver 2025.07.31",10,13,0
+	db "Radio ver 2025.10.08",10,13,0
 	
 outputBuffer_title db "Response:",13
 outputBuffer equ $  ;буфер для загрузки
