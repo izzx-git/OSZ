@@ -140,6 +140,17 @@ update.apg - обновление системы через интернет. Адрес сайта обновлений берёт из 
 
 
 
+Полезные ссылки:
+Карта Bomge Moon
+https://github.com/Kulicheg/BomgeMoon/tree/main
+Музыка VGZ
+https://opl.wafflenet.com/OPLArchive-full.zip
+Карта ZX WiFi
+https://github.com/izzx-git/ZX-WiFi
+Группа Scorpion ПрофРом
+https://t.me/ZS_ProfRom
+
+
 
 Использован код авторства:
 LW/PLM (новые функции монитора, опрос клавиатуры и др.)
