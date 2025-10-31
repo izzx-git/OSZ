@@ -1,0 +1,33 @@
+Name     BomgeMoon ;
+PartNo   00 ;
+Date     02.11.2024 ;
+Revision 01 ;
+Designer Engineer ;
+Company  Kulich ;
+Assembly None ;
+Location  ;
+Device   g16v8a;
+
+/* *************** INPUT PINS *********************/
+PIN    2 = A0;
+PIN    3 = A1;
+PIN    4 = A2;
+PIN    5 = A3;
+PIN    6 = A7;
+PIN    7 = A6;
+PIN    8 = A5;
+PIN    9 = A4;
+PIN   17 = CS2;
+PIN   13 = !M1;
+PIN   14 = A8;
+PIN   15 = A9;
+PIN   16 = !IORQ;
+/* *************** OUTPUT PINS *********************/
+PIN    18 = !IORGE;
+PIN    19 = !CS;
+FIELD ADDRESS = [ A7 , A6 , A5 , A4 , A3 , A2 , A1, A0 ] ;
+FirstPort = ADDRESS:[C4..C7];
+SecondPort = ADDRESS:[24..27];
+CS2 = FirstPort # SecondPort;
+CS = !M1 & IORQ & CS2;
+IORGE.OE = !M1 & CS2;
